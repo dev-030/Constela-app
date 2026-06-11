@@ -2,10 +2,12 @@ import { Text } from "@/components/ui/text";
 import { useColor } from "@/hooks/useColor";
 import { Image, Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { router } from "expo-router";
 import Header from "../_components/header";
 
 const conversations = [
   {
+    id: "sam",
     name: "Sam",
     message: "That sounds like a great plan!",
     time: "10:45 AM",
@@ -14,9 +16,11 @@ const conversations = [
     avatar: "https://i.pravatar.cc/120?img=12",
   },
   {
+    id: "david",
     name: "David",
     message: "Are you still up for the quiet museum tour?",
     time: "Yesterday",
+    unread: 0,
     online: false,
     avatar: "https://i.pravatar.cc/120?img=33",
   },
@@ -52,7 +56,13 @@ export default function MessagesScreen() {
 
       <View style={styles.messageList}>
         {conversations.map((conversation) => (
-          <Pressable key={conversation.name} style={styles.conversationRow}>
+          <Pressable
+            key={conversation.id}
+            style={styles.conversationRow}
+            onPress={() => {
+               router.push(`/inbox/${conversation.id}`);
+            }}
+          >
             <View style={styles.avatarWrap}>
               <Image
                 source={{ uri: conversation.avatar }}
