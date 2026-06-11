@@ -17,8 +17,8 @@ const data = getImages();
 
 function Swipe() {
 	const headerHeight = 100;
-	const PAGE_WIDTH = window.width;
-	const PAGE_HEIGHT = window.height - headerHeight;
+	const PAGE_WIDTH = window.width - 64; // accounting for padding
+	const PAGE_HEIGHT = window.height * 0.55; // smaller height to fit in the cardStackArea
 
 	const directionAnimVal = useSharedValue(0);
 
