@@ -18,7 +18,9 @@ SplashScreen.setOptions({
   fade: true,
 });
 
-export default function RootLayout() {
+import { ThemeContextProvider } from '@/providers/theme-context';
+
+function RootLayoutContent() {
   const colorScheme = useColorScheme() || 'light';
 
   useEffect(() => {
@@ -93,5 +95,13 @@ export default function RootLayout() {
         </Stack>
       </ThemeProvider>
     </GestureHandlerRootView>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <ThemeContextProvider>
+      <RootLayoutContent />
+    </ThemeContextProvider>
   );
 }

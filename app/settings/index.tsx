@@ -1,9 +1,10 @@
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { useColor } from '@/hooks/useColor';
+import { useThemeContext } from '@/providers/theme-context';
 import { router } from 'expo-router';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, View, ScrollView, Image, Switch } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -17,7 +18,8 @@ export default function SettingsIndexScreen() {
   const border = useColor('border');
   const secondary = useColor('secondary');
 
-  const [darkMode, setDarkMode] = useState(false);
+  const { themePreference, setColorScheme, colorScheme } = useThemeContext();
+  const darkMode = themePreference === 'dark' || (themePreference === 'system' && colorScheme === 'dark');
 
   const styles = useMemo(() => StyleSheet.create({
     container: {
@@ -152,7 +154,7 @@ export default function SettingsIndexScreen() {
           <Text style={styles.darkModeText}>Dark Mode</Text>
           <Switch
             value={darkMode}
-            onValueChange={setDarkMode}
+            onValueChange={(val) => setColorScheme(val ? 'dark' : 'light')}
             trackColor={{ false: muted + '55', true: secondary }}
           />
         </View>
