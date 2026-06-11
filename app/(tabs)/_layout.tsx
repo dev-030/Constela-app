@@ -13,7 +13,6 @@ import {
 export default function TabsLayout() {
   const red = useColor('red');
   const primary = useColor('primary');
-  const foreground = useColor('foreground');
   const secondary = useColor('secondary');
 
   return (
@@ -31,7 +30,7 @@ export default function TabsLayout() {
       labelVisibilityMode='labeled'
       disableTransparentOnScrollEdge={true}
     >
-      <NativeTabs.Trigger name='index'>
+      <NativeTabs.Trigger name='home/index'>
         {Platform.select({
           ios: <Icon sf='house.fill' />,
           android: (
@@ -41,17 +40,17 @@ export default function TabsLayout() {
         <Label>Home</Label>
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name='matches'>
+      <NativeTabs.Trigger name='matches/index'>
         {Platform.select({
           ios: <Icon sf='heart.fill' />,
           android: (
-            <Icon src={<VectorIcon family={MaterialIcons} name='favorite' />} />
+            <Icon src={<VectorIcon family={MaterialIcons} name='heart' />} />
           ),
         })}
         <Label>Matches</Label>
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name='friends'>
+      <NativeTabs.Trigger name='friends/index'>
         {Platform.select({
           ios: <Icon sf='person.2.fill' />,
           android: (
@@ -61,7 +60,7 @@ export default function TabsLayout() {
         <Label>Friends</Label>
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name='community'>
+      <NativeTabs.Trigger name='community/index'>
         {Platform.select({
           ios: <Icon sf='person.3.fill' />,
           android: (
@@ -71,11 +70,11 @@ export default function TabsLayout() {
         <Label>Community</Label>
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name='messages'>
+      <NativeTabs.Trigger name='messages/index'>
         {Platform.select({
           ios: <Icon sf='message.fill' />,
           android: (
-            <Icon src={<VectorIcon family={MaterialIcons} name='message' />} />
+            <Icon src={<VectorIcon family={MaterialIcons} name='message-square' />} />
           ),
         })}
         <Label>Messages</Label>

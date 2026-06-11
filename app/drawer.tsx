@@ -1,3 +1,4 @@
+import { CreditCard, Heart, LogOut, Moon, Settings, User } from 'lucide-react-native';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { useColor } from '@/hooks/useColor';
@@ -59,7 +60,7 @@ export default function DrawerScreen() {
         {/* Need a break toggle */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <Icon name="Moon" size={20} color="#00897B" />
+            <Icon name={Moon} size={20} color="#00897B" />
             <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#002B36' }}>Need a break?</Text>
           </View>
           <Switch 
@@ -82,7 +83,7 @@ export default function DrawerScreen() {
             padding: 16, 
             borderRadius: 24 
           }}>
-            <Icon name="User" size={20} color="#FFF" />
+            <Icon name={User} size={20} color="#FFF" />
             <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '500' }}>Profile</Text>
           </Pressable>
 
@@ -93,7 +94,7 @@ export default function DrawerScreen() {
             gap: 16, 
             padding: 16 
           }}>
-            <Icon name="Heart" size={20} color={text} />
+            <Icon name={Heart} size={20} color={text} />
             <Text style={{ color: text, fontSize: 16 }}>Likes</Text>
           </Pressable>
 
@@ -104,7 +105,7 @@ export default function DrawerScreen() {
             gap: 16, 
             padding: 16 
           }}>
-            <Icon name="CreditCard" size={20} color={text} />
+            <Icon name={CreditCard} size={20} color={text} />
             <Text style={{ color: text, fontSize: 16 }}>Subscription</Text>
           </Pressable>
 
@@ -115,7 +116,7 @@ export default function DrawerScreen() {
             gap: 16, 
             padding: 16 
           }}>
-            <Icon name="Settings" size={20} color={text} />
+            <Icon name={Settings} size={20} color={text} />
             <Text style={{ color: text, fontSize: 16 }}>Settings</Text>
           </Pressable>
         </View>
@@ -127,7 +128,7 @@ export default function DrawerScreen() {
           style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16 }}
           onPress={() => router.replace('/(auth)/login')}
         >
-          <Icon name="LogOut" size={20} color={destructive} />
+          <Icon name={LogOut} size={20} color={destructive} />
           <Text style={{ color: destructive, fontSize: 16, fontWeight: 'bold' }}>Logout</Text>
         </Pressable>
       </View>

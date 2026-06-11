@@ -1,4 +1,4 @@
-// import { Icon } from '@/components/ui/icon';
+import { Icon } from '@/components/ui/icon';
 import { ButtonSpinner, SpinnerVariant } from '@/components/ui/spinner';
 import { Text } from '@/components/ui/text';
 import { useColor } from '@/hooks/useColor';

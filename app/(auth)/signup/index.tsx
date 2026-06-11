@@ -51,7 +51,7 @@ export default function SignupScreen() {
             <Input
               placeholder="e.g. alex@example.com"
               variant="outline"
-              style={{ paddingVertical: 14 }}
+              inputStyle={{ paddingVertical: 14 }}
             />
           </View>
 

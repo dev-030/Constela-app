@@ -4,6 +4,7 @@ import { InputOTP } from '@/components/ui/input-otp';
 import { Text } from '@/components/ui/text';
 import { useColor } from '@/hooks/useColor';
 import { router } from 'expo-router';
+import { ArrowLeft, Mail } from 'lucide-react-native';
 import { Pressable, ScrollView, View } from 'react-native';
 
 export default function OtpScreen() {
@@ -18,7 +19,7 @@ export default function OtpScreen() {
         {/* Header - Back Button & Title */}
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 24 }}>
           <Pressable onPress={() => router.back()} style={{ padding: 8, marginLeft: -8 }}>
-            <Icon name="ArrowLeft" size={24} />
+            <Icon name={ArrowLeft} size={24} />
           </Pressable>
           <Text variant="title" style={{ fontSize: 20, fontWeight: 'bold', marginLeft: 16 }}>
             OTP Verification
@@ -37,32 +38,33 @@ export default function OtpScreen() {
 
         {/* Pink Envelope Icon */}
         <View style={{ alignItems: 'center', marginBottom: 48 }}>
-          <View style={{ 
-            width: 80, 
-            height: 80, 
-            borderRadius: 40, 
+          <View style={{
+            width: 80,
+            height: 80,
+            borderRadius: 40,
             backgroundColor: secondary,
             justifyContent: 'center',
             alignItems: 'center'
           }}>
-            <Icon name="Mail" size={40} color={primaryForeground} />
+            <Icon name={Mail} size={40} color={primaryForeground} />
           </View>
         </View>
 
         {/* OTP Input */}
         <View style={{ alignItems: 'center', marginBottom: 48 }}>
-          <InputOTP 
-            length={4} 
-            slotStyle={{ width: 64, height: 64, borderRadius: 12 }} 
+          <InputOTP
+            length={4}
+            slotStyle={{ width: 64, height: 64, borderRadius: 12 }}
           />
         </View>
 
         {/* Buttons */}
         <View style={{ gap: 24, marginTop: 'auto', marginBottom: 40 }}>
-          <Button 
-            disabled 
-            style={{ backgroundColor: muted + '33' }}
+          <Button
+            // disabled
+            // style={{ backgroundColor: muted + '33' }}
             textStyle={{ color: primaryForeground }}
+            onPress={() => router.push('/(tabs)/home')}
           >
             Continue
           </Button>
