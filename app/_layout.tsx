@@ -9,9 +9,11 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { setBackgroundColorAsync } from 'expo-system-ui';
 import React, { useEffect } from 'react';
-import { Platform } from 'react-native';
+import { LogBox, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
+
+LogBox.ignoreAllLogs();
 
 SplashScreen.setOptions({
   duration: 200,
@@ -97,6 +99,12 @@ function RootLayoutContent() {
               presentation: 'modal',
               headerShown: false,
               animation: 'slide_from_bottom',
+            }}
+          />
+          <Stack.Screen
+            name='profile'
+            options={{
+              headerShown: false,
             }}
           />
           <Stack.Screen name='+not-found' />

@@ -75,7 +75,14 @@ export default function DrawerScreen() {
         {/* Menu Items */}
         <View style={{ gap: 8 }}>
           {/* Profile (Active) */}
-          <Pressable style={{ 
+          <Pressable 
+            onPress={() => {
+              router.back();
+              setTimeout(() => {
+                router.push('/profile');
+              }, 100);
+            }}
+            style={{ 
             flexDirection: 'row', 
             alignItems: 'center', 
             gap: 16, 

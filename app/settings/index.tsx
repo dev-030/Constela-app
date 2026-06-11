@@ -180,7 +180,7 @@ export default function SettingsIndexScreen() {
         </View>
 
         <View style={{ flexDirection: "row", gap: 16, marginBottom: 32 }}>
-          <Link href="/settings/profile">
+          <Link href="/profile">
             <Badge>Profile</Badge>
           </Link>
           <Link href="/settings/likes">
