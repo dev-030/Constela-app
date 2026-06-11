@@ -50,7 +50,7 @@ export default function HomeScreen() {
         />
         <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
           <Icon name={Bell} size={24} />
-          <Pressable onPress={() => router.push("/drawer")}>
+          <Pressable onPress={() => router.push("/settings")}>
             <View
               style={{
                 width: 36,
