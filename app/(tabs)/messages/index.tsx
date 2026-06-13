@@ -1,11 +1,11 @@
 import { Text } from "@/components/ui/text";
 import { useColor } from "@/hooks/useColor";
 import { Image, Pressable, StyleSheet, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import Header from "../_components/header";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-const conversations = [
+const datingConversations = [
   {
     id: "sam",
     name: "Sam",
@@ -16,6 +16,27 @@ const conversations = [
     avatar: "https://i.pravatar.cc/120?img=12",
   },
   {
+    id: "jordan",
+    name: "Jordan",
+    message: "Would love to see that exhibit too!",
+    time: "Yesterday",
+    unread: 0,
+    online: false,
+    avatar: "https://i.pravatar.cc/120?img=60",
+  },
+  {
+    id: "alex",
+    name: "Alex",
+    message: "Thanks for a wonderful evening 🌙",
+    time: "2 days ago",
+    unread: 2,
+    online: true,
+    avatar: "https://i.pravatar.cc/120?img=45",
+  },
+];
+
+const friendsConversations = [
+  {
     id: "david",
     name: "David",
     message: "Are you still up for the quiet museum tour?",
@@ -24,82 +45,105 @@ const conversations = [
     online: false,
     avatar: "https://i.pravatar.cc/120?img=33",
   },
+  {
+    id: "emma",
+    name: "Emma",
+    message: "Movie night this Friday? 🍿",
+    time: "3 days ago",
+    unread: 1,
+    online: true,
+    avatar: "https://i.pravatar.cc/120?img=25",
+  },
+  {
+    id: "mike",
+    name: "Mike",
+    message: "Check out this new cafe I found!",
+    time: "1 week ago",
+    unread: 0,
+    online: true,
+    avatar: "https://i.pravatar.cc/120?img=53",
+  },
 ];
 
-export default function MessagesScreen() {
-  const insets = useSafeAreaInsets();
+function ConversationList({
+  conversations,
+}: {
+  conversations: typeof datingConversations;
+}) {
   const background = useColor("background");
-  const border = useColor("border");
+
+  return (
+    <View style={styles.messageList}>
+      {conversations.map((conversation) => (
+        <Pressable
+          key={conversation.id}
+          style={styles.conversationRow}
+          onPress={() => {
+            router.push(`/inbox/${conversation.id}`);
+          }}
+        >
+          <View style={styles.avatarWrap}>
+            <Image
+              source={{ uri: conversation.avatar }}
+              style={styles.avatar}
+            />
+            <View
+              style={[
+                styles.statusDot,
+                {
+                  backgroundColor: conversation.online ? "#25C45E" : "#CFD5D8",
+                  borderColor: background,
+                },
+              ]}
+            />
+          </View>
+
+          <View style={styles.conversationBody}>
+            <View style={styles.conversationTop}>
+              <Text style={styles.name}>{conversation.name}</Text>
+              <Text style={styles.time}>{conversation.time}</Text>
+            </View>
+            <View style={styles.previewRow}>
+              <Text numberOfLines={1} style={styles.messagePreview}>
+                {conversation.message}
+              </Text>
+              {conversation.unread ? (
+                <View style={styles.unreadBadge}>
+                  <Text style={styles.unreadText}>{conversation.unread}</Text>
+                </View>
+              ) : null}
+            </View>
+          </View>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+export default function MessagesScreen() {
+  const background = useColor("background");
 
   return (
     <View style={[styles.container, { backgroundColor: background }]}>
-      {/* <View
-        style={[
-          styles.header,
-          {
-            paddingTop: insets.top + 24,
-            borderBottomColor: border + "66",
-          },
-        ]}
-      >
-        <Text style={styles.headerTitle}>Messages</Text>
-      </View> */}
       <Header />
-      <View style={styles.tabs}>
-        <Pressable style={[styles.tabButton, styles.activeTab]}>
-          <Text style={styles.activeTabText}>Dating</Text>
-        </Pressable>
-        <Pressable style={styles.tabButton}>
-          <Text style={styles.tabText}>Friends</Text>
-        </Pressable>
-      </View>
+      <Tabs defaultValue="Dating" enableSwipe>
+        <TabsList style={styles.tabsList}>
+          <TabsTrigger value="Dating" textStyle={styles.triggerText}>
+            Dating
+          </TabsTrigger>
+          <TabsTrigger value="Friends" textStyle={styles.triggerText}>
+            Friends
+          </TabsTrigger>
+        </TabsList>
 
-      <View style={styles.messageList}>
-        {conversations.map((conversation) => (
-          <Pressable
-            key={conversation.id}
-            style={styles.conversationRow}
-            onPress={() => {
-               router.push(`/inbox/${conversation.id}`);
-            }}
-          >
-            <View style={styles.avatarWrap}>
-              <Image
-                source={{ uri: conversation.avatar }}
-                style={styles.avatar}
-              />
-              <View
-                style={[
-                  styles.statusDot,
-                  {
-                    backgroundColor: conversation.online
-                      ? "#25C45E"
-                      : "#CFD5D8",
-                    borderColor: background,
-                  },
-                ]}
-              />
-            </View>
+        <TabsContent value="Dating" style={{ paddingTop: 0 }}>
+          <ConversationList conversations={datingConversations} />
+        </TabsContent>
 
-            <View style={styles.conversationBody}>
-              <View style={styles.conversationTop}>
-                <Text style={styles.name}>{conversation.name}</Text>
-                <Text style={styles.time}>{conversation.time}</Text>
-              </View>
-              <View style={styles.previewRow}>
-                <Text numberOfLines={1} style={styles.messagePreview}>
-                  {conversation.message}
-                </Text>
-                {conversation.unread ? (
-                  <View style={styles.unreadBadge}>
-                    <Text style={styles.unreadText}>{conversation.unread}</Text>
-                  </View>
-                ) : null}
-              </View>
-            </View>
-          </Pressable>
-        ))}
-      </View>
+        <TabsContent value="Friends" style={{ paddingTop: 0 }}>
+          <ConversationList conversations={friendsConversations} />
+        </TabsContent>
+      </Tabs>
     </View>
   );
 }
@@ -108,49 +152,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    height: 110,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.12,
-    shadowRadius: 3,
-    elevation: 2,
-    justifyContent: "flex-start",
-    paddingHorizontal: 18,
-  },
-  headerTitle: {
-    color: "#0B3338",
-    fontSize: 24,
-    fontWeight: "800",
-  },
-  tabs: {
-    height: 68,
+  tabsList: {
     flexDirection: "row",
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#E7ECEF",
+    justifyContent: "space-between",
   },
-  tabButton: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  activeTab: {
-    borderBottomWidth: 2,
-    borderBottomColor: "#EF3D77",
-  },
-  activeTabText: {
-    color: "#EF3D77",
-    fontSize: 15,
-    fontWeight: "800",
-  },
-  tabText: {
-    color: "#0B3338",
+  triggerText: {
     fontSize: 15,
     fontWeight: "800",
   },
   messageList: {
-    paddingTop: 27,
+    paddingTop: 20,
   },
   conversationRow: {
     minHeight: 64,
@@ -205,10 +216,10 @@ const styles = StyleSheet.create({
   },
   messagePreview: {
     flex: 1,
-    color: "#1C1C1C",
-    fontSize: 16,
-    fontWeight: "800",
-    lineHeight: 22,
+    color: "#71717A",
+    fontSize: 15,
+    fontWeight: "500",
+    lineHeight: 20,
   },
   unreadBadge: {
     width: 19,

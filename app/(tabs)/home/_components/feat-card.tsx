@@ -17,7 +17,7 @@ import {
   BookOpen,
   Sliders,
 } from "lucide-react-native";
-
+import { useRouter } from "expo-router";
 interface FeatureItem {
   icon: React.ComponentType<any>;
   text: string;
@@ -37,6 +37,7 @@ interface CardConfig {
   buttonText: string;
   rightElement: "preview" | "illustration";
   illustrationText?: string;
+  path?: string;
 }
 
 interface DashboardCardProps {
@@ -51,6 +52,7 @@ function DashboardCard({
   mutedColor,
 }: DashboardCardProps) {
   const { themeColors, rightElement } = config;
+  const router = useRouter();
 
   return (
     <View
@@ -101,8 +103,12 @@ function DashboardCard({
         <Button
           style={[
             styles.actionButton,
-            { backgroundColor: themeColors.badgeBg, color: themeColors.accentText },
+            {
+              backgroundColor: themeColors.badgeBg,
+              color: themeColors.accentText,
+            },
           ]}
+          onPress={() => config.path && router.push(config.path)}
         >
           {config.buttonText}
         </Button>
@@ -188,6 +194,7 @@ export default function CardList() {
         { icon: Sliders, text: "Sensory filters" },
         { icon: Clock, text: "Respect your pace" },
       ],
+      path: "/matches",
     },
     {
       id: "friends",
@@ -207,6 +214,7 @@ export default function CardList() {
         { icon: PlayCircle, text: "Shared activities" },
         { icon: MessageCircle, text: "Safe conversations" },
       ],
+      path: "/friends",
     },
     {
       id: "community",
@@ -222,10 +230,11 @@ export default function CardList() {
       rightElement: "illustration",
       illustrationText: "Community",
       features: [
-         { icon: MessageSquare, text: "Forums & discussions" },
-         { icon: BookOpen, text: "Resources & advice" },
-         { icon: Users, text: "Events & groups" },
+        { icon: MessageSquare, text: "Forums & discussions" },
+        { icon: BookOpen, text: "Resources & advice" },
+        { icon: Users, text: "Events & groups" },
       ],
+      path: "/community",
     },
   ];
 

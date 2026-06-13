@@ -29,7 +29,9 @@ export default function Header() {
         resizeMode="contain"
       />
       <View style={styles.headerRight}>
-        <Icon name={Bell} size={24} />
+        <Pressable onPress={() => router.push("/notifications")} hitSlop={12}>
+          <Icon name={Bell} size={24} />
+        </Pressable>
         <Pressable onPress={() => router.push("/settings")}>
           <View style={[styles.avatarContainer, { backgroundColor: muted }]}>
             <Image
