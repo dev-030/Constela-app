@@ -25,7 +25,7 @@ import { Button } from "@/components/ui/button";
 
 export default function FriendProfileScreen() {
   const insets = useSafeAreaInsets();
-  const background = "#FBF8F1"; // Using the cream background from mockup
+  const background = useColor("background");
   const text = useColor("text");
   const muted = useColor("textMuted");
   const primary = useColor("primary");
@@ -133,7 +133,7 @@ export default function FriendProfileScreen() {
 
       {/* Floating Action Buttons */}
       <View
-        style={[styles.fabContainer, { paddingBottom: insets.bottom || 24 }]}
+        style={[styles.fabContainer, { paddingBottom: insets.bottom || 24, backgroundColor: background }]}
       >
         <Button onPress={() => router.push("/inbox/12")}>Message</Button>
         <Button>Add Friend</Button>
@@ -249,7 +249,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   fabContainer: {
-    backgroundColor: "white",
     position: "absolute",
     bottom: 0,
     left: 0,

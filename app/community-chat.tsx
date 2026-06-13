@@ -9,6 +9,7 @@ import {
   Send,
   Smile,
 } from "lucide-react-native";
+import React from "react";
 import {
   Image,
   Pressable,
@@ -17,6 +18,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { useColorScheme } from "@/hooks/useColorScheme";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 const PRIMARY = "#DE4177";
@@ -107,21 +109,22 @@ export default function CommunityChatScreen() {
 ];
 
   const groupTitle = typeof title === "string" ? title : "ADHD Hub";
+  const colorScheme = useColorScheme();
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: background }]}>
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: border }]}>
         <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
-          <Icon name={ArrowLeft} size={24} color={"#1F3A3D"} />
+          <Icon name={ArrowLeft} size={24} color={text} />
         </Pressable>
         <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>{groupTitle}</Text>
+          <Text style={[styles.headerTitle, { color: text }]}>{groupTitle}</Text>
           <Text style={styles.headerSubtitle}>1.2k members</Text>
         </View>
-        <Pressable style={styles.leaveButton}>
-          <Icon name={LogOut} size={16} color={"#4A3B32"} />
-          <Text style={styles.leaveButtonText}>Leave</Text>
+        <Pressable style={[styles.leaveButton, { backgroundColor: colorScheme === 'dark' ? '#222' : '#F2EBE5' }]}>
+          <Icon name={LogOut} size={16} color={colorScheme === 'dark' ? '#FFF' : "#4A3B32"} />
+          <Text style={[styles.leaveButtonText, { color: colorScheme === 'dark' ? '#FFF' : "#4A3B32" }]}>Leave</Text>
         </Pressable>
       </View>
 
@@ -133,7 +136,7 @@ export default function CommunityChatScreen() {
           <View key={group.id}>
             {/* Date Divider */}
             <View style={styles.dateDivider}>
-              <Text style={styles.dateDividerText}>{group.date}</Text>
+              <Text style={[styles.dateDividerText, colorScheme === 'dark' && { color: '#4A5B6B' }]}>{group.date}</Text>
             </View>
 
             {/* Messages */}
@@ -152,15 +155,17 @@ export default function CommunityChatScreen() {
                 <View style={styles.messageContent}>
                   <View style={styles.messageHeader}>
                     <View style={styles.messageHeaderLeft}>
-                      <Text style={[styles.senderName, { color: msg.nameColor }]}>
+                      <Text style={[styles.senderName, { color: colorScheme === 'dark' ? '#8A9BA8' : msg.nameColor }]}>
                         {msg.user}
                       </Text>
                       <Text style={styles.messageTime}>{msg.time}</Text>
                     </View>
                     <Icon name={Info} size={16} color="#9BA4B5" />
                   </View>
-                  <View style={[styles.bubble, { borderColor: border }]}>
-                    {msg.text}
+                  <View style={[styles.bubble, { borderColor: colorScheme === 'dark' ? '#1C382F' : border, backgroundColor: colorScheme === 'dark' ? 'transparent' : '#FFF' }]}>
+                    {React.cloneElement(msg.text as React.ReactElement, {
+                      style: [styles.messageText, { color: text }]
+                    })}
                   </View>
                 </View>
               </View>
@@ -170,11 +175,11 @@ export default function CommunityChatScreen() {
       </ScrollView>
 
       {/* Input Area */}
-      <View style={[styles.inputArea, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-        <View style={[styles.inputContainer, { borderColor: "#E8C8BE" }]}>
-          <Icon name={Smile} size={24} color="#554C49" />
+      <View style={[styles.inputArea, { paddingBottom: Math.max(insets.bottom, 12), backgroundColor: background, borderTopColor: colorScheme === 'dark' ? '#1C382F' : '#F4F4F4' }]}>
+        <View style={[styles.inputContainer, { borderColor: colorScheme === 'dark' ? '#1C382F' : "#E8C8BE" }]}>
+          <Icon name={Smile} size={24} color={colorScheme === 'dark' ? '#8C93A1' : "#554C49"} />
           <TextInput
-            style={styles.textInput}
+            style={[styles.textInput, { color: text }]}
             placeholder={`Message ${groupTitle}`}
             placeholderTextColor="#8C93A1"
           />
@@ -232,7 +237,7 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   dateDivider: {
-    backgroundColor: "#F4EFEA",
+    backgroundColor: "transparent",
     paddingVertical: 8,
     paddingHorizontal: 20,
     marginVertical: 8,

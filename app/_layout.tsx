@@ -53,7 +53,7 @@ function RootLayoutContent() {
             options={{
               headerShown: false,
               sheetGrabberVisible: true,
-              sheetAllowedDetents: [0.4, 0.7, 1],
+              sheetAllowedDetents: [1],
               contentStyle: {
                 backgroundColor: isLiquidGlassAvailable()
                   ? 'transparent'
@@ -64,12 +64,7 @@ function RootLayoutContent() {
               headerTransparent: Platform.OS === 'ios' ? true : false,
               headerLargeTitle: false,
               title: '',
-              presentation:
-                Platform.OS === 'ios'
-                  ? isLiquidGlassAvailable() && osName !== 'iPadOS'
-                    ? 'formSheet'
-                    : 'modal'
-                  : 'modal',
+              presentation: 'modal',
               sheetInitialDetentIndex: 0,
               headerStyle: {
                 backgroundColor:
@@ -103,6 +98,18 @@ function RootLayoutContent() {
           />
           <Stack.Screen
             name='profile'
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name='community-chat'
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name='notifications'
             options={{
               headerShown: false,
             }}

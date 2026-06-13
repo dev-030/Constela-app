@@ -22,9 +22,6 @@ export default function ProfileSheet() {
 
       <View style={styles.header}>
         <Text style={[styles.name, { color: text }]}>Sam, 28</Text>
-        <Pressable hitSlop={12}>
-          <Icon name={MoreHorizontal} size={24} color={text} />
-        </Pressable>
       </View>
       <ScrollView
         contentContainerStyle={styles.scrollContent}

@@ -221,6 +221,15 @@ export default function SettingsIndexScreen() {
           <Text style={styles.sectionTitle}>SUBSCRIPTION</Text>
           {renderItem("Payment History", "/settings")}
         </View>
+
+        <Button
+          variant="destructive"
+          onPress={() => {
+            router.replace("/login");
+          }}
+        >
+          Logout
+        </Button>
       </ScrollView>
     </View>
   );
