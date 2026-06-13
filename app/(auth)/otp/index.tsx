@@ -64,7 +64,7 @@ export default function OtpScreen() {
             // disabled
             // style={{ backgroundColor: muted + '33' }}
             textStyle={{ color: primaryForeground }}
-            onPress={() => router.push('/(tabs)/home')}
+            onPress={() => router.replace('/onboarding')}
           >
             Continue
           </Button>

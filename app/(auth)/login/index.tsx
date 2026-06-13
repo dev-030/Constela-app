@@ -93,7 +93,7 @@ export default function LoginScreen() {
 
           <Button
             style={{ marginTop: 8 }}
-            onPress={() => router.push("/(auth)/otp")}
+            onPress={() => router.replace("/(auth)/otp")}
           >
             Log In
           </Button>
