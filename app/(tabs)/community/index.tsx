@@ -5,6 +5,7 @@ import { Image, Pressable, ScrollView, StyleSheet, TextInput, View } from "react
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Bell, Search, SlidersHorizontal, Zap } from "lucide-react-native";
 import Header from "../_components/header";
+import { router } from "expo-router";
 
 const avatarUris = [
   "https://i.pravatar.cc/80?img=32",
@@ -81,6 +82,7 @@ function GroupBadge({ group }: { group: (typeof groups)[number] }) {
 function GroupCard({ group, index }: { group: (typeof groups)[number]; index: number }) {
   return (
     <Pressable
+      onPress={() => router.push({ pathname: '/community-chat', params: { title: group.title } })}
       style={[
         styles.groupCard,
         {
@@ -135,9 +137,6 @@ export default function CommunityScreen() {
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Community Rooms</Text>
-          <Pressable style={styles.filterButton}>
-            <SlidersHorizontal size={23} color="#3E6F63" />
-          </Pressable>
         </View>
 
         <View style={styles.searchBox}>

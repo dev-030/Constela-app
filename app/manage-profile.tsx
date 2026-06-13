@@ -18,15 +18,7 @@ export default function ManageProfileScreen() {
   const [isBlocked, setIsBlocked] = useState(false);
 
   return (
-    <View style={[styles.container, { backgroundColor: background, paddingBottom: insets.bottom + 24 }]}>
-      {/* We don't render a grabber here manually because the sheet route options `sheetGrabberVisible: true` handles it in iOS native modal. 
-          For consistency on Android/web, we can add a small grabber bar. */}
-      <View style={styles.grabberContainer}>
-        <View style={styles.grabber} />
-      </View>
-
-      <Text style={styles.title}>Manage Profile</Text>
-
+    <View>
       {/* Block User */}
       <View style={styles.row}>
         <View style={[styles.iconContainer, { backgroundColor: '#EFEBE1' }]}>
@@ -36,9 +28,9 @@ export default function ManageProfileScreen() {
           <Text style={styles.rowTitle}>Block Jordan</Text>
           <Text style={styles.rowSubtitle}>They won't be able to message you or see your profile.</Text>
         </View>
-        <Switch 
-          value={isBlocked} 
-          onValueChange={setIsBlocked} 
+        <Switch
+          value={isBlocked}
+          onValueChange={setIsBlocked}
           trackColor={{ true: '#5D4037' }}
         />
       </View>
@@ -65,7 +57,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 12,
+    paddingTop: 36,
   },
   grabberContainer: {
     alignItems: 'center',

@@ -1,20 +1,35 @@
-import React from 'react';
-import { View, StyleSheet, ScrollView, Image, Pressable } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
-import { MoreHorizontal, X, Star, Heart, Gamepad2, Palette, Rocket, Coffee, Lightbulb, VolumeX } from 'lucide-react-native';
+import React from "react";
+import { View, StyleSheet, ScrollView, Image, Pressable } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { router } from "expo-router";
+import {
+  MoreHorizontal,
+  X,
+  Star,
+  Heart,
+  Gamepad2,
+  Palette,
+  Rocket,
+  Coffee,
+  Lightbulb,
+  VolumeX,
+} from "lucide-react-native";
 
-import { Text } from '@/components/ui/text';
-import { Icon } from '@/components/ui/icon';
-import { FilterPill } from '@/components/ui/filter-pill';
-import { useColor } from '@/hooks/useColor';
+import { Text } from "@/components/ui/text";
+import { Icon } from "@/components/ui/icon";
+import { FilterPill } from "@/components/ui/filter-pill";
+import { useColor } from "@/hooks/useColor";
+import { BottomSheet, useBottomSheet } from "@/components/ui/bottom-sheet";
+import ManageProfileScreen from "./manage-profile";
+import { Button } from "@/components/ui/button";
 
 export default function FriendProfileScreen() {
   const insets = useSafeAreaInsets();
-  const background = '#FBF8F1'; // Using the cream background from mockup
-  const text = useColor('text');
-  const muted = useColor('textMuted');
-  const primary = useColor('primary');
+  const background = "#FBF8F1"; // Using the cream background from mockup
+  const text = useColor("text");
+  const muted = useColor("textMuted");
+  const primary = useColor("primary");
+  const { isVisible, open, close } = useBottomSheet();
 
   const SectionHeader = ({ title }: { title: string }) => (
     <Text style={styles.sectionTitle}>{title}</Text>
@@ -24,54 +39,71 @@ export default function FriendProfileScreen() {
     <View style={[styles.container, { backgroundColor: background }]}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+        <Pressable onPress={() => router.back()}>
+          <Icon name={X} size={20} color={text} />
+        </Pressable>
         <Text style={styles.headerName}>Sam, 28</Text>
-        <Pressable onPress={() => router.push('/manage-profile')} hitSlop={10}>
+        <Pressable onPress={() => open()} hitSlop={10}>
           <Icon name={MoreHorizontal} size={24} color={text} />
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Hero Image */}
-        <Image 
-          source={{ uri: 'https://i.pravatar.cc/400?img=11' }} 
+        <Image
+          source={{ uri: "https://i.pravatar.cc/400?img=11" }}
           style={styles.heroImage}
         />
 
         {/* Neurotype */}
         <SectionHeader title="NEUROTYPE" />
         <View style={styles.pillRow}>
-          <View style={[styles.pill, { backgroundColor: '#B2EBF2' }]}>
-            <Text style={[styles.pillText, { color: '#006064' }]}>Autistic</Text>
+          <View style={[styles.pill, { backgroundColor: "#B2EBF2" }]}>
+            <Text style={[styles.pillText, { color: "#006064" }]}>
+              Autistic
+            </Text>
           </View>
-          <View style={[styles.pill, { backgroundColor: '#B2DFDB' }]}>
-            <Text style={[styles.pillText, { color: '#004D40' }]}>i'm neurodivergent</Text>
+          <View style={[styles.pill, { backgroundColor: "#B2DFDB" }]}>
+            <Text style={[styles.pillText, { color: "#004D40" }]}>
+              i'm neurodivergent
+            </Text>
           </View>
         </View>
 
         {/* Bio */}
         <SectionHeader title="BIO" />
-        <Text style={[styles.bio, { color: '#333' }]}>
-          "I value parallel play and deep conversations. Introvert, coffee lover, and space enthusiast."
+        <Text style={[styles.bio, { color: "#333" }]}>
+          "I value parallel play and deep conversations. Introvert, coffee
+          lover, and space enthusiast."
         </Text>
 
         {/* Interests */}
         <SectionHeader title="INTERESTS" />
         <View style={styles.pillRow}>
-          <View style={[styles.interestPill, { backgroundColor: '#F5E6D3' }]}>
+          <View style={[styles.interestPill, { backgroundColor: "#F5E6D3" }]}>
             <Icon name={Gamepad2} size={14} color="#8D6E63" />
-            <Text style={[styles.interestText, { color: '#3E2723' }]}>Gaming</Text>
+            <Text style={[styles.interestText, { color: "#3E2723" }]}>
+              Gaming
+            </Text>
           </View>
-          <View style={[styles.interestPill, { backgroundColor: '#F5E6D3' }]}>
+          <View style={[styles.interestPill, { backgroundColor: "#F5E6D3" }]}>
             <Icon name={Palette} size={14} color="#8D6E63" />
-            <Text style={[styles.interestText, { color: '#3E2723' }]}>Art</Text>
+            <Text style={[styles.interestText, { color: "#3E2723" }]}>Art</Text>
           </View>
-          <View style={[styles.interestPill, { backgroundColor: '#F5E6D3' }]}>
+          <View style={[styles.interestPill, { backgroundColor: "#F5E6D3" }]}>
             <Icon name={Rocket} size={14} color="#8D6E63" />
-            <Text style={[styles.interestText, { color: '#3E2723' }]}>Space</Text>
+            <Text style={[styles.interestText, { color: "#3E2723" }]}>
+              Space
+            </Text>
           </View>
-          <View style={[styles.interestPill, { backgroundColor: '#F5E6D3' }]}>
+          <View style={[styles.interestPill, { backgroundColor: "#F5E6D3" }]}>
             <Icon name={Coffee} size={14} color="#8D6E63" />
-            <Text style={[styles.interestText, { color: '#3E2723' }]}>Coffee</Text>
+            <Text style={[styles.interestText, { color: "#3E2723" }]}>
+              Coffee
+            </Text>
           </View>
         </View>
 
@@ -100,24 +132,21 @@ export default function FriendProfileScreen() {
       </ScrollView>
 
       {/* Floating Action Buttons */}
-      <View style={[styles.fabContainer, { paddingBottom: insets.bottom || 24 }]}>
-        <Pressable 
-          style={[styles.fab, styles.fabSmall, { backgroundColor: '#004D40' }]}
-          onPress={() => router.back()}
-        >
-          <Icon name={X} size={24} color="#FFF" />
-        </Pressable>
-        <Pressable 
-          style={[styles.fab, styles.fabSmall, { backgroundColor: '#FFF' }]}
-        >
-          <Icon name={Star} size={24} color="#FF6D00" />
-        </Pressable>
-        <Pressable 
-          style={[styles.fab, styles.fabLarge, { backgroundColor: '#D81B60' }]}
-        >
-          <Icon name={Heart} size={32} color="#FFF" />
-        </Pressable>
+      <View
+        style={[styles.fabContainer, { paddingBottom: insets.bottom || 24 }]}
+      >
+        <Button onPress={() => router.push("/inbox/12")}>Message</Button>
+        <Button>Add Friend</Button>
       </View>
+
+      <BottomSheet
+        isVisible={isVisible}
+        onClose={close}
+        title="Manage Profile"
+        snapPoints={[0.5, 0.9]}
+      >
+        <ManageProfileScreen />
+      </BottomSheet>
     </View>
   );
 }
@@ -127,37 +156,37 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 24,
     paddingBottom: 16,
   },
   headerName: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   scrollContent: {
     paddingHorizontal: 20,
     paddingBottom: 40,
   },
   heroImage: {
-    width: '100%',
+    width: "100%",
     aspectRatio: 1,
     borderRadius: 24,
     marginBottom: 24,
   },
   sectionTitle: {
     fontSize: 12,
-    fontWeight: 'bold',
-    color: '#8D6E63',
+    fontWeight: "bold",
+    color: "#8D6E63",
     letterSpacing: 1,
     marginBottom: 12,
     marginTop: 24,
   },
   pillRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
   },
   pill: {
@@ -166,75 +195,76 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   pillText: {
-    fontWeight: 'bold',
+    fontWeight: "bold",
     fontSize: 14,
   },
   bio: {
     fontSize: 16,
-    fontStyle: 'italic',
+    fontStyle: "italic",
     lineHeight: 24,
   },
   interestPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
     gap: 8,
     borderWidth: 1,
-    borderColor: '#EFEBE1',
+    borderColor: "#EFEBE1",
   },
   interestText: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   sensoryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#FFF',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#FFF",
     padding: 16,
     borderRadius: 16,
     marginBottom: 12,
   },
   sensoryLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
   },
   sensoryText: {
     fontSize: 16,
-    color: '#333',
+    color: "#333",
   },
   checkCircle: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#004D40',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#004D40",
+    justifyContent: "center",
+    alignItems: "center",
   },
   checkIcon: {
-    color: '#FFF',
+    color: "#FFF",
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   fabContainer: {
-    position: 'absolute',
+    backgroundColor: "white",
+    position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
     gap: 16,
     paddingTop: 20,
     // Gradient overlay could go here, but transparent background for now
   },
   fab: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 12,

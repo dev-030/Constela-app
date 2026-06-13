@@ -1,22 +1,22 @@
-import { Text } from '@/components/ui/text';
-import { View } from '@/components/ui/view';
-import { useColor } from '@/hooks/useColor';
-import { BORDER_RADIUS, CORNERS, FONT_SIZE, HEIGHT } from '@/theme/globals';
+import { Text } from "@/components/ui/text";
+import { View } from "@/components/ui/view";
+import { useColor } from "@/hooks/useColor";
+import { BORDER_RADIUS, CORNERS, FONT_SIZE, HEIGHT } from "@/theme/globals";
 import React, {
   createContext,
   useCallback,
   useContext,
   useEffect,
   useState,
-} from 'react';
+} from "react";
 import {
   Dimensions,
   ScrollView,
   TextStyle,
   TouchableOpacity,
   ViewStyle,
-} from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+} from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   Extrapolate,
   interpolate,
@@ -24,20 +24,20 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withTiming,
-} from 'react-native-reanimated';
+} from "react-native-reanimated";
 
-const { width: screenWidth } = Dimensions.get('window');
+const { width: screenWidth } = Dimensions.get("window");
 
 // Types
 interface TabsContextType {
   activeTab: string;
   setActiveTab: (value: string) => void;
-  orientation: 'horizontal' | 'vertical';
+  orientation: "horizontal" | "vertical";
   tabValues: string[];
   registerTab: (value: string) => void;
   unregisterTab: (value: string) => void;
   enableSwipe?: boolean;
-  navigateToAdjacentTab?: (direction: 'next' | 'prev') => void;
+  navigateToAdjacentTab?: (direction: "next" | "prev") => void;
 }
 
 interface TabsProps {
@@ -45,7 +45,7 @@ interface TabsProps {
   defaultValue?: string;
   value?: string;
   onValueChange?: (value: string) => void;
-  orientation?: 'horizontal' | 'vertical';
+  orientation?: "horizontal" | "vertical";
   style?: ViewStyle;
   enableSwipe?: boolean;
 }
@@ -75,17 +75,17 @@ const TabsContext = createContext<TabsContextType | undefined>(undefined);
 const useTabsContext = () => {
   const context = useContext(TabsContext);
   if (!context) {
-    throw new Error('Tabs components must be used within a Tabs provider');
+    throw new Error("Tabs components must be used within a Tabs provider");
   }
   return context;
 };
 
 export function Tabs({
   children,
-  defaultValue = '',
+  defaultValue = "",
   value,
   onValueChange,
-  orientation = 'horizontal',
+  orientation = "horizontal",
   style,
   enableSwipe = true,
 }: TabsProps) {
@@ -129,12 +129,12 @@ export function Tabs({
   }, []);
 
   const navigateToAdjacentTab = useCallback(
-    (direction: 'next' | 'prev') => {
+    (direction: "next" | "prev") => {
       const currentIndex = tabValues.indexOf(activeTab);
       if (currentIndex === -1) return;
 
       let nextIndex;
-      if (direction === 'next') {
+      if (direction === "next") {
         nextIndex = currentIndex + 1;
         if (nextIndex >= tabValues.length) nextIndex = 0; // Loop to first
       } else {
@@ -147,7 +147,7 @@ export function Tabs({
         setActiveTab(nextTab);
       }
     },
-    [tabValues, activeTab, setActiveTab]
+    [tabValues, activeTab, setActiveTab],
   );
 
   return (
@@ -166,7 +166,7 @@ export function Tabs({
       <View
         style={[
           {
-            flexDirection: orientation === 'horizontal' ? 'column' : 'row',
+            flexDirection: orientation === "horizontal" ? "column" : "row",
           },
           style,
         ]}
@@ -220,7 +220,7 @@ function CarouselContainer({
 }: {
   activeTab: string;
   tabValues: string[];
-  onSwipe: (direction: 'next' | 'prev') => void;
+  onSwipe: (direction: "next" | "prev") => void;
   style?: ViewStyle;
 }) {
   const translateX = useSharedValue(0);
@@ -255,10 +255,10 @@ function CarouselContainer({
       if (shouldChangeTab) {
         if (translation > 0 && currentIndex > 0) {
           // Swiped right - go to previous tab
-          runOnJS(onSwipe)('prev');
+          runOnJS(onSwipe)("prev");
         } else if (translation < 0 && currentIndex < tabValues.length - 1) {
           // Swiped left - go to next tab
-          runOnJS(onSwipe)('next');
+          runOnJS(onSwipe)("next");
         }
       }
 
@@ -287,7 +287,7 @@ function CarouselContainer({
       translateX.value,
       [0, screenWidth * 0.5],
       [0, 1],
-      Extrapolate.CLAMP
+      Extrapolate.CLAMP,
     );
 
     return {
@@ -301,7 +301,7 @@ function CarouselContainer({
       translateX.value,
       [-screenWidth * 0.5, 0],
       [1, 0],
-      Extrapolate.CLAMP
+      Extrapolate.CLAMP,
     );
 
     return {
@@ -312,20 +312,20 @@ function CarouselContainer({
 
   return (
     <GestureDetector gesture={panGesture}>
-      <View style={{ overflow: 'hidden' }}>
+      <View style={{ overflow: "hidden" }}>
         {/* Previous content */}
         {previousTab && (
           <Animated.View
             style={[
               {
-                position: 'absolute',
+                position: "absolute",
                 width: screenWidth,
                 paddingTop: 16,
               },
               style,
               previousStyle,
             ]}
-            pointerEvents='none'
+            pointerEvents="none"
           >
             {allTabContents[previousTab]}
           </Animated.View>
@@ -349,14 +349,14 @@ function CarouselContainer({
           <Animated.View
             style={[
               {
-                position: 'absolute',
+                position: "absolute",
                 width: screenWidth,
                 paddingTop: 16,
               },
               style,
               nextStyle,
             ]}
-            pointerEvents='none'
+            pointerEvents="none"
           >
             {allTabContents[nextTab]}
           </Animated.View>
@@ -368,26 +368,39 @@ function CarouselContainer({
 
 export function TabsList({ children, style }: TabsListProps) {
   const { orientation } = useTabsContext();
-  const backgroundColor = useColor('muted');
+  const primary = useColor("primary");
+
+  // Extract flex layout props that should go on contentContainerStyle instead of outer View
+  const {
+    justifyContent: contentJustifyContent,
+    alignItems: contentAlignItems,
+    alignContent: contentAlignContent,
+    flexWrap: contentFlexWrap,
+    gap: contentGap,
+    ...containerStyle
+  } = style || {};
 
   return (
     <View
       style={[
         {
-          padding: 6,
-          backgroundColor,
-          borderRadius: orientation === 'horizontal' ? CORNERS : BORDER_RADIUS,
+          borderBottomWidth: 1,
+          borderColor: "#EBEBEB",
         },
-        style,
+        containerStyle as ViewStyle,
       ]}
     >
       <ScrollView
-        horizontal={orientation === 'horizontal'}
+        horizontal={orientation === "horizontal"}
         showsHorizontalScrollIndicator={false}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          flexDirection: orientation === 'horizontal' ? 'row' : 'column',
-          alignItems: 'center',
+          flexDirection: orientation === "horizontal" ? "row" : "column",
+          alignItems: contentAlignItems || "center",
+          justifyContent: contentJustifyContent as any,
+          alignContent: contentAlignContent as any,
+          flexWrap: contentFlexWrap as any,
+          gap: contentGap as any,
         }}
       >
         {children}
@@ -413,9 +426,9 @@ export function TabsTrigger({
     return () => unregisterTab(value);
   }, [value, registerTab, unregisterTab]);
 
-  const primaryColor = useColor('primary');
-  const mutedForegroundColor = useColor('mutedForeground');
-  const backgroundColor = useColor('background');
+  const primaryColor = useColor("primary");
+  const mutedForegroundColor = useColor("mutedForeground");
+  const backgroundColor = useColor("background");
 
   const handlePress = () => {
     if (!disabled) {
@@ -425,23 +438,24 @@ export function TabsTrigger({
 
   const triggerStyle: ViewStyle = {
     paddingHorizontal: 12,
-    paddingVertical: orientation === 'vertical' ? 8 : undefined,
-    borderRadius: CORNERS,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: HEIGHT - 8,
-    backgroundColor: isActive ? backgroundColor : 'transparent',
+    paddingVertical: orientation === "vertical" ? 8 : 12,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 48,
+    backgroundColor: "transparent",
+    borderBottomWidth: isActive ? 2 : 0,
+    borderBottomColor: isActive ? primaryColor : "transparent",
     opacity: disabled ? 0.5 : 1,
-    flex: orientation === 'horizontal' ? 1 : undefined,
-    marginBottom: orientation === 'vertical' ? 4 : 0,
+    flex: orientation === "horizontal" ? 1 : undefined,
+    marginBottom: orientation === "vertical" ? 4 : -1, // -1 to overlap the TabsList border
     ...style,
   };
 
   const triggerTextStyle: TextStyle = {
-    fontSize: FONT_SIZE,
-    fontWeight: '500',
-    color: isActive ? primaryColor : mutedForegroundColor,
-    textAlign: 'center',
+    fontSize: 16,
+    fontWeight: "700",
+    color: isActive ? primaryColor : "#1F3A3D",
+    textAlign: "center",
     ...textStyle,
   };
 
@@ -452,7 +466,7 @@ export function TabsTrigger({
       disabled={disabled}
       activeOpacity={0.8}
     >
-      {typeof children === 'string' ? (
+      {typeof children === "string" ? (
         <Text style={triggerTextStyle}>{children}</Text>
       ) : (
         children
@@ -472,7 +486,7 @@ export function TabsContent({ children, value, style }: TabsContentProps) {
   const isActive = activeTab === value;
 
   // For carousel mode, we need to render all content but only show active one
-  if (enableSwipe && orientation === 'horizontal' && navigateToAdjacentTab) {
+  if (enableSwipe && orientation === "horizontal" && navigateToAdjacentTab) {
     return (
       <CarouselTabContent value={value} style={style}>
         {children}
