@@ -1,11 +1,18 @@
 import { Icon } from "@/components/ui/icon";
 import { Text } from "@/components/ui/text";
 import { useColor } from "@/hooks/useColor";
-import { Image, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import {
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+} from "react-native";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Bell, Search, SlidersHorizontal, Zap } from "lucide-react-native";
-import Header from "../_components/header";
+import Header from "../../../components/header";
 import { router } from "expo-router";
 
 const avatarUris = [
@@ -53,11 +60,16 @@ const groups = [
 
 function GroupBadge({ group }: { group: (typeof groups)[number] }) {
   const colorScheme = useColorScheme();
-  const borderColor = colorScheme === 'dark' ? '#121212' : '#FFFFFF';
+  const borderColor = colorScheme === "dark" ? "#121212" : "#FFFFFF";
 
   if (group.sanctuary) {
     return (
-      <View style={[styles.badgeCircle, { backgroundColor: group.badge, borderColor }]}>
+      <View
+        style={[
+          styles.badgeCircle,
+          { backgroundColor: group.badge, borderColor },
+        ]}
+      >
         <Text style={styles.sanctuaryIcon}>☁</Text>
         <Text style={styles.badgeTinyText}>SANCTUARY</Text>
       </View>
@@ -66,7 +78,12 @@ function GroupBadge({ group }: { group: (typeof groups)[number] }) {
 
   if (group.hpi) {
     return (
-      <View style={[styles.badgeCircle, { backgroundColor: group.badge, borderColor }]}>
+      <View
+        style={[
+          styles.badgeCircle,
+          { backgroundColor: group.badge, borderColor },
+        ]}
+      >
         <Text style={styles.hpiIcon}>◉</Text>
         <Text style={styles.badgeTinyText}>HPI COMMUNITY</Text>
       </View>
@@ -74,7 +91,12 @@ function GroupBadge({ group }: { group: (typeof groups)[number] }) {
   }
 
   return (
-    <View style={[styles.badgeCircle, { backgroundColor: group.badge, borderColor }]}>
+    <View
+      style={[
+        styles.badgeCircle,
+        { backgroundColor: group.badge, borderColor },
+      ]}
+    >
       <View style={styles.badgeInner}>
         <Zap size={17} color="#F6F0FF" fill="#F6F0FF" strokeWidth={2.4} />
         <Text style={styles.badgeTinyText}>ADHD</Text>
@@ -83,22 +105,41 @@ function GroupBadge({ group }: { group: (typeof groups)[number] }) {
   );
 }
 
-function GroupCard({ group, index }: { group: (typeof groups)[number]; index: number }) {
+function GroupCard({
+  group,
+  index,
+}: {
+  group: (typeof groups)[number];
+  index: number;
+}) {
   const colorScheme = useColorScheme();
-  
+
   return (
     <Pressable
-      onPress={() => router.push({ pathname: '/community-chat', params: { title: group.title } })}
+      onPress={() =>
+        router.push({
+          pathname: "/community-chat",
+          params: { title: group.title },
+        })
+      }
       style={[
         styles.groupCard,
         {
-          backgroundColor: colorScheme === 'dark' ? '#121212' : group.background,
-          borderColor: colorScheme === 'dark' ? '#1C382F' : group.border,
+          backgroundColor:
+            colorScheme === "dark" ? "#121212" : group.background,
+          borderColor: colorScheme === "dark" ? "#1C382F" : group.border,
         },
       ]}
     >
       <GroupBadge group={group} />
-      <Text style={[styles.groupTitle, { color: colorScheme === 'dark' ? '#FFF' : '#222222' }]}>{group.title}</Text>
+      <Text
+        style={[
+          styles.groupTitle,
+          { color: colorScheme === "dark" ? "#FFF" : "#222222" },
+        ]}
+      >
+        {group.title}
+      </Text>
       <View style={styles.groupFooter}>
         <View style={styles.avatarStack}>
           {avatarUris.map((uri, avatarIndex) => (
@@ -114,7 +155,9 @@ function GroupCard({ group, index }: { group: (typeof groups)[number]; index: nu
         </View>
         <View style={styles.memberCount}>
           <Zap size={13} color={group.accent} />
-          <Text style={[styles.memberText, { color: group.accent }]}>{group.members}</Text>
+          <Text style={[styles.memberText, { color: group.accent }]}>
+            {group.members}
+          </Text>
         </View>
       </View>
     </Pressable>
@@ -134,33 +177,66 @@ export default function CommunityScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        <View style={[styles.hero, colorScheme === 'dark' && styles.heroDark]}>
-          <Text style={[styles.heroTitle, colorScheme === 'dark' && { color: '#8591A0' }]}>Find your community</Text>
-          <Text style={[styles.heroBody, colorScheme === 'dark' && { color: '#2E735F' }]}>
-            A low-pressure space to connect{"\n"}
-            with people who share your{"\n"}
-            neurotype and sensory{"\n"}
-            preferences.
+        <View style={[styles.hero, colorScheme === "dark" && styles.heroDark]}>
+          <Text
+            style={[
+              styles.heroTitle,
+              colorScheme === "dark" && { color: "#8591A0" },
+            ]}
+          >
+            Find your community
+          </Text>
+          <Text
+            style={[
+              styles.heroBody,
+              colorScheme === "dark" && { color: "#2E735F" },
+            ]}
+          >
+            A low-pressure space to connect with people who share your neurotype
+            and sensory preferences.
           </Text>
         </View>
 
         <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: text }]}>Community Rooms</Text>
-          <Pressable style={[styles.filterButton, colorScheme === 'dark' && { backgroundColor: card }]}>
-            <SlidersHorizontal size={23} color={colorScheme === 'dark' ? "#8591A0" : "#3E6F63"} />
+          <View
+            style={[
+              styles.searchBox,
+              colorScheme === "dark" && styles.searchBoxDark,
+            ]}
+          >
+            <Search
+              size={22}
+              color={colorScheme === "dark" ? "#2E735F" : "#9C786C"}
+            />
+            <TextInput
+              placeholder="Search rooms or interests..."
+              placeholderTextColor={
+                colorScheme === "dark" ? "#2E735F" : "#9C786C"
+              }
+              style={[styles.searchInput, { color: text }]}
+            />
+          </View>
+          <Pressable
+            style={[
+              styles.filterButton,
+              colorScheme === "dark" && { backgroundColor: card },
+            ]}
+          >
+            <SlidersHorizontal
+              size={23}
+              color={colorScheme === "dark" ? "#8591A0" : "#3E6F63"}
+            />
           </Pressable>
         </View>
 
-        <View style={[styles.searchBox, colorScheme === 'dark' && styles.searchBoxDark]}>
-          <Search size={22} color={colorScheme === 'dark' ? "#2E735F" : "#9C786C"} />
-          <TextInput
-            placeholder="Search rooms or interests..."
-            placeholderTextColor={colorScheme === 'dark' ? "#2E735F" : "#9C786C"}
-            style={[styles.searchInput, { color: text }]}
-          />
-        </View>
-
-        <Text style={[styles.exploreTitle, colorScheme === 'dark' && { color: '#8591A0' }]}>Explore Groups</Text>
+        <Text
+          style={[
+            styles.exploreTitle,
+            colorScheme === "dark" && { color: "#8591A0" },
+          ]}
+        >
+          Explore Groups
+        </Text>
         <View style={styles.groupGrid}>
           {groups.map((group, index) => (
             <GroupCard key={group.title} group={group} index={index} />
@@ -237,10 +313,8 @@ const styles = StyleSheet.create({
   hero: {
     backgroundColor: "#E9F9F3",
     borderRadius: 10,
-    minHeight: 218,
-    paddingHorizontal: 32,
-    paddingTop: 34,
-    marginBottom: 30,
+    padding: 16,
+    marginBottom: 16,
   },
   heroDark: {
     backgroundColor: "transparent",
@@ -249,16 +323,14 @@ const styles = StyleSheet.create({
   },
   heroTitle: {
     color: "#9A3B00",
-    fontSize: 30,
+    fontSize: 24,
     fontWeight: "800",
-    lineHeight: 36,
-    marginBottom: 15,
+    //  lineHeight: 36,
+    marginBottom: 12,
   },
   heroBody: {
     color: "#604F47",
-    fontSize: 20,
-    lineHeight: 27,
-    fontWeight: "400",
+    fontSize: 16,
   },
   sectionHeader: {
     flexDirection: "row",
@@ -267,7 +339,7 @@ const styles = StyleSheet.create({
     marginBottom: 17,
   },
   sectionTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "800",
     color: "#222222",
   },
@@ -280,14 +352,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   searchBox: {
-    height: 55,
+    height: 45,
     borderRadius: 10,
     backgroundColor: "#F5F1EC",
     paddingHorizontal: 15,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    marginBottom: 24,
+   //  marginBottom: 12,
+    width: "85%"
   },
   searchBoxDark: {
     backgroundColor: "transparent",
@@ -302,7 +375,7 @@ const styles = StyleSheet.create({
   },
   exploreTitle: {
     color: "#3E6F63",
-    fontSize: 24,
+    fontSize: 16,
     fontWeight: "800",
     marginBottom: 18,
   },
@@ -313,7 +386,7 @@ const styles = StyleSheet.create({
     rowGap: 16,
   },
   groupCard: {
-    width: "47.7%",
+    width: "47%",
     minHeight: 130,
     borderRadius: 20,
     borderWidth: 1,

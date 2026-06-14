@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Image, StyleSheet } from "react-native";
+import { View, Image, StyleSheet, Pressable } from "react-native";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { Text } from "@/components/ui/text";
@@ -53,6 +53,7 @@ function DashboardCard({
 }: DashboardCardProps) {
   const { themeColors, rightElement } = config;
   const router = useRouter();
+  const text = useColor("text")
 
   return (
     <View
@@ -100,18 +101,15 @@ function DashboardCard({
           ))}
         </View>
 
-        <Button
-          style={[
-            styles.actionButton,
-            {
-              backgroundColor: themeColors.badgeBg,
-              color: themeColors.accentText,
-            },
-          ]}
-          onPress={() => config.path && router.push(config.path)}
-        >
-          {config.buttonText}
-        </Button>
+        <Pressable onPress={() => config.path && router.push(config.path)}>
+          <Text style={{
+            color: text,
+            backgroundColor: primaryColor,
+            padding: 12,
+            borderRadius: 20,
+            textAlign: "center"
+          }}>{config.buttonText}</Text>
+        </Pressable>
       </View>
 
       {/* Right Visual Element */}
@@ -124,9 +122,6 @@ function DashboardCard({
             }}
             style={styles.fullSize}
           />
-          <View style={styles.previewHeartBadge}>
-            <Icon name={Heart} size={16} color={primaryColor} />
-          </View>
           <View style={styles.previewOverlay}>
             <Text style={styles.previewNameText}>Sam, 28</Text>
             <View style={styles.tagContainer}>
@@ -302,8 +297,8 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   actionButton: {
-    height: 40,
-    paddingHorizontal: 24,
+    //  height: 40,
+    //  paddingHorizontal: 24,
     alignSelf: "flex-start",
     borderRadius: 20,
     marginTop: 16,

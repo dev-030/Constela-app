@@ -15,6 +15,7 @@ import {
   Sliders,
   SlidersHorizontal,
   Star,
+  Undo,
   User,
   X,
 } from "lucide-react-native";
@@ -47,7 +48,20 @@ export default function MatchesScreen() {
 
         {/* Card Stack Area */}
         <View style={[styles.cardStackArea, { backgroundColor: primary + 20 }]}>
-            <Swipe />
+          <View
+            style={{
+              marginBottom: 16,
+            //   right: 16,
+            //   position: "absolute",
+              backgroundColor: "#fff",
+              padding: 8,
+              borderRadius: BORDER_RADIUS,
+            //   margin: 8,
+            }}
+          >
+            <Undo />
+          </View>
+          <Swipe />
           {/* Action Buttons */}
           <View style={styles.actionButtonsRow}>
             {/* Reject Button */}
@@ -68,6 +82,7 @@ export default function MatchesScreen() {
             </Pressable>
           </View>
         </View>
+
       </View>
     </SafeAreaView>
   );
@@ -133,9 +148,9 @@ const styles = StyleSheet.create({
   },
   cardStackArea: {
     flex: 1, // fill remaining space
-    borderRadius: 32,
-   //  padding: 16,
-    paddingTop: 32,
+    borderRadius: 24,
+    //  padding: 16,
+    paddingTop: 16,
     alignItems: "center",
   },
   actionButtonsRow: {
@@ -143,8 +158,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     gap: 24,
-    marginTop: 40,
-    zIndex: 10,
+   //  marginTop: 40,
+   //  zIndex: 10,
   },
   rejectButton: {
     width: 64,

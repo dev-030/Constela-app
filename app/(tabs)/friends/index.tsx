@@ -21,7 +21,7 @@ import { Icon } from "@/components/ui/icon";
 import { Button } from "@/components/ui/button";
 import { FilterPill } from "@/components/ui/filter-pill";
 import { useColor } from "@/hooks/useColor";
-import Header from "../_components/header";
+import Header from "../../../components/header";
 
 // Mock Data
 const FRIEND_REQUESTS = [
@@ -93,7 +93,10 @@ export default function FriendsScreen() {
     <View style={[styles.container, { backgroundColor: background }]}>
       <Header />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
         {/* Search Bar */}
         <View style={styles.searchRow}>
           <View

@@ -21,8 +21,8 @@ import {
 } from "lucide-react-native";
 import { Image, Pressable, ScrollView, View, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import CardList from "./_components/feat-card";
-import Header from "../_components/header";
+import CardList from "../../../components/feat-card";
+import Header from "../../../components/header";
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -74,6 +74,7 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   donationBanner: {
+   //  paddingHorizontal: 36,
     borderRadius: BORDER_RADIUS,
     padding: 12,
     flexDirection: "row",

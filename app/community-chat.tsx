@@ -1,352 +1,586 @@
-import { Icon } from "@/components/ui/icon";
-import { Text } from "@/components/ui/text";
-import { useColor } from "@/hooks/useColor";
-import { router, useLocalSearchParams } from "expo-router";
+import React, { useState, useCallback } from "react";
 import {
-  ArrowLeft,
-  Info,
-  LogOut,
-  Send,
-  Smile,
-} from "lucide-react-native";
-import React from "react";
-import {
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
   View,
+  StyleSheet,
+  Pressable,
 } from "react-native";
-import { useColorScheme } from "@/hooks/useColorScheme";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { router, useLocalSearchParams } from "expo-router";
+import { ArrowLeft, LogOut, Users } from "lucide-react-native";
+import {
+  GiftedChat,
+  Bubble,
+  InputToolbar,
+  Send,
+  Time,
+  Avatar,
+  Composer,
+  SystemMessage,
+  IMessage,
+} from "react-native-gifted-chat";
 
-const PRIMARY = "#DE4177";
+import { Text } from "@/components/ui/text";
+import { Icon } from "@/components/ui/icon";
+import { useColor } from "@/hooks/useColor";
+import { SafeGiftedChat } from "@/components/safeGiftedChat";
 
-export default function CommunityChatScreen() {
-  const { title } = useLocalSearchParams();
-  const background = useColor("background");
-  const text = useColor("text");
-  const muted = useColor("textMuted");
-  const border = useColor("border");
-  const insets = useSafeAreaInsets();
+const CURRENT_USER = {
+  _id: 1,
+  name: "You",
+  avatar: "https://i.pravatar.cc/120?img=68",
+};
 
-  const MESSAGES = [
+const GROUP_MEMBERS = {
+  samantha: {
+    _id: 2,
+    name: "Samantha",
+    avatar: "https://i.pravatar.cc/120?img=32",
+  },
+  nico: {
+    _id: 3,
+    name: "Nico Alexis",
+    avatar: "https://i.pravatar.cc/120?img=47",
+  },
+  bima: {
+    _id: 4,
+    name: "Bima Algifari",
+    avatar: "https://i.pravatar.cc/120?img=12",
+  },
+};
+
+const GROUP_NAME_COLORS: Record<number, string> = {
+  [GROUP_MEMBERS.samantha._id]: "#C35A22",
+  [GROUP_MEMBERS.nico._id]: "#A34828",
+  [GROUP_MEMBERS.bima._id]: "#8B4B27",
+};
+
+const MEMBER_COUNT = "1.2k members";
+
+// GiftedChat expects messages sorted newest-first (reverse chronological)
+const INITIAL_MESSAGES: IMessage[] = [
   {
-    id: "m1",
-    date: "Yesterday",
-    items: [
-      {
-        id: "msg1",
-        user: "Samantha",
-        avatar: require("@/assets/profiles/mia.png"),
-        time: "13:45",
-        nameColor: "#C35A22",
-        text: (
-          <Text style={styles.messageText}>
-            Hi <Text style={styles.mentionGreen}>@Nico Alexis</Text> I'm very excited to start working on this project. Can we begin by discussing the main goals and objectives of the design?
-          </Text>
-        ),
-      },
-      {
-        id: "msg2",
-        user: "Nico Alexis",
-        avatar: require("@/assets/profiles/liam.png"),
-        time: "13:50",
-        nameColor: "#A34828",
-        text: (
-          <Text style={styles.messageText}>
-            Of course, thank you for joining 🥳
-          </Text>
-        ),
-      },
-      {
-        id: "msg3",
-        user: "Samantha",
-        avatar: require("@/assets/profiles/mia.png"),
-        time: "14:00",
-        nameColor: "#C35A22",
-        text: (
-          <Text style={styles.messageText}>
-            That sounds great. Do we have any data on how users currently interact{"\n"}with our site?
-          </Text>
-        ),
-      },
-    ],
+    _id: 8,
+    text: "Let me share some initial findings from the user research phase.",
+    createdAt: new Date(Date.now() - 1000 * 60 * 5),
+    user: GROUP_MEMBERS.nico,
   },
   {
-    id: "m2",
-    date: "Today",
-    items: [
-      {
-        id: "msg4",
-        user: "Bima Algifari",
-        avatar: null, // we'll render a letter avatar
-        initials: "B",
-        time: "8:30",
-        nameColor: "#8B4B27",
-        text: (
-          <Text style={styles.messageText}>
-            Thank you. Based on this data, we can start creating user personas{"\n"}
-            <Text style={styles.mentionOrange}>@Samantha</Text>
-          </Text>
-        ),
-      },
-      {
-        id: "msg5",
-        user: "Samantha",
-        avatar: require("@/assets/profiles/mia.png"),
-        time: "9:00",
-        nameColor: "#C35A22",
-        text: (
-          <Text style={styles.messageText}>
-            I like this approach 👍
-          </Text>
-        ),
-      },
-    ],
+    _id: 7,
+    text: "I like this approach 👍",
+    createdAt: new Date(Date.now() - 1000 * 60 * 30),
+    user: GROUP_MEMBERS.samantha,
+  },
+  {
+    _id: 6,
+    text: "Thank you. Based on this data, we can start creating user personas @Samantha",
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 6),
+    user: GROUP_MEMBERS.bima,
+  },
+  {
+    _id: 5,
+    text: "That sounds great. Do we have any data on how users currently interact with our site?",
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 12),
+    user: GROUP_MEMBERS.samantha,
+  },
+  {
+    _id: 4,
+    text: "Of course, thank you for joining 🥳",
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 + 120000),
+    user: GROUP_MEMBERS.nico,
+  },
+  {
+    _id: 3,
+    text: "Hi @Nico Alexis I'm very excited to start working on this project. Can we begin by discussing the main goals and objectives of the design?",
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24),
+    user: GROUP_MEMBERS.samantha,
+  },
+  {
+    _id: 2,
+    text: "Hi everyone! Excited to be here 🙌",
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2 + 60000),
+    user: CURRENT_USER,
+  },
+  {
+    _id: 1,
+    text: "Welcome to the ADHD Hub! 🎉 Feel free to introduce yourselves.",
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2),
+    user: GROUP_MEMBERS.samantha,
   },
 ];
 
+export default function CommunityChatScreen() {
+  const { title } = useLocalSearchParams();
   const groupTitle = typeof title === "string" ? title : "ADHD Hub";
-  const colorScheme = useColorScheme();
 
-  return (
-    <SafeAreaView style={[styles.root, { backgroundColor: background }]}>
-      {/* Header */}
-      <View style={[styles.header, { borderBottomColor: border }]}>
-        <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
-          <Icon name={ArrowLeft} size={24} color={text} />
-        </Pressable>
-        <View style={styles.headerTitleContainer}>
-          <Text style={[styles.headerTitle, { color: text }]}>{groupTitle}</Text>
-          <Text style={styles.headerSubtitle}>1.2k members</Text>
-        </View>
-        <Pressable style={[styles.leaveButton, { backgroundColor: colorScheme === 'dark' ? '#222' : '#F2EBE5' }]}>
-          <Icon name={LogOut} size={16} color={colorScheme === 'dark' ? '#FFF' : "#4A3B32"} />
-          <Text style={[styles.leaveButtonText, { color: colorScheme === 'dark' ? '#FFF' : "#4A3B32" }]}>Leave</Text>
-        </Pressable>
-      </View>
+  const insets = useSafeAreaInsets();
+  const background = useColor("background");
+  const primary = useColor("primary");
+  const text = useColor("text");
+  const muted = useColor("textMuted");
+  const border = useColor("border");
+  const card = useColor("card");
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {MESSAGES.map((group) => (
-          <View key={group.id}>
-            {/* Date Divider */}
-            <View style={styles.dateDivider}>
-              <Text style={[styles.dateDividerText, colorScheme === 'dark' && { color: '#4A5B6B' }]}>{group.date}</Text>
-            </View>
+  const [messages, setMessages] = useState<IMessage[]>(INITIAL_MESSAGES);
 
-            {/* Messages */}
-            {group.items.map((msg) => (
-              <View key={msg.id} style={styles.messageRow}>
-                {/* Avatar */}
-                {msg.avatar ? (
-                  <Image source={msg.avatar} style={styles.avatar} />
-                ) : (
-                  <View style={[styles.avatar, styles.initialsAvatar]}>
-                    <Text style={styles.initialsText}>{msg.initials}</Text>
-                  </View>
-                )}
+  const onSend = useCallback((newMessages: IMessage[] = []) => {
+    setMessages((previousMessages) =>
+      GiftedChat.append(previousMessages, newMessages)
+    );
+  }, []);
 
-                {/* Message Content */}
-                <View style={styles.messageContent}>
-                  <View style={styles.messageHeader}>
-                    <View style={styles.messageHeaderLeft}>
-                      <Text style={[styles.senderName, { color: colorScheme === 'dark' ? '#8A9BA8' : msg.nameColor }]}>
-                        {msg.user}
-                      </Text>
-                      <Text style={styles.messageTime}>{msg.time}</Text>
-                    </View>
-                    <Icon name={Info} size={16} color="#9BA4B5" />
-                  </View>
-                  <View style={[styles.bubble, { borderColor: colorScheme === 'dark' ? '#1C382F' : border, backgroundColor: colorScheme === 'dark' ? 'transparent' : '#FFF' }]}>
-                    {React.cloneElement(msg.text as React.ReactElement, {
-                      style: [styles.messageText, { color: text }]
-                    })}
-                  </View>
-                </View>
-              </View>
-            ))}
-          </View>
-        ))}
-      </ScrollView>
+  const renderBubble = useCallback(
+    (props: any) => {
+      const { currentMessage } = props;
+      const isCurrentUser = currentMessage.user._id === CURRENT_USER._id;
 
-      {/* Input Area */}
-      <View style={[styles.inputArea, { paddingBottom: Math.max(insets.bottom, 12), backgroundColor: background, borderTopColor: colorScheme === 'dark' ? '#1C382F' : '#F4F4F4' }]}>
-        <View style={[styles.inputContainer, { borderColor: colorScheme === 'dark' ? '#1C382F' : "#E8C8BE" }]}>
-          <Icon name={Smile} size={24} color={colorScheme === 'dark' ? '#8C93A1' : "#554C49"} />
-          <TextInput
-            style={[styles.textInput, { color: text }]}
-            placeholder={`Message ${groupTitle}`}
-            placeholderTextColor="#8C93A1"
+      return (
+        <View>
+          {/* Username label for group chat — only shown on others' messages */}
+          {!isCurrentUser && (
+            <Text
+              style={{
+                fontSize: 13,
+                fontWeight: "700",
+                color: GROUP_NAME_COLORS[currentMessage.user._id] || muted,
+                marginBottom: 2,
+                marginLeft: isCurrentUser ? 0 : 12,
+              }}
+            >
+              {currentMessage.user.name}
+            </Text>
+          )}
+          <Bubble
+            {...props}
+            wrapperStyle={{
+              right: {
+                backgroundColor: primary,
+                borderRadius: 20,
+                borderBottomRightRadius: 4,
+                paddingHorizontal: 2,
+                paddingVertical: 1,
+                marginVertical: 2,
+              },
+              left: {
+                backgroundColor: card,
+                borderRadius: 20,
+                borderBottomLeftRadius: 4,
+                paddingHorizontal: 2,
+                paddingVertical: 1,
+                marginVertical: 2,
+              },
+            }}
+            textStyle={{
+              right: {
+                color: "#FFFFFF",
+                fontSize: 16,
+                lineHeight: 21,
+              },
+              left: {
+                color: text,
+                fontSize: 16,
+                lineHeight: 21,
+              },
+            }}
+            timeTextStyle={{
+              right: {
+                color: "rgba(255,255,255,0.7)",
+                fontSize: 11,
+                marginTop: 4,
+              },
+              left: {
+                color: muted,
+                fontSize: 11,
+                marginTop: 4,
+              },
+            }}
+            tickStyle={{
+              color: "rgba(255,255,255,0.8)",
+            }}
           />
         </View>
-        <Pressable style={[styles.sendButton, { backgroundColor: PRIMARY }]}>
-          <Icon name={Send} size={20} color="#FFF" />
-        </Pressable>
+      );
+    },
+    [primary, card, text, muted]
+  );
+
+  const renderInputToolbar = useCallback(
+    (props: any) => {
+      return (
+        <InputToolbar
+          {...props}
+          containerStyle={{
+            backgroundColor: background,
+            borderTopWidth: 1,
+            borderTopColor: border + "66",
+            paddingHorizontal: 8,
+            paddingVertical: 6,
+            paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
+          }}
+          primaryStyle={{
+            alignItems: "center",
+          }}
+        />
+      );
+    },
+    [background, border, insets.bottom]
+  );
+
+  const renderComposer = useCallback(
+    (props: any) => {
+      return (
+        <Composer
+          {...props}
+          textInputStyle={{
+            backgroundColor: card,
+            color: text,
+            borderRadius: 24,
+            paddingHorizontal: 16,
+            paddingVertical: 10,
+            fontSize: 16,
+            lineHeight: 21,
+            maxHeight: 120,
+            borderWidth: 1,
+            borderColor: border + "44",
+          }}
+          placeholderTextColor={muted}
+        />
+      );
+    },
+    [card, text, muted, border]
+  );
+
+  const renderSend = useCallback(
+    (props: any) => {
+      return (
+        <Send
+          {...props}
+          containerStyle={{
+            justifyContent: "center",
+            alignItems: "center",
+            marginLeft: 8,
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            backgroundColor: primary,
+          }}
+          disabledStyle={{
+            opacity: 0.4,
+          }}
+        >
+          <View style={styles.sendArrow}>
+            <View style={[styles.sendArrowHead, { borderColor: "#FFFFFF" }]} />
+            <View style={[styles.sendArrowShaft, { backgroundColor: "#FFFFFF" }]} />
+          </View>
+        </Send>
+      );
+    },
+    [primary]
+  );
+
+  const renderTime = useCallback(
+    (props: any) => {
+      return (
+        <Time
+          {...props}
+          timeTextStyle={{
+            right: {
+              color: "rgba(255,255,255,0.7)",
+              fontSize: 11,
+            },
+            left: {
+              color: muted,
+              fontSize: 11,
+            },
+          }}
+        />
+      );
+    },
+    [muted]
+  );
+
+  const renderAvatar = useCallback((props: any) => {
+    // Don't show avatar for own messages in group chat
+    if (props.currentMessage.user._id === CURRENT_USER._id) {
+      return null;
+    }
+    return (
+      <Avatar
+        {...props}
+        imageStyle={{
+          left: {
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+          },
+          right: {
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+          },
+        }}
+      />
+    );
+  }, []);
+
+  const renderSystemMessage = useCallback(
+    (props: any) => {
+      return (
+        <SystemMessage
+          {...props}
+          textStyle={{
+            color: muted,
+            fontSize: 12,
+            fontWeight: "600",
+          }}
+        />
+      );
+    },
+    [muted]
+  );
+
+  const scrollToBottomComponent = useCallback(() => {
+    return (
+      <View
+        style={[
+          styles.scrollToBottomBtn,
+          { backgroundColor: primary, borderColor: background },
+        ]}
+      >
+        <View style={styles.scrollToBottomArrow}>
+          <View
+            style={[
+              styles.scrollArrowLeft,
+              { backgroundColor: "#FFFFFF" },
+            ]}
+          />
+          <View
+            style={[
+              styles.scrollArrowRight,
+              { backgroundColor: "#FFFFFF" },
+            ]}
+          />
+        </View>
       </View>
-    </SafeAreaView>
+    );
+  }, [primary, background]);
+
+  return (
+    <View style={[styles.container, { backgroundColor: background }]}>
+      {/* Header */}
+      <View
+        style={[
+          styles.header,
+          {
+            paddingTop: insets.top + 8,
+            borderBottomColor: border + "66",
+            backgroundColor: background,
+          },
+        ]}
+      >
+        <View style={styles.headerRow}>
+          <Pressable
+            onPress={() => router.back()}
+            hitSlop={10}
+            style={styles.headerBackBtn}
+          >
+            <Icon name={ArrowLeft} size={24} color={text} />
+          </Pressable>
+
+          <View style={styles.headerCenter}>
+            <View style={styles.headerGroupAvatar}>
+              <Users size={18} color={primary} />
+            </View>
+            <View style={styles.headerInfo}>
+              <Text style={[styles.headerName, { color: text }]}>
+                {groupTitle}
+              </Text>
+              <Text style={[styles.headerStatus, { color: muted }]}>
+                {MEMBER_COUNT}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.headerActions}>
+            <Pressable
+              hitSlop={8}
+              style={[styles.headerActionBtn, styles.leaveBtn]}
+            >
+              <Icon name={LogOut} size={16} color={muted} />
+              <Text style={[styles.leaveText, { color: muted }]}>Leave</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+
+      {/* Chat */}
+      <SafeGiftedChat
+        messages={messages}
+        onSend={(newMessages) => onSend(newMessages)}
+        user={CURRENT_USER}
+        renderBubble={renderBubble}
+        renderInputToolbar={renderInputToolbar}
+        renderComposer={renderComposer}
+        renderSend={renderSend}
+        renderTime={renderTime}
+        renderAvatar={renderAvatar}
+        renderSystemMessage={renderSystemMessage}
+        isScrollToBottomEnabled
+        scrollToBottomComponent={scrollToBottomComponent}
+        scrollToBottomOffset={120}
+        isSendButtonAlwaysVisible
+        isUserAvatarVisible
+        locale="en"
+        minInputToolbarHeight={52}
+        maxComposerHeight={120}
+        minComposerHeight={44}
+        textInputProps={{
+          accessibilityLabel: "Message input",
+          placeholder: `Message ${groupTitle}...`,
+        }}
+        messagesContainerStyle={{
+          backgroundColor: background,
+        }}
+        listProps={{
+          keyboardShouldPersistTaps: "never",
+          style: {
+            backgroundColor: background,
+          },
+          contentContainerStyle: {
+            paddingBottom: 8,
+          },
+        }}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
+  container: {
     flex: 1,
   },
   header: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  headerRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
+    paddingHorizontal: 8,
+    paddingBottom: 10,
+    height: 56,
   },
-  backBtn: {
-    marginRight: 16,
+  headerBackBtn: {
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  headerTitleContainer: {
+  headerCenter: {
     flex: 1,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#0B2629",
-  },
-  headerSubtitle: {
-    fontSize: 12,
-    color: "#837066",
-    marginTop: 2,
-  },
-  leaveButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F2EBE5",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 6,
+    marginLeft: 4,
   },
-  leaveButtonText: {
-    fontSize: 14,
+  headerGroupAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(128,128,128,0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 10,
+  },
+  headerInfo: {
+    justifyContent: "center",
+  },
+  headerName: {
+    fontSize: 16,
     fontWeight: "700",
-    color: "#4A3B32",
   },
-  scrollContent: {
-    paddingBottom: 24,
+  headerStatus: {
+    fontSize: 12,
+    fontWeight: "500",
+    marginTop: 1,
   },
-  dateDivider: {
-    backgroundColor: "transparent",
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    marginVertical: 8,
-  },
-  dateDividerText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#88796F",
-  },
-  messageRow: {
+  headerActions: {
     flexDirection: "row",
-    paddingHorizontal: 20,
-    marginBottom: 20,
+    alignItems: "center",
+    gap: 4,
   },
-  avatar: {
+  headerActionBtn: {
+    width: 36,
+    height: 36,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  leaveBtn: {
+    width: "auto",
+    flexDirection: "row",
+    gap: 4,
+    paddingHorizontal: 12,
+    borderRadius: 18,
+    backgroundColor: "rgba(128,128,128,0.08)",
+  },
+  leaveText: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+
+  sendArrow: {
+    width: 24,
+    height: 24,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  sendArrowHead: {
+    width: 0,
+    height: 0,
+    borderTopWidth: 5,
+    borderBottomWidth: 5,
+    borderLeftWidth: 8,
+    borderTopColor: "transparent",
+    borderBottomColor: "transparent",
+    borderLeftColor: "#FFFFFF",
+    position: "absolute",
+    right: 2,
+  },
+  sendArrowShaft: {
+    width: 14,
+    height: 2.5,
+    borderRadius: 1,
+    position: "absolute",
+    right: 10,
+  },
+  scrollToBottomBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    marginRight: 12,
-  },
-  initialsAvatar: {
-    backgroundColor: "#316556",
-    alignItems: "center",
     justifyContent: "center",
-  },
-  initialsText: {
-    color: "#FFF",
-    fontSize: 16,
-    fontWeight: "500",
-  },
-  messageContent: {
-    flex: 1,
-  },
-  messageHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 6,
-    paddingRight: 4,
+    borderWidth: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
   },
-  messageHeaderLeft: {
-    flexDirection: "row",
-    alignItems: "baseline",
-    gap: 8,
-  },
-  senderName: {
-    fontSize: 15,
-    fontWeight: "700",
-  },
-  messageTime: {
-    fontSize: 12,
-    color: "#8D8D8D",
-  },
-  bubble: {
-    borderWidth: 1,
-    borderRadius: 16,
-    borderTopLeftRadius: 4, // Make it look like a speech bubble from the left
-    padding: 16,
-    backgroundColor: "#FFF",
-  },
-  messageText: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: "#333",
-  },
-  mentionGreen: {
-    backgroundColor: "#B3E2CD",
-    color: "#2C6D54",
-    overflow: "hidden",
-    paddingHorizontal: 2,
-    borderRadius: 4,
-  },
-  mentionOrange: {
-    backgroundColor: "#FBD6C2",
-    color: "#8E4628",
-    overflow: "hidden",
-    paddingHorizontal: 2,
-    borderRadius: 4,
-  },
-  inputArea: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: "#F4F4F4",
-    backgroundColor: "#FFF",
-    gap: 12,
-  },
-  inputContainer: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderRadius: 30,
-    paddingHorizontal: 16,
-    height: 52,
-    gap: 10,
-  },
-  textInput: {
-    flex: 1,
-    fontSize: 16,
-    color: "#333",
-  },
-  sendButton: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    alignItems: "center",
+  scrollToBottomArrow: {
+    width: 16,
+    height: 12,
     justifyContent: "center",
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 2,
+  },
+  scrollArrowLeft: {
+    width: 7,
+    height: 2,
+    borderRadius: 1,
+    transform: [{ rotate: "-45deg" }, { translateY: 3 }],
+  },
+  scrollArrowRight: {
+    width: 7,
+    height: 2,
+    borderRadius: 1,
+    transform: [{ rotate: "45deg" }, { translateY: 3 }],
   },
 });

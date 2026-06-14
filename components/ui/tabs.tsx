@@ -16,6 +16,7 @@ import {
   TouchableOpacity,
   ViewStyle,
 } from "react-native";
+import { useColorScheme } from "@/hooks/useColorScheme";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   Extrapolate,
@@ -369,6 +370,7 @@ function CarouselContainer({
 export function TabsList({ children, style }: TabsListProps) {
   const { orientation } = useTabsContext();
   const primary = useColor("primary");
+  const colorScheme = useColorScheme();
 
   // Extract flex layout props that should go on contentContainerStyle instead of outer View
   const {
@@ -385,7 +387,7 @@ export function TabsList({ children, style }: TabsListProps) {
       style={[
         {
           borderBottomWidth: 1,
-          borderColor: "#EBEBEB",
+          borderColor: colorScheme === "dark" ? "#38383A" : "#EBEBEB",
         },
         containerStyle as ViewStyle,
       ]}
@@ -429,6 +431,7 @@ export function TabsTrigger({
   const primaryColor = useColor("primary");
   const mutedForegroundColor = useColor("mutedForeground");
   const backgroundColor = useColor("background");
+  const colorScheme = useColorScheme();
 
   const handlePress = () => {
     if (!disabled) {
@@ -454,7 +457,7 @@ export function TabsTrigger({
   const triggerTextStyle: TextStyle = {
     fontSize: 16,
     fontWeight: "700",
-    color: isActive ? primaryColor : "#1F3A3D",
+    color: isActive ? primaryColor : (colorScheme === "dark" ? "#A1A1AA" : "#1F3A3D"),
     textAlign: "center",
     ...textStyle,
   };

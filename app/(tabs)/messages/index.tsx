@@ -2,7 +2,7 @@ import { Text } from "@/components/ui/text";
 import { useColor } from "@/hooks/useColor";
 import { Image, Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
-import Header from "../_components/header";
+import Header from "../../../components/header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const datingConversations = [

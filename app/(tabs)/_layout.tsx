@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 import { useColor } from '@/hooks/useColor';
 import { isLiquidGlassAvailable } from 'expo-glass-effect';
 import MaterialIcons from '@expo/vector-icons/Feather';
+import { Tabs } from 'expo-router';
 import {
   Badge,
   Icon,
@@ -13,70 +14,100 @@ import {
 export default function TabsLayout() {
   const red = useColor('red');
   const primary = useColor('primary');
-  const secondary = useColor('secondary');
+  const inactiveColor = useColor('tabIconDefault');
+  const activeColor = useColor('tabIconSelected');
+  const background = useColor('background');
+  const border = useColor('border');
+
+  if (Platform.OS !== 'ios') {
+    return (
+      <Tabs
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: primary,
+          tabBarInactiveTintColor: inactiveColor,
+          tabBarStyle: {
+            backgroundColor: background,
+            borderTopColor: border,
+          },
+        }}
+      >
+        <Tabs.Screen
+          name='home/index'
+          options={{
+            title: 'Home',
+            tabBarIcon: ({ color }) => <MaterialIcons name="home" size={24} color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name='matches/index'
+          options={{
+            title: 'Matches',
+            tabBarIcon: ({ color }) => <MaterialIcons name="heart" size={24} color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name='friends/index'
+          options={{
+            title: 'Friends',
+            tabBarIcon: ({ color }) => <MaterialIcons name="users" size={24} color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name='community/index'
+          options={{
+            title: 'Community',
+            tabBarIcon: ({ color }) => <MaterialIcons name="users" size={24} color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name='messages/index'
+          options={{
+            title: 'Messages',
+            tabBarIcon: ({ color }) => <MaterialIcons name="message-square" size={24} color={color} />,
+          }}
+        />
+      </Tabs>
+    );
+  }
 
   return (
     <NativeTabs
       minimizeBehavior='onScrollDown'
       labelStyle={{
-        default: { color: primary },
-        selected: { color: secondary },
+        default: { color: inactiveColor },
+        selected: { color: primary },
       }}
       iconColor={{
-        default: primary,
-        selected: secondary,
+        default: inactiveColor,
+        selected: primary,
       }}
       badgeBackgroundColor={red}
       labelVisibilityMode='labeled'
       disableTransparentOnScrollEdge={true}
     >
       <NativeTabs.Trigger name='home/index'>
-        {Platform.select({
-          ios: <Icon sf='house.fill' />,
-          android: (
-            <Icon src={<VectorIcon family={MaterialIcons} name='home' />} />
-          ),
-        })}
+        <Icon sf='house.fill' />
         <Label>Home</Label>
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name='matches/index'>
-        {Platform.select({
-          ios: <Icon sf='heart.fill' />,
-          android: (
-            <Icon src={<VectorIcon family={MaterialIcons} name='heart' />} />
-          ),
-        })}
+        <Icon sf='heart.fill' />
         <Label>Matches</Label>
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name='friends/index'>
-        {Platform.select({
-          ios: <Icon sf='person.2.fill' />,
-          android: (
-            <Icon src={<VectorIcon family={MaterialIcons} name='users' />} />
-          ),
-        })}
+        <Icon sf='person.2.fill' />
         <Label>Friends</Label>
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name='community/index'>
-        {Platform.select({
-          ios: <Icon sf='person.3.fill' />,
-          android: (
-            <Icon src={<VectorIcon family={MaterialIcons} name='users' />} />
-          ),
-        })}
+        <Icon sf='person.3.fill' />
         <Label>Community</Label>
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name='messages/index'>
-        {Platform.select({
-          ios: <Icon sf='message.fill' />,
-          android: (
-            <Icon src={<VectorIcon family={MaterialIcons} name='message-square' />} />
-          ),
-        })}
+        <Icon sf='message.fill' />
         <Label>Messages</Label>
       </NativeTabs.Trigger>
     </NativeTabs>

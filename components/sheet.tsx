@@ -5,7 +5,10 @@ import { useColor } from "@/hooks/useColor";
 import { router } from "expo-router";
 import { Check, Heart, MoreHorizontal, Star, X } from "lucide-react-native";
 import { Image, ScrollView, StyleSheet, View, Pressable } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
 const PRIMARY = "#DE4177";
 
@@ -17,10 +20,16 @@ export default function ProfileSheet() {
   const insets = useSafeAreaInsets();
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: background }]} edges={['top', 'bottom']}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: background }]}
+      edges={["top", "bottom"]}
+    >
       {/* Header */}
 
       <View style={styles.header}>
+        <Pressable onPress={() => router.back()}>
+          <Icon name={X} size={24} color={text} />
+        </Pressable>
         <Text style={[styles.name, { color: text }]}>Sam, 28</Text>
       </View>
       <ScrollView
@@ -128,7 +137,8 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    //  justifyContent: "space-between",
+    gap: 18,
     alignItems: "center",
     paddingHorizontal: 20,
     marginBottom: 16,

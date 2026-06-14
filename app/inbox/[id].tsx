@@ -355,18 +355,6 @@ export default function ChatScreen() {
               </Text>
             </View>
           </View>
-
-          <View style={styles.headerActions}>
-            <Pressable hitSlop={8} style={styles.headerActionBtn}>
-              <Icon name={Phone} size={20} color={primary} />
-            </Pressable>
-            <Pressable hitSlop={8} style={styles.headerActionBtn}>
-              <Icon name={Video} size={20} color={primary} />
-            </Pressable>
-            <Pressable hitSlop={8} style={styles.headerActionBtn}>
-              <Icon name={MoreVertical} size={20} color={text} />
-            </Pressable>
-          </View>
         </View>
       </View>
 
@@ -391,6 +379,7 @@ export default function ChatScreen() {
         minInputToolbarHeight={52}
         maxComposerHeight={120}
         minComposerHeight={44}
+        
         textInputProps={{
           accessibilityLabel: "Message input",
           placeholder: "Message...",
