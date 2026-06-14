@@ -21,6 +21,7 @@ import {
 } from "lucide-react-native";
 import Swipe from "@/components/swipe";
 import { Button } from "@/components/ui/button";
+import { Layout } from "@/components/layout/Layout";
 
 export default function MatchesScreen() {
   const insets = useSafeAreaInsets();
@@ -32,59 +33,84 @@ export default function MatchesScreen() {
   const border = useColor("border");
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: background }]}>
-      <View style={styles.scrollContent}>
-        {/* Filters Header */}
-        <View style={styles.filtersHeader}>
-          <Text style={styles.filtersTitle}>
-            Find Your Perfect Match by Filters
-          </Text>
-          <Link href="/filters" asChild>
-            <Pressable hitSlop={20}>
-              <SlidersHorizontal color={primary} />
-            </Pressable>
-          </Link>
-        </View>
+    //  <SafeAreaView style={[styles.container, { backgroundColor: background }]}>
+    //    <View style={styles.scrollContent}>
+    <Layout>
+      {/* Filters Header */}
+      <View style={styles.filtersHeader}>
+        <Text style={styles.filtersTitle}>
+          Find Your Perfect Match by Filters
+        </Text>
+        <Link href="/filters" asChild>
+          <Pressable hitSlop={20}>
+            <SlidersHorizontal color={primary} />
+          </Pressable>
+        </Link>
+      </View>
 
-        {/* Card Stack Area */}
-        <View style={[styles.cardStackArea, { backgroundColor: primary + 20 }]}>
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 8,
+        }}
+      >
+        <Text>Hello Alex</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
           <View
             style={{
-              marginBottom: 16,
-            //   right: 16,
-            //   position: "absolute",
-              backgroundColor: "#fff",
-              padding: 8,
-              borderRadius: BORDER_RADIUS,
-            //   margin: 8,
+              backgroundColor: "green",
+              width: 46,
+              height: 46,
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: 36,
             }}
           >
-            <Undo />
+            <Star color={"#fff"} fill={"#fff"} />
           </View>
-          <Swipe />
-          {/* Action Buttons */}
-          <View style={styles.actionButtonsRow}>
-            {/* Reject Button */}
-            <Pressable style={styles.rejectButton}>
-              <Icon name={X} size={32} color="#FFF" />
-            </Pressable>
-
-            {/* Super Like Button */}
-            <Pressable style={styles.superLikeButton}>
-              <Icon name={Star} size={24} color="#E65100" />
-            </Pressable>
-
-            {/* Like Button */}
-            <Pressable
-              style={[styles.likeButton, { backgroundColor: primary }]}
-            >
-              <Icon name={Heart} size={32} color="#FFF" />
-            </Pressable>
-          </View>
+          <Text style={{ fontSize: 14 }}>Premium{"\n"}Membership</Text>
         </View>
-
       </View>
-    </SafeAreaView>
+
+      {/* Card Stack Area */}
+      <View style={[styles.cardStackArea, { backgroundColor: primary + 20 }]}>
+        <View
+          style={{
+            // marginBottom: 16,
+            //   right: 16,
+            //   position: "absolute",
+            backgroundColor: "#fff",
+            padding: 8,
+            borderRadius: BORDER_RADIUS,
+            //   margin: 8,
+          }}
+        >
+          <Undo />
+        </View>
+        <Swipe />
+        {/* Action Buttons */}
+        <View style={styles.actionButtonsRow}>
+          {/* Reject Button */}
+          <Pressable style={styles.rejectButton}>
+            <Icon name={X} size={32} color="#FFF" />
+          </Pressable>
+
+          {/* Super Like Button */}
+          <Pressable style={styles.superLikeButton}>
+            <Icon name={Star} size={24} color="#E65100" />
+          </Pressable>
+
+          {/* Like Button */}
+          <Pressable style={[styles.likeButton, { backgroundColor: primary }]}>
+            <Icon name={Heart} size={32} color="#FFF" />
+          </Pressable>
+        </View>
+      </View>
+    </Layout>
+    //    </View>
+    //  </SafeAreaView>
   );
 }
 
@@ -135,6 +161,7 @@ const styles = StyleSheet.create({
     paddingBottom: 24, // reduced from 100 since no scrolling
   },
   filtersHeader: {
+    paddingTop: 30,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -158,8 +185,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     gap: 24,
-   //  marginTop: 40,
-   //  zIndex: 10,
+    //  marginTop: 40,
+    //  zIndex: 10,
   },
   rejectButton: {
     width: 64,
