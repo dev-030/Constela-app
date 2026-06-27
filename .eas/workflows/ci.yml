@@ -1,0 +1,13 @@
+name: CI Check
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  typecheck:
+    steps:
+      - uses: eas/checkout@v1
+      - uses: eas/install_node_modules
+      - run: npm run lint
+      - run: npx tsc --noEmit
