@@ -216,17 +216,6 @@ export default function CommunityScreen() {
               style={[styles.searchInput, { color: text }]}
             />
           </View>
-          <Pressable
-            style={[
-              styles.filterButton,
-              colorScheme === "dark" && { backgroundColor: card },
-            ]}
-          >
-            <SlidersHorizontal
-              size={23}
-              color={colorScheme === "dark" ? "#8591A0" : "#3E6F63"}
-            />
-          </Pressable>
         </View>
 
         <Text

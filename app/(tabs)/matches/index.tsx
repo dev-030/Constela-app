@@ -33,9 +33,8 @@ export default function MatchesScreen() {
   const border = useColor("border");
 
   return (
-    //  <SafeAreaView style={[styles.container, { backgroundColor: background }]}>
-    //    <View style={styles.scrollContent}>
-    <Layout>
+     <SafeAreaView style={[styles.container, { backgroundColor: background }]}>
+       <View style={styles.scrollContent}>
       {/* Filters Header */}
       <View style={styles.filtersHeader}>
         <Text style={styles.filtersTitle}>
@@ -108,9 +107,9 @@ export default function MatchesScreen() {
           </Pressable>
         </View>
       </View>
-    </Layout>
-    //    </View>
-    //  </SafeAreaView>
+    {/* </Layout> */}
+        </View>
+  </SafeAreaView>
   );
 }
 

@@ -33,7 +33,7 @@ export default function LoginScreen() {
       {
         onSuccess: () => {
           toast.success("Logged in successfully");
-          router.replace("/(tabs)");
+          router.replace("/(tabs)/home");
         },
         onError: (err: any) => {
           const errMsg =

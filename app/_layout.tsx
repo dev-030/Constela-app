@@ -44,8 +44,7 @@ function RootLayoutContent() {
   }, [colorScheme]);
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <ThemeProvider>
+    <ThemeProvider>
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} animated />
 
         <Stack screenOptions={{ headerShown: false }}>
@@ -120,7 +119,6 @@ function RootLayoutContent() {
           <Stack.Screen name='+not-found' />
         </Stack>
       </ThemeProvider>
-    </GestureHandlerRootView>
   );
 }
 
@@ -134,11 +132,13 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeContextProvider>
-        <RootLayoutContent />
-        <Toaster />
-      </ThemeContextProvider>
-    </QueryClientProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <QueryClientProvider client={queryClient}>
+        <ThemeContextProvider>
+          <RootLayoutContent />
+          <Toaster />
+        </ThemeContextProvider>
+      </QueryClientProvider>
+    </GestureHandlerRootView>
   );
 }
