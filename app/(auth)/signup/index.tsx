@@ -7,13 +7,50 @@ import { router } from "expo-router";
 import { Eye, EyeOff } from "lucide-react-native";
 import { useState } from "react";
 import { Image, Pressable, ScrollView, View } from "react-native";
+import { useSignUpMutation } from "@/api/auth";
+import { toast } from "sonner-native";
 
 export default function SignupScreen() {
   const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  const signup = useSignUpMutation();
+
   const orange = useColor("orange");
   const muted = useColor("textMuted");
   const background = useColor("background");
   const border = useColor("border");
+
+  const handleSignup = () => {
+    if (!email || !password) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+    if (password !== confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+
+    signup.mutate(
+      { email, password },
+      {
+        onSuccess: (data) => {
+          toast.success(data.message || "OTP sent to email");
+          router.push({ pathname: "/(auth)/otp", params: { email } });
+        },
+        onError: (err: any) => {
+          const errMsg =
+            err?.response?.data?.email?.[0] ||
+            err?.response?.data?.error ||
+            err?.message ||
+            "Signup failed";
+          toast.error(errMsg);
+        },
+      }
+    );
+  };
 
   return (
     <ScrollView
@@ -52,6 +89,10 @@ export default function SignupScreen() {
               placeholder="e.g. alex@example.com"
               variant="outline"
               inputStyle={{ paddingVertical: 14 }}
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
             />
           </View>
 
@@ -59,8 +100,10 @@ export default function SignupScreen() {
             <Text style={{ fontWeight: "600", fontSize: 14 }}>Password</Text>
             <Input
               placeholder="........"
-              secureTextEntry
+              secureTextEntry={!showPassword}
               variant="outline"
+              value={password}
+              onChangeText={setPassword}
               rightComponent={() => (
                 <Pressable onPress={() => setShowPassword(!showPassword)}>
                   <Icon
@@ -79,8 +122,10 @@ export default function SignupScreen() {
             </Text>
             <Input
               placeholder="........"
-              secureTextEntry
+              secureTextEntry={!showPassword}
               variant="outline"
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
               rightComponent={() => (
                 <Pressable onPress={() => setShowPassword(!showPassword)}>
                   <Icon
@@ -95,7 +140,8 @@ export default function SignupScreen() {
 
           <Button
             style={{ marginTop: 8 }}
-            onPress={() => router.push("/(auth)/otp")}
+            onPress={handleSignup}
+            disabled={signup.isPending}
           >
             Signup
           </Button>

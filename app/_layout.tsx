@@ -1,3 +1,6 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Toaster } from 'sonner-native';
+import { useAuthStore } from '@/store/authStore';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/theme/colors';
 import { ThemeProvider } from '@/theme/theme-provider';
@@ -121,10 +124,21 @@ function RootLayoutContent() {
   );
 }
 
+const queryClient = new QueryClient();
+
 export default function RootLayout() {
+  const { restoreAuth } = useAuthStore();
+
+  useEffect(() => {
+    restoreAuth();
+  }, []);
+
   return (
-    <ThemeContextProvider>
-      <RootLayoutContent />
-    </ThemeContextProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeContextProvider>
+        <RootLayoutContent />
+        <Toaster />
+      </ThemeContextProvider>
+    </QueryClientProvider>
   );
 }
