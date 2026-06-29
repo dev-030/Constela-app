@@ -1,4 +1,5 @@
 import { apiClient } from './client';
+import { useQuery } from '@tanstack/react-query';
 
 export interface UserProfile {
   id: string;
@@ -62,4 +63,15 @@ export const updateMyProfile = async (formData: FormData): Promise<UserProfile> 
     },
   });
   return response.data;
+};
+
+export const useGetProfileDetailsQuery = (uuid: string) => {
+  return useQuery({
+    queryKey: ['profileDetails', uuid],
+    queryFn: async () => {
+      const response = await apiClient.get<UserProfile>(`/api/profiles/${uuid}/`);
+      return response.data;
+    },
+    enabled: !!uuid,
+  });
 };

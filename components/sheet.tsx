@@ -2,9 +2,10 @@ import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { Text } from "@/components/ui/text";
 import { useColor } from "@/hooks/useColor";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { Check, Heart, MoreHorizontal, Star, X } from "lucide-react-native";
-import { Image, ScrollView, StyleSheet, View, Pressable } from "react-native";
+import { Image, ScrollView, StyleSheet, View, Pressable, ActivityIndicator } from "react-native";
+import { useGetProfileDetailsQuery } from "@/api/profile";
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -18,6 +19,26 @@ export default function ProfileSheet() {
   const muted = useColor("textMuted");
   const border = useColor("border");
   const insets = useSafeAreaInsets();
+  
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const { data: profile, isLoading, isError } = useGetProfileDetailsQuery(id || "");
+
+  if (isLoading) {
+    return (
+      <View style={[styles.container, { backgroundColor: background, justifyContent: "center", alignItems: "center" }]}>
+        <ActivityIndicator size="large" color={PRIMARY} />
+      </View>
+    );
+  }
+
+  if (isError || !profile) {
+    return (
+      <View style={[styles.container, { backgroundColor: background, justifyContent: "center", alignItems: "center" }]}>
+        <Text style={{ color: "red" }}>Failed to load profile.</Text>
+        <Button style={{ marginTop: 16 }} onPress={() => router.back()}>Go Back</Button>
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView
@@ -30,84 +51,79 @@ export default function ProfileSheet() {
         <Pressable onPress={() => router.back()}>
           <Icon name={X} size={24} color={text} />
         </Pressable>
-        <Text style={[styles.name, { color: text }]}>Sam, 28</Text>
+        <Text style={[styles.name, { color: text }]}>{profile.username}, {profile.age}</Text>
       </View>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         {/* Photo */}
-        <Image
-          source={require("@/assets/profiles/liam.png")} // using one of the generated images
-          style={styles.photo}
-          resizeMode="cover"
-        />
+        {profile.photos?.[0]?.image ? (
+          <Image
+            source={{ uri: profile.photos[0].image }}
+            style={styles.photo}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={[styles.photo, { backgroundColor: border, justifyContent: "center", alignItems: "center" }]}>
+            <Text>No Photo</Text>
+          </View>
+        )}
 
         {/* Neurotype */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: muted }]}>NEUROTYPE</Text>
-          <View style={styles.pillContainer}>
-            <View style={[styles.pill, { backgroundColor: "#A7F3D0" }]}>
-              <Text
-                style={{ fontSize: 13, fontWeight: "600", color: "#065F46" }}
-              >
-                Autistic
-              </Text>
-            </View>
-            <View style={[styles.pill, { backgroundColor: "#A7F3D0" }]}>
-              <Text
-                style={{ fontSize: 13, fontWeight: "600", color: "#065F46" }}
-              >
-                i'm neurodivergent
-              </Text>
+        {profile.neurotype_labels && profile.neurotype_labels.length > 0 && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: muted }]}>NEUROTYPE</Text>
+            <View style={styles.pillContainer}>
+              {profile.neurotype_labels.map((label) => (
+                <View key={label} style={[styles.pill, { backgroundColor: "#A7F3D0" }]}>
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: "#065F46" }}>
+                    {label}
+                  </Text>
+                </View>
+              ))}
             </View>
           </View>
-        </View>
+        )}
 
         {/* Bio */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: muted }]}>BIO</Text>
-          <Text style={[styles.bioText, { color: text }]}>
-            "I value parallel play and deep conversations. Introvert, coffee
-            lover, and space enthusiast."
-          </Text>
-        </View>
+        {profile.bio && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: muted }]}>BIO</Text>
+            <Text style={[styles.bioText, { color: text }]}>"{profile.bio}"</Text>
+          </View>
+        )}
 
         {/* Interests */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: muted }]}>INTERESTS</Text>
-          <View style={styles.pillContainer}>
-            {["🎮 Gaming", "🎨 Art", "🚀 Space", "☕ Coffee"].map(
-              (interest) => (
-                <View
-                  key={interest}
-                  style={[styles.pillOutline, { borderColor: border }]}
-                >
+        {profile.interests && profile.interests.length > 0 && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: muted }]}>INTERESTS</Text>
+            <View style={styles.pillContainer}>
+              {profile.interests.map((interest) => (
+                <View key={interest} style={[styles.pillOutline, { borderColor: border }]}>
                   <Text style={{ fontSize: 13, color: text }}>{interest}</Text>
                 </View>
-              ),
-            )}
+              ))}
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Sensory Profile */}
         <View style={[styles.section, { paddingBottom: 100 }]}>
-          <Text style={[styles.sectionTitle, { color: muted }]}>
-            SENSORY PROFILE
-          </Text>
+          <Text style={[styles.sectionTitle, { color: muted }]}>SENSORY PROFILE</Text>
           <View style={styles.sensoryContainer}>
-            <View style={[styles.sensoryItem, { borderColor: border }]}>
-              <Text style={{ fontSize: 14, color: text }}>
-                💡 Soft Lighting Only
-              </Text>
-              <Icon name={Check} size={20} color="#059669" />
-            </View>
-            <View style={[styles.sensoryItem, { borderColor: border }]}>
-              <Text style={{ fontSize: 14, color: text }}>
-                🔇 Quiet Spaces Preferred
-              </Text>
-              <Icon name={Check} size={20} color="#059669" />
-            </View>
+            {profile.emotional_needs?.map((need) => (
+              <View key={need} style={[styles.sensoryItem, { borderColor: border }]}>
+                <Text style={{ fontSize: 14, color: text }}>{need}</Text>
+                <Icon name={Check} size={20} color="#059669" />
+              </View>
+            ))}
+            {profile.soothe_methods?.map((soothe) => (
+              <View key={soothe} style={[styles.sensoryItem, { borderColor: border }]}>
+                <Text style={{ fontSize: 14, color: text }}>{soothe}</Text>
+                <Icon name={Check} size={20} color="#059669" />
+              </View>
+            ))}
           </View>
         </View>
       </ScrollView>

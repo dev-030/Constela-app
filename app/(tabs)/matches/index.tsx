@@ -22,6 +22,8 @@ import {
 import Swipe from "@/components/swipe";
 import { Button } from "@/components/ui/button";
 import { Layout } from "@/components/layout/Layout";
+import { usePerfectMatchQuery, useSwipeActionMutation, MatchProfile } from "@/api/matching";
+import { ActivityIndicator, Alert } from "react-native";
 
 export default function MatchesScreen() {
   const insets = useSafeAreaInsets();
@@ -31,6 +33,27 @@ export default function MatchesScreen() {
   const muted = useColor("textMuted");
   const text = useColor("text");
   const border = useColor("border");
+
+  // Fetch perfect matches with no filters (default behavior)
+  const { data, isLoading, isError } = usePerfectMatchQuery({});
+  const swipeAction = useSwipeActionMutation();
+
+  const handleSwipe = async (profile: MatchProfile, direction: "left" | "right") => {
+    try {
+      const action = direction === "right" ? "liked" : "disliked";
+      const res = await swipeAction.mutateAsync({ targetId: profile.id, action });
+      
+      if (res.is_mutual_match) {
+        Alert.alert("It's a Match! 🎉", `You and ${profile.username} liked each other!`);
+      }
+    } catch (err: any) {
+      if (err?.response?.status === 403) {
+        Alert.alert("Limit Reached", err.response.data.error || "Daily like limit reached. Upgrade to Premium for more.");
+      } else {
+        console.log("Swipe action error:", err);
+      }
+    }
+  };
 
   return (
      <SafeAreaView style={[styles.container, { backgroundColor: background }]}>
@@ -88,7 +111,24 @@ export default function MatchesScreen() {
         >
           <Undo />
         </View>
-        <Swipe />
+
+        {isLoading ? (
+          <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+            <ActivityIndicator size="large" color={primary} />
+            <Text style={{ marginTop: 12, color: primary }}>Finding matches...</Text>
+          </View>
+        ) : isError ? (
+          <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+            <Text style={{ color: "red" }}>Failed to load matches.</Text>
+          </View>
+        ) : data?.results && data.results.length > 0 ? (
+          <Swipe profiles={data.results} onSwipe={handleSwipe} />
+        ) : (
+          <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+            <Text style={{ color: muted }}>No matches found.</Text>
+          </View>
+        )}
+
         {/* Action Buttons */}
         <View style={styles.actionButtonsRow}>
           {/* Reject Button */}

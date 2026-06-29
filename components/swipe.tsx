@@ -21,20 +21,24 @@ import {
 } from "lucide-react-native";
 
 import { window } from "@/constants/sizes";
-import { MatchUser, getMatchUsers } from "@/constants/matches";
 import { router } from "expo-router";
 import { Icon } from "./ui/icon";
 import { useColor } from "@/hooks/useColor";
+import { MatchProfile } from "@/api/matching";
 
-const data = getMatchUsers();
+interface SwipeProps {
+  profiles: MatchProfile[];
+  onSwipe?: (profile: MatchProfile, direction: "left" | "right") => void;
+}
 
-function Swipe() {
+function Swipe({ profiles, onSwipe }: SwipeProps) {
   const PAGE_WIDTH = window.width - 64; // accounting for padding
   const PAGE_HEIGHT = window.height * 0.55; // smaller height to fit in the cardStackArea
 
   const primary = useColor("primary")
 
   const directionAnimVal = useSharedValue(0);
+  const currentIndex = React.useRef(0);
 
   const animationStyle: TAnimationStyle = React.useCallback(
     (value: number, index: number) => {
@@ -95,15 +99,23 @@ function Swipe() {
         }}
         defaultIndex={0}
         vertical={false}
-        data={data}
+        data={profiles}
         onConfigurePanGesture={(g) => {
           g.onChange((e) => {
             "worklet";
             directionAnimVal.value = Math.sign(e.translationX);
           });
         }}
+        onSnapToItem={(index) => {
+          if (onSwipe && profiles[currentIndex.current]) {
+            const swipedProfile = profiles[currentIndex.current];
+            const direction = directionAnimVal.value > 0 ? "right" : "left";
+            onSwipe(swipedProfile, direction);
+          }
+          currentIndex.current = index;
+        }}
         fixedDirection="negative"
-        renderItem={({ index, item }) => <Item key={index} user={item} />}
+        renderItem={({ index, item }) => <Item key={item.id || index} user={item} />}
         customAnimation={animationStyle}
         windowSize={5}
       />
@@ -111,7 +123,7 @@ function Swipe() {
   );
 }
 
-const Item: React.FC<{ user: MatchUser }> = ({ user }) => {
+const Item: React.FC<{ user: MatchProfile }> = ({ user }) => {
   const width = window.width * 0.7;
   const height = window.height * 0.5;
 
@@ -121,7 +133,7 @@ const Item: React.FC<{ user: MatchUser }> = ({ user }) => {
       style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
     >
       <Pressable
-        onPress={() => router.push("/sheet")}
+        onPress={() => router.push({ pathname: "/sheet", params: { id: user.id } })}
         style={{
           width,
           height,
@@ -135,7 +147,7 @@ const Item: React.FC<{ user: MatchUser }> = ({ user }) => {
         }}
       >
         <Image
-          source={user.image}
+          source={{ uri: user.photo }}
           style={{
             width,
             height,
@@ -154,7 +166,7 @@ const Item: React.FC<{ user: MatchUser }> = ({ user }) => {
         {/* User details */}
         <View style={styles.details} pointerEvents="none">
           <Animated.Text numberOfLines={1} style={styles.name}>
-            {user.name}, {user.age}
+            {user.username}, {user.age}
           </Animated.Text>
 
           <Animated.Text numberOfLines={2} style={styles.bio}>
@@ -162,7 +174,7 @@ const Item: React.FC<{ user: MatchUser }> = ({ user }) => {
           </Animated.Text>
 
           <View style={styles.interestsRow}>
-            {user.interests.slice(0, 3).map((tag) => (
+            {(user.tags || []).slice(0, 3).map((tag) => (
               <View key={tag} style={styles.interestPill}>
                 <Animated.Text numberOfLines={1} style={styles.interestText}>
                   {tag}

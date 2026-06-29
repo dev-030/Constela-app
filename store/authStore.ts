@@ -6,6 +6,7 @@ interface AuthState {
   refreshToken: string | null;
   role: string | null;
   isAuthenticated: boolean;
+  isRestoring: boolean;
   setAuth: (access: string, refresh: string, role?: string) => Promise<void>;
   clearAuth: () => Promise<void>;
   restoreAuth: () => Promise<void>;
@@ -17,6 +18,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   refreshToken: null,
   role: null,
   isAuthenticated: false,
+  isRestoring: true,
 
   setAuth: async (access, refresh, role) => {
     try {
@@ -49,10 +51,13 @@ export const useAuthStore = create<AuthState>((set) => ({
       const role = await SecureStore.getItemAsync('user_role');
       
       if (access && refresh) {
-        set({ accessToken: access, refreshToken: refresh, role, isAuthenticated: true });
+        set({ accessToken: access, refreshToken: refresh, role, isAuthenticated: true, isRestoring: false });
+      } else {
+        set({ isRestoring: false });
       }
     } catch (error) {
       console.error('Failed to restore auth tokens', error);
+      set({ isRestoring: false });
     }
   },
   

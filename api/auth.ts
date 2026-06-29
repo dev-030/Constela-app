@@ -113,6 +113,19 @@ export const useCheckUsernameQuery = (username: string) => {
   });
 };
 
+export const useFaceVerifyMutation = () => {
+  return useMutation({
+    mutationFn: async (formData: FormData) => {
+      const response = await apiClient.post('/api/auth/face-verify/', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data;
+    },
+  });
+};
+
 // 4. Logout Hook (optional but handy)
 export const useLogout = () => {
   const { clearAuth } = useAuthStore.getState();

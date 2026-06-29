@@ -1,4 +1,6 @@
 import { updateMyProfile } from "@/api/profile";
+import { useFaceVerifyMutation } from "@/api/auth";
+import * as ImagePicker from "expo-image-picker";
 import { useOnboarding } from "@/providers/onboarding-context";
 import { useProfileStore } from "@/store/profileStore";
 import { Button } from "@/components/ui/button";
@@ -13,6 +15,8 @@ import {
   StyleSheet,
   View,
   ActivityIndicator,
+  Image,
+  Pressable,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -26,15 +30,46 @@ export default function FaceVerificationScreen() {
   const card = useColor("card");
   const border = useColor("border");
 
-  const [faceDetected] = useState(true); // simulated
+  const [faceDetected, setFaceDetected] = useState(true); // simulated
   const spinAnim = useRef(new Animated.Value(0)).current;
 
   const { data } = useOnboarding();
   const { fetchProfile } = useProfileStore();
+  const faceVerify = useFaceVerifyMutation();
+  
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [selfieUri, setSelfieUri] = useState<string | null>(null);
+
+  const takeSelfie = async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      setError("Camera permission is required to verify your face.");
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setSelfieUri(result.assets[0].uri);
+      setError("");
+    }
+  };
+
+  useEffect(() => {
+    // Open camera automatically when user visits the screen
+    takeSelfie();
+  }, []);
 
   const handleSubmit = async () => {
+    if (!selfieUri) {
+      setError("Please take a selfie first.");
+      return;
+    }
+
     setIsLoading(true);
     setError("");
     try {
@@ -141,7 +176,19 @@ export default function FaceVerificationScreen() {
         } as any);
       }
 
+
       await updateMyProfile(formData);
+
+      // Now submit the selfie for face verification
+      const faceFormData = new FormData();
+      faceFormData.append("selfie", {
+        uri: selfieUri,
+        name: "selfie.jpg",
+        type: "image/jpeg",
+      } as any);
+      
+      await faceVerify.mutateAsync(faceFormData);
+      
       await fetchProfile();
       router.replace("/(tabs)/home");
     } catch (err: any) {
@@ -213,10 +260,17 @@ export default function FaceVerificationScreen() {
         />
         {/* Static ring */}
         <View style={[styles.staticRing, { borderColor: border }]} />
-        {/* Face placeholder */}
-        <View style={[styles.facePlaceholder, { backgroundColor: card }]}>
-          <Text style={{ fontSize: 80 }}>🧑</Text>
-        </View>
+        {/* Face placeholder or Image */}
+        <Pressable 
+          style={[styles.facePlaceholder, { backgroundColor: card }]}
+          onPress={takeSelfie}
+        >
+          {selfieUri ? (
+            <Image source={{ uri: selfieUri }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+          ) : (
+            <Text style={{ fontSize: 80 }}>🧑</Text>
+          )}
+        </Pressable>
       </View>
 
       <View style={{ flex: 1 }} />
