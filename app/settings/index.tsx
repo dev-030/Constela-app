@@ -6,7 +6,8 @@ import { useColor } from "@/hooks/useColor";
 import { useThemeContext } from "@/providers/theme-context";
 import { router } from "expo-router";
 import { ChevronLeft, ChevronRight } from "lucide-react-native";
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
+import { useProfileStore } from "@/store/profileStore";
 import Link from "expo-router/link";
 import {
   Pressable,
@@ -29,6 +30,12 @@ export default function SettingsIndexScreen() {
   const secondary = useColor("secondary");
 
   const { themePreference, setColorScheme, colorScheme } = useThemeContext();
+  const { profile, fetchProfile } = useProfileStore();
+
+  useEffect(() => {
+    if (!profile) fetchProfile();
+  }, []);
+
   const darkMode =
     themePreference === "dark" ||
     (themePreference === "system" && colorScheme === "dark");
@@ -158,14 +165,14 @@ export default function SettingsIndexScreen() {
           <View style={styles.avatarContainer}>
             <Image
               source={{
-                uri: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&q=80",
+                uri: profile?.photos?.[0]?.image || "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&q=80",
               }}
               style={styles.avatar}
             />
           </View>
           <View>
-            <Text style={styles.name}>Marcus Jenkins</Text>
-            <Text style={styles.email}>marcus.jenkins@constela.au</Text>
+            <Text style={styles.name}>{profile?.username || 'Loading...'}</Text>
+            <Text style={styles.email}>{profile?.user?.email || ''}</Text>
           </View>
         </View>
 

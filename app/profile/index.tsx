@@ -8,6 +8,8 @@ import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
 import { FilterPill } from '@/components/ui/filter-pill';
 import { useColor } from '@/hooks/useColor';
+import { useProfileStore } from '@/store/profileStore';
+import { useEffect } from 'react';
 
 const SectionHeader = ({ title, icon, onEdit }: { title: string; icon: any; onEdit?: () => void }) => {
   const primary = useColor('primary');
@@ -38,6 +40,20 @@ export default function ProfileScreen() {
   const primary = useColor('primary');
   const border = useColor('border');
 
+  const { profile, fetchProfile, isLoading } = useProfileStore();
+
+  useEffect(() => {
+    if (!profile) fetchProfile();
+  }, []);
+
+  if (isLoading || !profile) {
+    return (
+      <View style={[styles.container, { backgroundColor: background, justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={{ color: text }}>Loading profile...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: background }]}>
       {/* Header */}
@@ -53,14 +69,14 @@ export default function ProfileScreen() {
         {/* User Overview */}
         <View style={styles.overview}>
           <Image
-            source={{ uri: 'https://i.pravatar.cc/150?img=68' }}
+            source={{ uri: profile.photos && profile.photos.length > 0 ? profile.photos[0].image : 'https://i.pravatar.cc/150?img=68' }}
             style={styles.avatar}
           />
-          <Text style={styles.name}>Alex, 28</Text>
+          <Text style={styles.name}>{profile.username}, {profile.age}</Text>
           <View style={[styles.pill, { backgroundColor: primary + '20' }]}>
-            <Text style={[styles.pillText, { color: primary }]}>Serious Relationship</Text>
+            <Text style={[styles.pillText, { color: primary }]}>{profile.looking_for || 'Friendship'}</Text>
           </View>
-          <Text style={[styles.location, { color: muted }]}>Portland, Oregon • Portland, USA</Text>
+          <Text style={[styles.location, { color: muted }]}>{profile.city}, {profile.country}</Text>
 
           <View style={styles.statsRow}>
             <View style={[styles.statBox, { backgroundColor: cardColor, borderColor: border }]}>
@@ -78,10 +94,10 @@ export default function ProfileScreen() {
         <View style={[styles.completionCard, { backgroundColor: cardColor, borderColor: border }]}>
           <View style={styles.completionHeader}>
             <Text style={styles.completionTitle}>Profile Completion</Text>
-            <Text style={[styles.completionPercent, { color: primary }]}>85%</Text>
+            <Text style={[styles.completionPercent, { color: primary }]}>{profile.profile_completion_pct}%</Text>
           </View>
           <View style={[styles.progressBarBg, { backgroundColor: border }]}>
-            <View style={[styles.progressBarFill, { backgroundColor: primary, width: '85%' }]} />
+            <View style={[styles.progressBarFill, { backgroundColor: primary, width: `${profile.profile_completion_pct}%` }]} />
           </View>
           <Text style={[styles.completionDesc, { color: primary }]}>Complete your profile to get more relevant matches.</Text>
         </View>
@@ -94,16 +110,15 @@ export default function ProfileScreen() {
           </Text>
 
           <View style={styles.infoGrid}>
-            <View style={styles.infoItem}><Text style={[styles.infoLabel, { color: muted }]}>Gender</Text><Text style={styles.infoValue}>Non-binary</Text></View>
-            <View style={styles.infoItem}><Text style={[styles.infoLabel, { color: muted }]}>Marital Status</Text><Text style={styles.infoValue}>Single</Text></View>
-            <View style={styles.infoItem}><Text style={[styles.infoLabel, { color: muted }]}>Languages</Text><Text style={styles.infoValue}>English, ASL</Text></View>
-            <View style={styles.infoItem}><Text style={[styles.infoLabel, { color: muted }]}>City</Text><Text style={styles.infoValue}>Portland, USA</Text></View>
-            <View style={styles.infoItem}><Text style={[styles.infoLabel, { color: muted }]}>Height/Weight</Text><Text style={styles.infoValue}>175cm, 70kg</Text></View>
-            <View style={styles.infoItem}><Text style={[styles.infoLabel, { color: muted }]}>I'm</Text><Text style={styles.infoValue}>Non-binary</Text></View>
-            <View style={styles.infoItem}><Text style={[styles.infoLabel, { color: muted }]}>Looking for</Text><Text style={styles.infoValue}>Non-binary</Text></View>
-            <View style={styles.infoItem}><Text style={[styles.infoLabel, { color: muted }]}>Neurodivergence</Text><Text style={styles.infoValue}>I'm Neurodivergent</Text></View>
-            <View style={styles.infoItem}><Text style={[styles.infoLabel, { color: muted }]}>Open to Meet</Text><Text style={styles.infoValue}>Neurodivergent</Text></View>
-            <View style={styles.infoItem}><Text style={[styles.infoLabel, { color: muted }]}>Has Children</Text><Text style={styles.infoValue}>Yes</Text></View>
+            <View style={styles.infoItem}><Text style={[styles.infoLabel, { color: muted }]}>Gender</Text><Text style={styles.infoValue}>{profile.gender}</Text></View>
+            <View style={styles.infoItem}><Text style={[styles.infoLabel, { color: muted }]}>Marital Status</Text><Text style={styles.infoValue}>{profile.marital_status}</Text></View>
+            <View style={styles.infoItem}><Text style={[styles.infoLabel, { color: muted }]}>Languages</Text><Text style={styles.infoValue}>{profile.spoken_languages?.join(', ')}</Text></View>
+            <View style={styles.infoItem}><Text style={[styles.infoLabel, { color: muted }]}>City</Text><Text style={styles.infoValue}>{profile.city}</Text></View>
+            <View style={styles.infoItem}><Text style={[styles.infoLabel, { color: muted }]}>Height/Weight</Text><Text style={styles.infoValue}>{profile.height_cm}cm, {profile.weight_kg}kg</Text></View>
+            <View style={styles.infoItem}><Text style={[styles.infoLabel, { color: muted }]}>Looking for</Text><Text style={styles.infoValue}>{profile.looking_for}</Text></View>
+            <View style={styles.infoItem}><Text style={[styles.infoLabel, { color: muted }]}>Neurodivergence</Text><Text style={styles.infoValue}>{profile.neurotype_labels?.join(', ')}</Text></View>
+            <View style={styles.infoItem}><Text style={[styles.infoLabel, { color: muted }]}>Education</Text><Text style={styles.infoValue}>{profile.education_level}</Text></View>
+            <View style={styles.infoItem}><Text style={[styles.infoLabel, { color: muted }]}>Has Children</Text><Text style={styles.infoValue}>{profile.has_children ? 'Yes' : 'No'}</Text></View>
           </View>
         </View>
 
@@ -113,31 +128,33 @@ export default function ProfileScreen() {
 
           <Text style={styles.subHeading}>RECHARGE</Text>
           <View style={styles.tagsRow}>
-            <View style={[styles.tag, { backgroundColor: primary + '33' }]}><Text style={[styles.tagText, { color: primary }]}>Silence</Text></View>
-            <View style={[styles.tag, { backgroundColor: primary + '33' }]}><Text style={[styles.tagText, { color: primary }]}>Cocoon Spaces</Text></View>
+            {profile.recharge_methods?.map((item, index) => (
+              <View key={index} style={[styles.tag, { backgroundColor: primary + '33' }]}><Text style={[styles.tagText, { color: primary }]}>{item}</Text></View>
+            ))}
           </View>
 
           <Text style={styles.subHeading}>EXHAUSTS</Text>
           <View style={styles.tagsRow}>
-            <View style={[styles.tag, { backgroundColor: '#FFCDD2' }]}><Text style={[styles.tagText, { color: '#C62828' }]}>Loud Noises</Text></View>
-            <View style={[styles.tag, { backgroundColor: '#FFCDD2' }]}><Text style={[styles.tagText, { color: '#C62828' }]}>Bright Lights</Text></View>
+            {profile.exhaust_triggers?.map((item, index) => (
+              <View key={index} style={[styles.tag, { backgroundColor: '#FFCDD2' }]}><Text style={[styles.tagText, { color: '#C62828' }]}>{item}</Text></View>
+            ))}
           </View>
 
           <Text style={styles.subHeading}>NEEDS</Text>
           <View style={styles.tagsRow}>
-            <View style={[styles.tag, { backgroundColor: primary + '33' }]}><Text style={[styles.tagText, { color: primary }]}>Predictability</Text></View>
-            <View style={[styles.tag, { backgroundColor: primary + '33' }]}><Text style={[styles.tagText, { color: primary }]}>Clear Communication</Text></View>
+            {profile.emotional_needs?.map((item, index) => (
+              <View key={index} style={[styles.tag, { backgroundColor: primary + '33' }]}><Text style={[styles.tagText, { color: primary }]}>{item}</Text></View>
+            ))}
           </View>
 
           <View style={styles.twoColRow}>
             <View style={{ flex: 1 }}>
               <Text style={styles.subHeading}>HUMOR</Text>
-              <Text style={styles.infoValue}>Second-Degree</Text>
-              <Text style={styles.infoValue}>Yes</Text>
+              <Text style={styles.infoValue}>{profile.second_degree_humor ? 'Second-Degree' : 'Normal'}</Text>
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.subHeading}>SOOTHES</Text>
-              <Text style={styles.infoValue}>Weighted Blankets</Text>
+              <Text style={styles.infoValue}>{profile.soothe_methods?.join(', ')}</Text>
             </View>
           </View>
         </View>
@@ -147,12 +164,12 @@ export default function ProfileScreen() {
           <SectionHeader title="Relationship & Children" icon={Heart} onEdit={() => {}} />
           <View style={styles.rowBetween}>
             <Text style={[styles.infoLabel, { color: muted }]}>Looking for</Text>
-            <Text style={[styles.infoValue, { color: '#D84315' }]}>Serious Relationship</Text>
+            <Text style={[styles.infoValue, { color: '#D84315' }]}>{profile.looking_for}</Text>
           </View>
           <View style={[styles.divider, { backgroundColor: border }]} />
           <View style={styles.rowBetween}>
             <Text style={[styles.infoLabel, { color: muted }]}>Wants Children</Text>
-            <Text style={styles.infoValue}>No</Text>
+            <Text style={styles.infoValue}>{profile.wants_children ? 'Yes' : 'No'}</Text>
           </View>
         </View>
 
@@ -160,11 +177,11 @@ export default function ProfileScreen() {
         <View style={[styles.card, { backgroundColor: background, borderColor: border }]}>
           <SectionHeader title="Lifestyle Habits" icon={Activity} onEdit={() => {}} />
           <View style={styles.habitGrid}>
-            <View style={styles.habitItem}><Icon name={CigaretteOff} size={16} color={muted} /><Text style={styles.habitText}>Smoking: No</Text></View>
-            <View style={styles.habitItem}><Icon name={WineOff} size={16} color={muted} /><Text style={styles.habitText}>Alcohol: No</Text></View>
-            <View style={styles.habitItem}><Icon name={Dog} size={16} color={muted} /><Text style={styles.habitText}>Pets: Yes</Text></View>
-            <View style={styles.habitItem}><Icon name={Dumbbell} size={16} color={muted} /><Text style={styles.habitText}>Sport: Moderate</Text></View>
-            <View style={[styles.habitItem, { width: '100%' }]}><Icon name={Utensils} size={16} color={muted} /><Text style={styles.habitText}>Eating Habits: Balanced</Text></View>
+            <View style={styles.habitItem}><Icon name={CigaretteOff} size={16} color={muted} /><Text style={styles.habitText}>Smoking: {profile.smoking ? 'Yes' : 'No'}</Text></View>
+            <View style={styles.habitItem}><Icon name={WineOff} size={16} color={muted} /><Text style={styles.habitText}>Alcohol: {profile.alcohol ? 'Yes' : 'No'}</Text></View>
+            <View style={styles.habitItem}><Icon name={Dog} size={16} color={muted} /><Text style={styles.habitText}>Pets: {profile.pets ? 'Yes' : 'No'}</Text></View>
+            <View style={styles.habitItem}><Icon name={Dumbbell} size={16} color={muted} /><Text style={styles.habitText}>Sport: {profile.sport}</Text></View>
+            <View style={[styles.habitItem, { width: '100%' }]}><Icon name={Utensils} size={16} color={muted} /><Text style={styles.habitText}>Eating Habits: {profile.eating_habits}</Text></View>
           </View>
         </View>
 
@@ -172,10 +189,9 @@ export default function ProfileScreen() {
         <View style={[styles.card, { backgroundColor: background, borderColor: border }]}>
           <SectionHeader title="My Qualities" icon={CheckCircle} onEdit={() => {}} />
           <View style={styles.tagsRow}>
-            <View style={[styles.tag, { backgroundColor: '#FFE0B2' }]}><Text style={[styles.tagText, { color: '#E65100' }]}>Authenticity</Text></View>
-            <View style={[styles.tag, { backgroundColor: '#FFE0B2' }]}><Text style={[styles.tagText, { color: '#E65100' }]}>Honesty</Text></View>
-            <View style={[styles.tag, { backgroundColor: '#FFE0B2' }]}><Text style={[styles.tagText, { color: '#E65100' }]}>Deep Thinking</Text></View>
-            <View style={[styles.tag, { backgroundColor: '#FFE0B2' }]}><Text style={[styles.tagText, { color: '#E65100' }]}>Resilience</Text></View>
+            {profile.qualities?.map((item, index) => (
+              <View key={index} style={[styles.tag, { backgroundColor: '#FFE0B2' }]}><Text style={[styles.tagText, { color: '#E65100' }]}>{item}</Text></View>
+            ))}
           </View>
         </View>
 
@@ -183,22 +199,11 @@ export default function ProfileScreen() {
         <View style={[styles.card, { backgroundColor: background, borderColor: border }]}>
           <SectionHeader title="Sparks Curiosity" icon={Lightbulb} onEdit={() => {}} />
 
-          <Text style={styles.subHeading}>LOGICAL</Text>
+          <Text style={styles.subHeading}>INTERESTS</Text>
           <View style={styles.tagsRow}>
-            <View style={[styles.tag, { backgroundColor: primary + '33' }]}><Text style={[styles.tagText, { color: primary }]}>Coding</Text></View>
-            <View style={[styles.tag, { backgroundColor: primary + '33' }]}><Text style={[styles.tagText, { color: primary }]}>Maps</Text></View>
-          </View>
-
-          <Text style={styles.subHeading}>VISUAL</Text>
-          <View style={styles.tagsRow}>
-            <View style={[styles.tag, { backgroundColor: primary + '33' }]}><Text style={[styles.tagText, { color: primary }]}>Photography</Text></View>
-            <View style={[styles.tag, { backgroundColor: primary + '33' }]}><Text style={[styles.tagText, { color: primary }]}>Design</Text></View>
-          </View>
-
-          <Text style={styles.subHeading}>NATURE</Text>
-          <View style={styles.tagsRow}>
-            <View style={[styles.tag, { backgroundColor: primary + '33' }]}><Text style={[styles.tagText, { color: primary }]}>Botany</Text></View>
-            <View style={[styles.tag, { backgroundColor: primary + '33' }]}><Text style={[styles.tagText, { color: primary }]}>Hiking</Text></View>
+            {profile.interests?.map((item, index) => (
+              <View key={index} style={[styles.tag, { backgroundColor: primary + '33' }]}><Text style={[styles.tagText, { color: primary }]}>{item}</Text></View>
+            ))}
           </View>
         </View>
 

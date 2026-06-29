@@ -5,7 +5,8 @@ import { useColor } from '@/hooks/useColor';
 import { router } from 'expo-router';
 import { Image, Pressable, View, Switch, Dimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useProfileStore } from '@/store/profileStore';
 
 const { width, height } = Dimensions.get('window');
 
@@ -19,6 +20,11 @@ export default function DrawerScreen() {
   const destructive = useColor('red');
   
   const [needBreak, setNeedBreak] = useState(false);
+  const { profile, fetchProfile } = useProfileStore();
+
+  useEffect(() => {
+    if (!profile) fetchProfile();
+  }, []);
 
   return (
     <View style={{ flex: 1, flexDirection: 'row' }}>
@@ -49,12 +55,12 @@ export default function DrawerScreen() {
             marginBottom: 16
           }}>
             <Image 
-              source={{ uri: 'https://i.pravatar.cc/150?img=68' }} 
+              source={{ uri: profile?.photos?.[0]?.image || 'https://i.pravatar.cc/150?img=68' }} 
               style={{ width: '100%', height: '100%', borderRadius: 40 }} 
             />
           </View>
-          <Text style={{ fontSize: 24, fontWeight: 'bold' }}>Alex</Text>
-          <Text style={{ color: '#004D40', fontSize: 12, fontWeight: '600', marginTop: 4 }}>Autistic & ADHD</Text>
+          <Text style={{ fontSize: 24, fontWeight: 'bold' }}>{profile?.username || 'Loading...'}</Text>
+          <Text style={{ color: '#004D40', fontSize: 12, fontWeight: '600', marginTop: 4 }}>{profile?.neurotype_labels?.join(' & ') || ''}</Text>
         </View>
 
         {/* Need a break toggle */}
