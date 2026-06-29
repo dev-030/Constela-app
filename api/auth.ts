@@ -17,6 +17,16 @@ interface LoginRequest {
   password?: string;
 }
 
+interface ForgotPasswordRequest {
+  email: string;
+}
+
+interface ResetPasswordRequest {
+  email: string;
+  code: string;
+  new_password?: string;
+}
+
 interface LoginResponse {
   access: string;
   refresh: string;
@@ -69,6 +79,24 @@ export const useLoginMutation = () => {
       if (data.access && data.refresh) {
         await setAuth(data.access, data.refresh);
       }
+    },
+  });
+};
+
+export const useForgotPasswordMutation = () => {
+  return useMutation({
+    mutationFn: async (data: ForgotPasswordRequest) => {
+      const response = await apiClient.post('/api/auth/forgot-password/', data);
+      return response.data;
+    },
+  });
+};
+
+export const useResetPasswordMutation = () => {
+  return useMutation({
+    mutationFn: async (data: ResetPasswordRequest) => {
+      const response = await apiClient.post('/api/auth/reset-password/', data);
+      return response.data;
     },
   });
 };

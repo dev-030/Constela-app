@@ -123,7 +123,7 @@ export default function LoginScreen() {
           </View>
           <View style={{ alignItems: "flex-end" }}>
             <></>
-            <Link href="/(auth)/otp" asChild>
+            <Link href="/(auth)/forgot-password" asChild>
               <Pressable>
                 <Text style={{ color: orange, fontSize: 14 }}>
                   Forgot Password?
