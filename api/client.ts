@@ -21,6 +21,7 @@ apiClient.interceptors.request.use(
     return config;
   },
   (error) => {
+     console.log('Request error:', error);
     return Promise.reject(error);
   }
 );
@@ -43,11 +44,11 @@ apiClient.interceptors.response.use(
           const response = await axios.post(`${API_URL}/api/auth/token/refresh/`, {
             refresh: refreshToken,
           });
-          
+
           if (response.data && response.data.access) {
             const newAccessToken = response.data.access;
             await updateAccessToken(newAccessToken);
-            
+
             // Retry the original request with the new token
             originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
             return apiClient(originalRequest);

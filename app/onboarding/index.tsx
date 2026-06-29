@@ -6,8 +6,9 @@ import { useColor } from "@/hooks/useColor";
 import * as ImagePicker from "expo-image-picker";
 import { Camera, ImagePlus } from "lucide-react-native";
 import { useRouter } from "expo-router";
-import { useState } from "react";
-import { Image, Pressable, ScrollView, TextInput, View } from "react-native";
+import { useState, useEffect } from "react";
+import { Image, Pressable, ScrollView, TextInput, View, ActivityIndicator } from "react-native";
+import { useCheckUsernameQuery } from "@/api/auth";
 
 const GENDERS: Gender[] = ["Woman", "Man", "Non-binary", "Other"];
 
@@ -24,6 +25,17 @@ export default function OnboardingStep1() {
   const [ageError, setAgeError] = useState("");
   const [heightError, setHeightError] = useState("");
   const [usernameError, setUsernameError] = useState("");
+
+  const [debouncedUsername, setDebouncedUsername] = useState("");
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedUsername(data.username);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [data.username]);
+
+  const { data: usernameCheck, isFetching: isCheckingUsername } = useCheckUsernameQuery(debouncedUsername);
 
   const handlePickPhoto = async (slot: number) => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -45,6 +57,9 @@ export default function OnboardingStep1() {
     let ok = true;
     if (!data.username.trim()) {
       setUsernameError("Username is required");
+      ok = false;
+    } else if (usernameCheck && !usernameCheck.available) {
+      setUsernameError("Username is already taken");
       ok = false;
     } else {
       setUsernameError("");
@@ -187,7 +202,9 @@ export default function OnboardingStep1() {
             borderRadius: 12,
             paddingHorizontal: 14,
             paddingVertical: 12,
-            marginBottom: usernameError ? 4 : 16,
+            marginBottom: usernameError || data.username.length >= 3 ? 4 : 16,
+            flexDirection: "row",
+            alignItems: "center",
           }}
         >
           <TextInput
@@ -195,8 +212,23 @@ export default function OnboardingStep1() {
             onChangeText={(v) => update("username", v)}
             placeholder="e.g. SamiWander"
             placeholderTextColor={muted}
-            style={{ color: text, fontSize: 15, padding: 0 }}
+            style={{ color: text, fontSize: 15, padding: 0, flex: 1 }}
           />
+          {isCheckingUsername ? (
+            <ActivityIndicator size="small" color={muted} />
+          ) : (
+            usernameCheck && data.username.length >= 3 && (
+              <Text
+                style={{
+                  color: usernameCheck.available ? "#22C55E" : danger,
+                  fontSize: 12,
+                  fontWeight: "600",
+                }}
+              >
+                {usernameCheck.available ? "Available" : "Taken"}
+              </Text>
+            )
+          )}
         </View>
         {usernameError ? <ErrorText>{usernameError}</ErrorText> : null}
 

@@ -8,15 +8,7 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Pressable, ScrollView, TextInput, View } from "react-native";
 
-const MARITAL_STATUS = [
-  "Single",
-  "In a relationship",
-  "Engaged",
-  "Married",
-  "Divorced",
-  "Widowed",
-  "It's complicated",
-];
+const MARITAL_STATUS = ["single", "married", "divorced", "widowed"];
 
 export default function OnboardingStep2() {
   const router = useRouter();

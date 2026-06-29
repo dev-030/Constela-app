@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { FilterPill } from "@/components/ui/filter-pill";
 import { FilterListItem } from "@/components/ui/filter-list-item";
 import { useColor } from "@/hooks/useColor";
+import { useOnboarding } from "@/providers/onboarding-context";
 
 function SectionHeader({
   title,
@@ -43,14 +44,14 @@ export default function OnboardingEmotionalScreen() {
   const primaryForeground = useColor("primaryForeground");
   const border = useColor("border");
 
-  const [recharge, setRecharge] = useState("Silence");
-  const [exhausts, setExhausts] = useState("Absorbs other people's moods");
-  const [needs, setNeeds] = useState("Predictability");
-  const [humor, setHumor] = useState("Yes");
-  const [soothes, setSoothes] = useState<string[]>([
-    "Predictability",
-    "Clear Communication",
-  ]);
+  const { data, update } = useOnboarding();
+  const { rechargeMethods, exhaustTriggers, emotionalNeeds, humor, soothesMethods } = data;
+
+  const setRecharge = (v: string) => update("rechargeMethods", [v]);
+  const setExhausts = (v: string) => update("exhaustTriggers", [v]);
+  const setNeeds = (v: string) => update("emotionalNeeds", [v]);
+  const setHumor = (v: string) => update("humor", v as any);
+  const setSoothes = (v: string[]) => update("soothesMethods", v);
 
   const toggleArrayItem = (
     arr: string[],
@@ -103,19 +104,19 @@ export default function OnboardingEmotionalScreen() {
         <FilterListItem
           title="Silence"
           subtitle="Reducing noise, Lights, Movement"
-          selected={recharge === "Silence"}
+          selected={rechargeMethods.includes("Silence")}
           onPress={() => setRecharge("Silence")}
         />
         <FilterListItem
           title="Cocoon Spaces"
           subtitle="Quiet room, Blanket corner, Soft light"
-          selected={recharge === "Cocoon Spaces"}
+          selected={rechargeMethods.includes("Cocoon Spaces")}
           onPress={() => setRecharge("Cocoon Spaces")}
         />
         <FilterListItem
           title="Reduced Stimulation"
           subtitle="Noise-cancelling headphones, tinted glasses, Dim light"
-          selected={recharge === "Reduced Stimulation"}
+          selected={rechargeMethods.includes("Reduced Stimulation")}
           onPress={() => setRecharge("Reduced Stimulation")}
         />
 
@@ -138,7 +139,7 @@ export default function OnboardingEmotionalScreen() {
           <FilterListItem
             key={item}
             title={item}
-            selected={exhausts === item}
+            selected={exhaustTriggers.includes(item)}
             onPress={() => setExhausts(item)}
           />
         ))}
@@ -161,7 +162,7 @@ export default function OnboardingEmotionalScreen() {
           <FilterListItem
             key={item}
             title={item}
-            selected={needs === item}
+            selected={emotionalNeeds.includes(item)}
             onPress={() => setNeeds(item)}
           />
         ))}
@@ -196,10 +197,10 @@ export default function OnboardingEmotionalScreen() {
             <FilterPill
               key={item}
               label={item}
-              selected={soothes.includes(item)}
-              onPress={() => toggleArrayItem(soothes, setSoothes, item)}
+              selected={soothesMethods.includes(item)}
+              onPress={() => toggleArrayItem(soothesMethods, setSoothes, item)}
               style={
-                !soothes.includes(item) && {
+                !soothesMethods.includes(item) && {
                   backgroundColor: "#FAF3E0",
                   borderWidth: 1,
                   borderColor: "#E0D4B4",

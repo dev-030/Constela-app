@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from './client';
 import { useAuthStore } from '../store/authStore';
 
@@ -98,6 +98,18 @@ export const useResetPasswordMutation = () => {
       const response = await apiClient.post('/api/auth/reset-password/', data);
       return response.data;
     },
+  });
+};
+
+export const useCheckUsernameQuery = (username: string) => {
+  return useQuery({
+    queryKey: ['checkUsername', username],
+    queryFn: async () => {
+      const response = await apiClient.get(`/api/auth/check-username/?username=${username}`);
+      return response.data as { available: boolean; message: string };
+    },
+    enabled: !!username && username.length >= 3,
+    retry: false,
   });
 };
 

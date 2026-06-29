@@ -46,6 +46,13 @@ export interface OnboardingData {
   pets: YesNo | null;
   sport: Sport | null;
   eatingHabits: EatingHabits[];
+
+  // Emotional
+  rechargeMethods: string[];
+  exhaustTriggers: string[];
+  emotionalNeeds: string[];
+  humor: YesNo | null;
+  soothesMethods: string[];
 }
 
 const initialData: OnboardingData = {
@@ -70,6 +77,11 @@ const initialData: OnboardingData = {
   pets: null,
   sport: null,
   eatingHabits: [],
+  rechargeMethods: ["Silence"],
+  exhaustTriggers: ["Absorbs other people's moods"],
+  emotionalNeeds: ["Predictability"],
+  humor: "Yes",
+  soothesMethods: ["Predictability", "Clear Communication"],
 };
 
 type OnboardingContextType = {

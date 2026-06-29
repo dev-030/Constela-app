@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { FilterPill } from '@/components/ui/filter-pill';
 import { useColor } from '@/hooks/useColor';
 import { BORDER_RADIUS } from '@/theme/globals';
+import { useProfileStore } from '@/store/profileStore';
+import { useEffect } from 'react';
 
 export default function EditBasicScreen() {
   const insets = useSafeAreaInsets();
@@ -20,9 +22,15 @@ export default function EditBasicScreen() {
   const primary = useColor('primary');
   const border = useColor('border');
 
-  const [gender, setGender] = useState('Non-Binary');
-  const [lookingFor, setLookingFor] = useState('Non-Binary');
-  const [maritalStatus, setMaritalStatus] = useState('Single');
+  const { profile, fetchProfile } = useProfileStore();
+
+  useEffect(() => {
+    if (!profile) fetchProfile();
+  }, []);
+
+  const [gender, setGender] = useState(profile?.gender || 'Non-Binary');
+  const [lookingFor, setLookingFor] = useState(profile?.looking_for || 'Non-Binary');
+  const [maritalStatus, setMaritalStatus] = useState(profile?.marital_status || 'Single');
 
   return (
     <View style={[styles.container, { backgroundColor: background }]}>
@@ -44,7 +52,7 @@ export default function EditBasicScreen() {
           {/* Main Photo */}
           <View style={styles.photoBox}>
             <Image
-              source={{ uri: 'https://i.pravatar.cc/150?img=68' }}
+              source={{ uri: profile?.photos?.[0]?.image || 'https://i.pravatar.cc/150?img=68' }}
               style={styles.photoImg}
             />
             <View style={[styles.editIconBadge, { backgroundColor: '#E65100' }]}>
@@ -69,42 +77,42 @@ export default function EditBasicScreen() {
         <View style={styles.formGroup}>
           <Text style={styles.inputLabel}>Username *</Text>
           <View style={[styles.inputContainer, { borderColor: border }]}>
-            <Text style={styles.inputValue}>Alex Chen</Text>
+            <Text style={styles.inputValue}>{profile?.username || ''}</Text>
           </View>
         </View>
 
         <View style={styles.formGroup}>
           <Text style={styles.inputLabel}>Age *</Text>
           <View style={[styles.inputContainer, { borderColor: border }]}>
-            <Text style={styles.inputValue}>28</Text>
+            <Text style={styles.inputValue}>{profile?.age || ''}</Text>
           </View>
         </View>
 
         <View style={styles.formGroup}>
           <Text style={styles.inputLabel}>Height (cm)</Text>
           <View style={[styles.inputContainer, { borderColor: border }]}>
-            <Text style={styles.inputValue}>175</Text>
+            <Text style={styles.inputValue}>{profile?.height_cm || ''}</Text>
           </View>
         </View>
 
         <View style={styles.formGroup}>
           <Text style={styles.inputLabel}>Weight (kg)</Text>
           <View style={[styles.inputContainer, { borderColor: border }]}>
-            <Text style={styles.inputValue}>70</Text>
+            <Text style={styles.inputValue}>{profile?.weight_kg || ''}</Text>
           </View>
         </View>
 
         <View style={styles.formGroup}>
           <Text style={styles.inputLabel}>City *</Text>
           <View style={[styles.inputContainer, { borderColor: border }]}>
-            <Text style={styles.inputValue}>Portland, OR</Text>
+            <Text style={styles.inputValue}>{profile?.city || ''}</Text>
           </View>
         </View>
 
         <View style={styles.formGroup}>
           <Text style={styles.inputLabel}>Country *</Text>
           <View style={[styles.inputContainer, { borderColor: border }]}>
-            <Text style={styles.inputValue}>USA</Text>
+            <Text style={styles.inputValue}>{profile?.country || ''}</Text>
           </View>
         </View>
 
@@ -151,7 +159,7 @@ export default function EditBasicScreen() {
         <Text style={styles.sectionTitle}>EDUCATION</Text>
         <Text style={styles.inputLabel}>Education Level</Text>
         <View style={[styles.inputContainer, styles.rowBetween, { borderColor: border }]}>
-          <Text style={styles.inputValue}>Bachelors Degree</Text>
+          <Text style={styles.inputValue}>{profile?.education_level || ''}</Text>
           <Icon name={ChevronDown} size={20} color={muted} />
         </View>
 
