@@ -101,7 +101,7 @@ export default function SettingsIndexScreen() {
           flexDirection: "row",
           alignItems: "center",
           justifyContent: "space-between",
-          backgroundColor: cardColor,
+         //  backgroundColor: cardColor,
           borderRadius: 16,
           padding: 16,
           borderWidth: 1,

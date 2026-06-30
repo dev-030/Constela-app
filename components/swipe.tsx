@@ -1,235 +1,581 @@
-import * as React from "react";
-import { Image, Pressable, View, StyleSheet } from "react-native";
+import React, {
+  forwardRef,
+  useImperativeHandle,
+  useState,
+} from "react";
+import {
+  Image,
+  Pressable,
+  StyleSheet,
+  View,
+  Dimensions,
+} from "react-native";
 import Animated, {
   Extrapolation,
-  FadeInDown,
   interpolate,
+  runOnJS,
+  useAnimatedStyle,
   useSharedValue,
+  withTiming,
+  SharedValue,
 } from "react-native-reanimated";
-import Carousel, { TAnimationStyle } from "react-native-reanimated-carousel";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
-import {
-  Bell,
-  Heart,
-  RotateCcw,
-  Sliders,
-  SlidersHorizontal,
-  Star,
-  Undo,
-  User,
-  X,
-} from "lucide-react-native";
-
-import { window } from "@/constants/sizes";
 import { router } from "expo-router";
-import { Icon } from "./ui/icon";
-import { useColor } from "@/hooks/useColor";
+import { Heart, Star, X } from "lucide-react-native";
+
 import { MatchProfile } from "@/api/matching";
+
+export type SwipeDirection = "left" | "right" | "super";
+
+export interface SwipeHandle {
+  swipe: (direction: SwipeDirection) => void;
+  undo: () => boolean;
+  canUndo: boolean;
+  remaining: number;
+}
 
 interface SwipeProps {
   profiles: MatchProfile[];
-  onSwipe?: (profile: MatchProfile, direction: "left" | "right") => void;
+  onSwipe?: (profile: MatchProfile, direction: SwipeDirection) => void;
+  onEmpty?: () => void;
+  onActiveIndexChange?: (profile: MatchProfile | undefined) => void;
 }
 
-function Swipe({ profiles, onSwipe }: SwipeProps) {
-  const PAGE_WIDTH = window.width - 64; // accounting for padding
-  const PAGE_HEIGHT = window.height * 0.55; // smaller height to fit in the cardStackArea
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("screen");
+const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.22;
+const SWIPE_OUT_DURATION = 280;
+const ROTATION_AMPLITUDE = 12; // degrees at the edge
 
-  const primary = useColor("primary")
+function Card({
+  user,
+  isTop,
+  isSecond,
+  isThird,
+  width,
+  height,
+  topTranslateX,
+  topTranslateY,
+}: {
+  user: MatchProfile;
+  isTop: boolean;
+  isSecond: boolean;
+  isThird: boolean;
+  width: number;
+  height: number;
+  topTranslateX: SharedValue<number>;
+  topTranslateY: SharedValue<number>;
+}) {
+  const handlePress = () => {
+    router.push({ pathname: "/sheet", params: { id: user.id } });
+  };
 
-  const directionAnimVal = useSharedValue(0);
-  const currentIndex = React.useRef(0);
+  const topAnimated = useAnimatedStyle(() => {
+    const rotateZ = interpolate(
+      topTranslateX.value,
+      [-SCREEN_WIDTH, 0, SCREEN_WIDTH],
+      [-ROTATION_AMPLITUDE, 0, ROTATION_AMPLITUDE],
+      Extrapolation.CLAMP
+    );
+    return {
+      transform: [
+        { translateX: topTranslateX.value },
+        { translateY: topTranslateY.value },
+        { rotateZ: `${rotateZ}deg` },
+      ],
+    };
+  });
 
-  const animationStyle: TAnimationStyle = React.useCallback(
-    (value: number, index: number) => {
-      "worklet";
-      const translateY = interpolate(value, [0, 1], [0, -18]);
+  const secondAnimated = useAnimatedStyle(() => {
+    const dragProgress = Math.min(Math.abs(topTranslateX.value) / SCREEN_WIDTH, 1);
+    const scale = interpolate(dragProgress, [0, 1], [0.94, 1]);
+    const translateY = interpolate(dragProgress, [0, 1], [16, 0]);
+    return {
+      transform: [{ scale }, { translateY }],
+      opacity: interpolate(dragProgress, [0, 1], [0.85, 1], Extrapolation.CLAMP),
+    };
+  });
 
-      const translateX =
-        interpolate(value, [-1, 0], [PAGE_WIDTH, 0], Extrapolation.CLAMP) *
-        directionAnimVal.value;
+  const thirdAnimated = useAnimatedStyle(() => {
+    const dragProgress = Math.min(Math.abs(topTranslateX.value) / SCREEN_WIDTH, 1);
+    const scale = interpolate(dragProgress, [0, 1], [0.88, 0.94]);
+    const translateY = interpolate(dragProgress, [0, 1], [32, 16]);
+    return {
+      transform: [{ scale }, { translateY }],
+      opacity: interpolate(dragProgress, [0, 1], [0.7, 0.85], Extrapolation.CLAMP),
+    };
+  });
 
-      const rotateZ =
-        interpolate(value, [-1, 0], [15, 0], Extrapolation.CLAMP) *
-        directionAnimVal.value;
+  const likeBadgeStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(
+      topTranslateX.value,
+      [0, SWIPE_THRESHOLD],
+      [0, 1],
+      Extrapolation.CLAMP
+    );
+    return { opacity };
+  });
 
-      const zIndex = -10 * index;
+  const nopeBadgeStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(
+      topTranslateX.value,
+      [-SWIPE_THRESHOLD, 0],
+      [1, 0],
+      Extrapolation.CLAMP
+    );
+    return { opacity };
+  });
 
-      const scale = interpolate(value, [0, 1], [1, 0.95]);
+  const superBadgeStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(
+      topTranslateY.value,
+      [-SWIPE_THRESHOLD, 0],
+      [1, 0],
+      Extrapolation.CLAMP
+    );
+    return { opacity };
+  });
 
-      const opacity = interpolate(
-        value,
-        [-1, -0.8, 0, 1],
-        [0, 0.9, 1, 0.85],
-        Extrapolation.EXTEND,
-      );
+  return (
+    <>
+      {isThird ? (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.cardContainer,
+            {
+              width,
+              height,
+              zIndex: 0,
+            },
+            thirdAnimated,
+          ]}
+        >
+          <View style={[styles.cardInner, { backgroundColor: "#E5E5EA" }]}>
+            <Image
+              source={{ uri: user.photo }}
+              style={[styles.image, { opacity: 0.6 }]}
+            />
+          </View>
+        </Animated.View>
+      ) : null}
 
-      return {
-        transform: [
-          { translateY },
-          { translateX },
-          { rotateZ: `${rotateZ}deg` },
-          { scale },
-        ],
-        zIndex,
-        opacity,
-      };
-    },
-    [PAGE_HEIGHT, PAGE_WIDTH],
+      {isSecond ? (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.cardContainer,
+            {
+              width,
+              height,
+              zIndex: 1,
+            },
+            secondAnimated,
+          ]}
+        >
+          <View style={[styles.cardInner, { backgroundColor: "#FFFFFF" }]}>
+            <Image source={{ uri: user.photo }} style={styles.image} />
+          </View>
+        </Animated.View>
+      ) : null}
+
+      {isTop ? (
+        <Animated.View
+          style={[
+            styles.cardContainer,
+            {
+              width,
+              height,
+              zIndex: 2,
+            },
+            topAnimated,
+          ]}
+        >
+          <Pressable
+            onPress={handlePress}
+            style={[styles.cardInner, { backgroundColor: "#FFFFFF" }]}
+          >
+            <Image source={{ uri: user.photo }} style={styles.image} />
+
+            <LinearGradient
+              pointerEvents="none"
+              colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.55)", "rgba(0,0,0,0.85)"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={styles.bottomGradientLayer}
+            />
+
+            <Animated.View
+              pointerEvents="none"
+              style={[styles.badgeLike, likeBadgeStyle]}
+            >
+              <View style={[styles.badgeInner, { borderColor: "#10B981" }]}>
+                <Heart size={28} color="#10B981" fill="#10B981" />
+                <Animated.Text style={styles.badgeLikeText}>LIKE</Animated.Text>
+              </View>
+            </Animated.View>
+
+            <Animated.View
+              pointerEvents="none"
+              style={[styles.badgeNope, nopeBadgeStyle]}
+            >
+              <View style={[styles.badgeInner, { borderColor: "#EF4444" }]}>
+                <X size={28} color="#EF4444" strokeWidth={3} />
+                <Animated.Text style={styles.badgeNopeText}>NOPE</Animated.Text>
+              </View>
+            </Animated.View>
+
+            <Animated.View
+              pointerEvents="none"
+              style={[styles.badgeSuper, superBadgeStyle]}
+            >
+              <View
+                style={[
+                  styles.badgeInner,
+                  { borderColor: "#3B82F6", backgroundColor: "rgba(59,130,246,0.18)" },
+                ]}
+              >
+                <Star size={26} color="#3B82F6" fill="#3B82F6" />
+                <Animated.Text style={[styles.badgeSuperText, { color: "#3B82F6" }]}>
+                  SUPER
+                </Animated.Text>
+              </View>
+            </Animated.View>
+
+            <View style={styles.details} pointerEvents="none">
+              <View style={styles.detailsRow}>
+                <View style={{ flex: 1 }}>
+                  <Animated.Text numberOfLines={1} style={styles.name}>
+                    {user.username}, {user.age}
+                  </Animated.Text>
+                  {user.city || user.country ? (
+                    <Animated.Text numberOfLines={1} style={styles.location}>
+                      {[user.city, user.country].filter(Boolean).join(", ")}
+                    </Animated.Text>
+                  ) : null}
+                </View>
+                {typeof user.compatibility_score === "number" ? (
+                  <View style={styles.scorePill}>
+                    <Animated.Text style={styles.scoreText}>
+                      {user.compatibility_score}%
+                    </Animated.Text>
+                  </View>
+                ) : null}
+              </View>
+              {user.bio ? (
+                <Animated.Text numberOfLines={2} style={styles.bio}>
+                  {user.bio}
+                </Animated.Text>
+              ) : null}
+              {user.tags?.length ? (
+                <View style={styles.interestsRow}>
+                  {user.tags.slice(0, 4).map((tag) => (
+                    <View key={tag} style={styles.interestPill}>
+                      <Animated.Text numberOfLines={1} style={styles.interestText}>
+                        {tag}
+                      </Animated.Text>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+            </View>
+          </Pressable>
+        </Animated.View>
+      ) : null}
+    </>
   );
+}
+
+const Swipe = forwardRef<SwipeHandle, SwipeProps>(function Swipe(
+  { profiles, onSwipe, onEmpty, onActiveIndexChange },
+  ref
+) {
+  const [stack, setStack] = useState<MatchProfile[]>(profiles);
+  const [history, setHistory] = useState<MatchProfile[]>([]);
+
+  React.useEffect(() => {
+    setStack(profiles);
+    setHistory([]);
+  }, [profiles]);
+
+  React.useEffect(() => {
+    if (onActiveIndexChange) {
+      onActiveIndexChange(stack[0]);
+    }
+  }, [stack, onActiveIndexChange]);
+
+  const top = stack[0];
+  const second = stack[1];
+  const third = stack[2];
+
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+
+  const triggerHaptic = (
+    kind: "impactLight" | "notificationSuccess" | "notificationWarning"
+  ) => {
+    try {
+      if (kind === "impactLight") {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      } else if (kind === "notificationSuccess") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } else {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      }
+    } catch {
+      /* haptics unavailable */
+    }
+  };
+
+  const finalizeSwipe = (direction: SwipeDirection) => {
+    const profile = stack[0];
+    if (!profile) {
+      translateX.value = 0;
+      translateY.value = 0;
+      return;
+    }
+    setStack((prev) => prev.slice(1));
+    setHistory((prev) => [...prev, profile]);
+    if (onSwipe) onSwipe(profile, direction);
+    translateX.value = 0;
+    translateY.value = 0;
+  };
+
+  const flyOff = (
+    toX: number,
+    toY: number,
+    direction: SwipeDirection,
+    duration: number = SWIPE_OUT_DURATION
+  ) => {
+    translateX.value = withTiming(toX, { duration });
+    translateY.value = withTiming(
+      toY,
+      { duration },
+      (finished) => {
+        if (finished) {
+          runOnJS(finalizeSwipe)(direction);
+        }
+      }
+    );
+  };
+
+  const triggerProgrammatic = (direction: SwipeDirection) => {
+    if (!stack[0]) return;
+    const horizontal =
+      direction === "right" ? SCREEN_WIDTH * 1.5 : -SCREEN_WIDTH * 1.5;
+    const vertical = direction === "super" ? -SCREEN_HEIGHT * 1.2 : 0;
+    triggerHaptic(direction === "left" ? "notificationWarning" : "notificationSuccess");
+    flyOff(horizontal, vertical, direction);
+  };
+
+  const undo = (): boolean => {
+    if (history.length === 0) return false;
+    const last = history[history.length - 1];
+    setHistory((prev) => prev.slice(0, -1));
+    setStack((prev) => [last, ...prev]);
+    translateX.value = 0;
+    translateY.value = 0;
+    return true;
+  };
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      swipe: (direction) => triggerProgrammatic(direction),
+      undo: () => undo(),
+      canUndo: history.length > 0,
+      remaining: stack.length,
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [stack, history]
+  );
+
+  const panGesture = Gesture.Pan()
+    .onUpdate((e) => {
+      translateX.value = e.translationX;
+      translateY.value = e.translationY;
+    })
+    .onEnd((e) => {
+      const farEnoughX =
+        Math.abs(e.translationX) > SWIPE_THRESHOLD ||
+        Math.abs(e.velocityX) > 800;
+      const farEnoughY =
+        e.translationY < -SWIPE_THRESHOLD || e.velocityY < -800;
+
+      if (farEnoughY && e.translationY < Math.abs(e.translationX) * -1) {
+        runOnJS(triggerHaptic)("notificationSuccess");
+        flyOff(e.translationX, -SCREEN_HEIGHT * 1.2, "super");
+        return;
+      }
+
+      if (farEnoughX) {
+        if (e.translationX > 0) {
+          runOnJS(triggerHaptic)("notificationSuccess");
+          flyOff(SCREEN_WIDTH * 1.5, e.translationY, "right");
+        } else {
+          runOnJS(triggerHaptic)("notificationWarning");
+          flyOff(-SCREEN_WIDTH * 1.5, e.translationY, "left");
+        }
+        return;
+      }
+
+      // Didn't reach threshold → spring back.
+      translateX.value = withTiming(0, { duration: 220 });
+      translateY.value = withTiming(0, { duration: 220 });
+    });
+
+  const PAGE_WIDTH = SCREEN_WIDTH - 48;
+  const PAGE_HEIGHT = Math.min(SCREEN_HEIGHT * 0.58, 560);
+
+  // Surface empty state via the prop without breaking Rules of Hooks.
+  React.useEffect(() => {
+    if (!top && onEmpty) onEmpty();
+  }, [top, onEmpty]);
+
+  if (!top) {
+    return (
+      <View
+        style={[
+          styles.container,
+          { width: PAGE_WIDTH, height: PAGE_HEIGHT },
+        ]}
+      />
+    );
+  }
 
   return (
     <View
-      id="carousel-component"
-      dataSet={{ kind: "custom-animations", name: "tinder" }}
-      style={{
-        width: PAGE_WIDTH,
-        height: PAGE_HEIGHT,
-        justifyContent: "center",
-        alignItems: "center",
-      //   backgroundColor: "red",
-      }}
+      style={[
+        styles.container,
+        { width: PAGE_WIDTH, height: PAGE_HEIGHT },
+      ]}
     >
-      <Carousel
-        loop={false}
-        width={PAGE_WIDTH}
-        style={{
-          width: PAGE_WIDTH,
-          height: PAGE_HEIGHT,
-        }}
-        defaultIndex={0}
-        vertical={false}
-        data={profiles}
-        onConfigurePanGesture={(g) => {
-          g.onChange((e) => {
-            "worklet";
-            directionAnimVal.value = Math.sign(e.translationX);
-          });
-        }}
-        onSnapToItem={(index) => {
-          if (onSwipe && profiles[currentIndex.current]) {
-            const swipedProfile = profiles[currentIndex.current];
-            const direction = directionAnimVal.value > 0 ? "right" : "left";
-            onSwipe(swipedProfile, direction);
-          }
-          currentIndex.current = index;
-        }}
-        fixedDirection="negative"
-        renderItem={({ index, item }) => <Item key={item.id || index} user={item} />}
-        customAnimation={animationStyle}
-        windowSize={5}
-      />
+      <GestureDetector gesture={panGesture}>
+        <View style={StyleSheet.absoluteFill}>
+          {third ? (
+            <Card
+              user={third}
+              isTop={false}
+              isSecond={false}
+              isThird
+              width={PAGE_WIDTH}
+              height={PAGE_HEIGHT}
+              topTranslateX={translateX}
+              topTranslateY={translateY}
+            />
+          ) : null}
+          {second ? (
+            <Card
+              user={second}
+              isTop={false}
+              isSecond
+              isThird={false}
+              width={PAGE_WIDTH}
+              height={PAGE_HEIGHT}
+              topTranslateX={translateX}
+              topTranslateY={translateY}
+            />
+          ) : null}
+          <Card
+            user={top}
+            isTop
+            isSecond={false}
+            isThird={false}
+            width={PAGE_WIDTH}
+            height={PAGE_HEIGHT}
+            topTranslateX={translateX}
+            topTranslateY={translateY}
+          />
+        </View>
+      </GestureDetector>
     </View>
   );
-}
-
-const Item: React.FC<{ user: MatchProfile }> = ({ user }) => {
-  const width = window.width * 0.7;
-  const height = window.height * 0.5;
-
-  return (
-    <Animated.View
-      entering={FadeInDown.duration(300)}
-      style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
-    >
-      <Pressable
-        onPress={() => router.push({ pathname: "/sheet", params: { id: user.id } })}
-        style={{
-          width,
-          height,
-          borderWidth: 1,
-          borderColor: "black",
-          borderRadius: 20,
-          justifyContent: "center",
-          alignItems: "center",
-          backgroundColor: "white",
-          overflow: "hidden",
-        }}
-      >
-        <Image
-          source={{ uri: user.photo }}
-          style={{
-            width,
-            height,
-            borderRadius: 20,
-          }}
-        />
-
-        <LinearGradient
-          pointerEvents="none"
-          colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.70)", "rgba(0,0,0,0.85)"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-          style={styles.bottomGradientLayer}
-        />
-
-        {/* User details */}
-        <View style={styles.details} pointerEvents="none">
-          <Animated.Text numberOfLines={1} style={styles.name}>
-            {user.username}, {user.age}
-          </Animated.Text>
-
-          <Animated.Text numberOfLines={2} style={styles.bio}>
-            {user.bio}
-          </Animated.Text>
-
-          <View style={styles.interestsRow}>
-            {(user.tags || []).slice(0, 3).map((tag) => (
-              <View key={tag} style={styles.interestPill}>
-                <Animated.Text numberOfLines={1} style={styles.interestText}>
-                  {tag}
-                </Animated.Text>
-              </View>
-            ))}
-          </View>
-        </View>
-      </Pressable>
-    </Animated.View>
-  );
-};
+});
 
 const styles = StyleSheet.create({
+  container: {
+    justifyContent: "center",
+    alignItems: "center",
+    position: "relative",
+  },
+  cardContainer: {
+    position: "absolute",
+    borderRadius: 24,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    elevation: 8,
+  },
+  cardInner: {
+    flex: 1,
+    borderRadius: 24,
+    overflow: "hidden",
+  },
+  image: {
+    width: "100%",
+    height: "100%",
+  },
   bottomGradientLayer: {
     position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
-    height: 170,
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
-  },
-  bottomOverlay: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: "55%",
-    backgroundColor: "rgba(0,0,0,0.55)",
+    height: 220,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
   },
   details: {
     position: "absolute",
-    left: 12,
-    right: 12,
-    bottom: 12,
+    left: 16,
+    right: 16,
+    bottom: 18,
+  },
+  detailsRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    gap: 10,
   },
   name: {
     color: "#FFFFFF",
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: "800",
     letterSpacing: 0.2,
   },
-  bio: {
-    color: "rgba(255,255,255,0.92)",
-    fontSize: 12,
+  location: {
+    color: "rgba(255,255,255,0.85)",
+    fontSize: 13,
     fontWeight: "500",
-    lineHeight: 16,
-    marginTop: 4,
+    marginTop: 2,
+  },
+  bio: {
+    color: "rgba(255,255,255,0.9)",
+    fontSize: 13,
+    fontWeight: "500",
+    lineHeight: 18,
+    marginTop: 6,
+  },
+  scorePill: {
+    backgroundColor: "rgba(255,255,255,0.22)",
+    borderColor: "rgba(255,255,255,0.4)",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  scoreText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "800",
   },
   interestsRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 6,
-    marginTop: 8,
+    marginTop: 10,
   },
   interestPill: {
     backgroundColor: "rgba(255,255,255,0.18)",
@@ -244,51 +590,54 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "600",
   },
-  actionButtonsRow: {
+  badgeLike: {
+    position: "absolute",
+    top: 28,
+    left: 24,
+    transform: [{ rotate: "-12deg" }],
+    zIndex: 5,
+  },
+  badgeNope: {
+    position: "absolute",
+    top: 28,
+    right: 24,
+    transform: [{ rotate: "12deg" }],
+    zIndex: 5,
+  },
+  badgeSuper: {
+    position: "absolute",
+    top: 28,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    zIndex: 5,
+  },
+  badgeInner: {
     flexDirection: "row",
-    justifyContent: "center",
     alignItems: "center",
-    gap: 24,
-    marginTop: 40,
-    zIndex: 10,
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 3,
+    backgroundColor: "rgba(255,255,255,0.85)",
   },
-  rejectButton: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: "#004D40",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4, // Added Android shadow compatibility
+  badgeLikeText: {
+    color: "#10B981",
+    fontSize: 18,
+    fontWeight: "900",
+    letterSpacing: 1,
   },
-  superLikeButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: "#FFF",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 2, // Added Android shadow compatibility
+  badgeNopeText: {
+    color: "#EF4444",
+    fontSize: 18,
+    fontWeight: "900",
+    letterSpacing: 1,
   },
-  likeButton: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4, // Added Android shadow compatibility
+  badgeSuperText: {
+    fontSize: 16,
+    fontWeight: "900",
+    letterSpacing: 1,
   },
 });
 
