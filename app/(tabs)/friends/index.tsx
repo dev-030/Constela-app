@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   StyleSheet,
@@ -6,77 +6,27 @@ import {
   Image,
   Pressable,
   TextInput,
+  RefreshControl,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import {
-  Search,
-  SlidersHorizontal,
-  Heart,
-  HeartOff,
-} from "lucide-react-native";
+import { Search, SlidersHorizontal } from "lucide-react-native";
 
 import { Text } from "@/components/ui/text";
 import { Icon } from "@/components/ui/icon";
-import { Button } from "@/components/ui/button";
-import { FilterPill } from "@/components/ui/filter-pill";
 import { useColor } from "@/hooks/useColor";
 import Header from "../../../components/header";
+import {
+  useAcceptFriendRequestMutation,
+  useDeclineFriendRequestMutation,
+  useFriendSuggestionsQuery,
+  usePendingFriendRequestsQuery,
+  useSendFriendRequestMutation,
+} from "@/api/friends";
 
-// Mock Data
-const FRIEND_REQUESTS = [
-  {
-    id: "1",
-    name: "Elena Rodriguez",
-    info: "2 mutual friends • North Bondi",
-    image: "https://i.pravatar.cc/150?img=47",
-  },
-  {
-    id: "2",
-    name: "Marcus Chen",
-    info: "Banani East",
-    image: "https://i.pravatar.cc/150?img=11",
-  },
-];
-
-const RECOMMENDATIONS = [
-  {
-    id: "1",
-    name: "Sam",
-    age: 28,
-    tags: ["Creative", "Yoga"],
-    bio: "Loves art, books, and meaningful talks",
-    image: "https://i.pravatar.cc/300?img=5",
-    liked: true,
-  },
-  {
-    id: "2",
-    name: "Elodie",
-    age: 32,
-    tags: ["Yoga", "Nature"],
-    bio: "Open-minded, loves nature and growth",
-    image: "https://i.pravatar.cc/300?img=35",
-    liked: true,
-  },
-  {
-    id: "3",
-    name: "David",
-    age: 45,
-    tags: ["Creative", "Personal"],
-    bio: "Enjoys good conversations and connection",
-    image: "https://i.pravatar.cc/300?img=12",
-    liked: true,
-  },
-  {
-    id: "4",
-    name: "Julian",
-    age: 30,
-    tags: ["Music", "Hiking"],
-    bio: "Always exploring new paths and sounds",
-    image: "https://i.pravatar.cc/300?img=68",
-    liked: false,
-  },
-];
+const SEARCH_DEBOUNCE_MS = 300;
 
 export default function FriendsScreen() {
   const insets = useSafeAreaInsets();
@@ -88,6 +38,87 @@ export default function FriendsScreen() {
   const border = useColor("border");
 
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      setDebouncedSearch(search.trim());
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(handle);
+  }, [search]);
+
+  const suggestionsQuery = useFriendSuggestionsQuery({
+    search: debouncedSearch || undefined,
+  });
+  const requestsQuery = usePendingFriendRequestsQuery();
+
+  const sendMutation = useSendFriendRequestMutation();
+  const acceptMutation = useAcceptFriendRequestMutation();
+  const declineMutation = useDeclineFriendRequestMutation();
+
+  const suggestions = suggestionsQuery.data ?? [];
+  const requests = requestsQuery.data ?? [];
+
+  const isRefreshing =
+    suggestionsQuery.isFetching || requestsQuery.isFetching;
+  const isInitialLoading =
+    (suggestionsQuery.isLoading || requestsQuery.isLoading) &&
+    !suggestionsQuery.data &&
+    !requestsQuery.data;
+
+  const handleAccept = (friendshipId: string) => {
+    acceptMutation.mutate(friendshipId, {
+      onError: (err: any) => {
+        if (err?.response?.status === 403) {
+          Alert.alert(
+            "Not allowed",
+            err.response.data?.error || "You can&apos;t accept this request."
+          );
+        } else {
+          Alert.alert("Something went wrong", "Please try again.");
+        }
+      },
+    });
+  };
+
+  const handleDecline = (friendshipId: string) => {
+    declineMutation.mutate(friendshipId, {
+      onError: () => {
+        Alert.alert("Something went wrong", "Please try again.");
+      },
+    });
+  };
+
+  const handleAddFriend = (userId: string) => {
+    sendMutation.mutate(userId, {
+      onError: (err: any) => {
+        if (err?.response?.status === 400) {
+          Alert.alert(
+            "Cannot send request",
+            err.response.data?.error || "You can&apos;t send a request to this user."
+          );
+        } else {
+          Alert.alert("Something went wrong", "Please try again.");
+        }
+      },
+    });
+  };
+
+  const handleRefresh = () => {
+    suggestionsQuery.refetch();
+    requestsQuery.refetch();
+  };
+
+  if (isInitialLoading) {
+    return (
+      <View style={[styles.container, { backgroundColor: background }]}>
+        <Header />
+        <View style={styles.centered}>
+          <ActivityIndicator color={primary} />
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: background }]}>
@@ -96,6 +127,14 @@ export default function FriendsScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={primary}
+            colors={[primary]}
+          />
+        }
       >
         {/* Search Bar */}
         <View style={styles.searchRow}>
@@ -112,6 +151,7 @@ export default function FriendsScreen() {
               placeholderTextColor={muted}
               value={search}
               onChangeText={setSearch}
+              returnKeyType="search"
             />
           </View>
           <Pressable
@@ -128,117 +168,181 @@ export default function FriendsScreen() {
         {/* Friend Requests */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Friend Requests</Text>
-          <View style={[styles.badge, { backgroundColor: primary }]}>
-            <Text style={styles.badgeText}>3 New</Text>
-          </View>
+          {requests.length > 0 && (
+            <View style={[styles.badge, { backgroundColor: primary }]}>
+              <Text style={styles.badgeText}>
+                {requests.length} New
+              </Text>
+            </View>
+          )}
         </View>
 
-        {FRIEND_REQUESTS.map((req) => (
-          <View
-            key={req.id}
-            style={[
-              styles.requestCard,
-              { borderColor: border, backgroundColor: cardColor },
-            ]}
-          >
-            <View style={styles.requestInfo}>
-              <Image source={{ uri: req.image }} style={styles.requestAvatar} />
-              <View style={styles.requestTextCol}>
-                <Text style={styles.requestName}>{req.name}</Text>
-                <Text style={[styles.requestSubtitle, { color: muted }]}>
-                  {req.info}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.requestActions}>
-              <Pressable
-                style={[styles.actionBtn, { backgroundColor: primary }]}
-              >
-                <Text style={[styles.actionBtnText, { color: "#FFF" }]}>
-                  Accept
-                </Text>
-              </Pressable>
-              <Pressable
-                style={[styles.actionBtn, { backgroundColor: primary + "20" }]}
-              >
-                <Text style={[styles.actionBtnText, { color: "#2B4A4A" }]}>
-                  Decline
-                </Text>
-              </Pressable>
-            </View>
+        {requestsQuery.isError ? (
+          <View style={styles.inlineMessage}>
+            <Text style={{ color: muted }}>Couldn&apos;t load friend requests.</Text>
+            <Pressable onPress={() => requestsQuery.refetch()}>
+              <Text style={{ color: primary, fontWeight: "600" }}>Retry</Text>
+            </Pressable>
           </View>
-        ))}
+        ) : requests.length === 0 ? (
+          <Text style={[styles.emptyText, { color: muted }]}>
+            No pending requests right now.
+          </Text>
+        ) : (
+          requests.map((req) => {
+            const isPending =
+              acceptMutation.isPending || declineMutation.isPending;
+            return (
+              <View
+                key={req.id}
+                style={[
+                  styles.requestCard,
+                  { borderColor: border, backgroundColor: cardColor },
+                ]}
+              >
+                <View style={styles.requestInfo}>
+                  <Image
+                    source={{ uri: req.photo }}
+                    style={styles.requestAvatar}
+                  />
+                  <View style={styles.requestTextCol}>
+                    <Text style={styles.requestName}>{req.username}</Text>
+                    <Text style={[styles.requestSubtitle, { color: muted }]}>
+                      {req.subtitle}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.requestActions}>
+                  <Pressable
+                    style={[
+                      styles.actionBtn,
+                      { backgroundColor: primary, opacity: isPending ? 0.6 : 1 },
+                    ]}
+                    disabled={isPending}
+                    onPress={() => handleAccept(req.id)}
+                  >
+                    <Text style={[styles.actionBtnText, { color: "#FFF" }]}>
+                      {acceptMutation.isPending &&
+                      acceptMutation.variables === req.id
+                        ? "Accepting…"
+                        : "Accept"}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    style={[
+                      styles.actionBtn,
+                      {
+                        backgroundColor: primary + "20",
+                        opacity: isPending ? 0.6 : 1,
+                      },
+                    ]}
+                    disabled={isPending}
+                    onPress={() => handleDecline(req.id)}
+                  >
+                    <Text style={[styles.actionBtnText, { color: "#2B4A4A" }]}>
+                      {declineMutation.isPending &&
+                      declineMutation.variables === req.id
+                        ? "Declining…"
+                        : "Decline"}
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            );
+          })
+        )}
 
         <View style={{ height: 24 }} />
 
         {/* Recommendations Grid */}
-        <View style={styles.grid}>
-          {RECOMMENDATIONS.map((person) => (
-            <Pressable
-              key={person.id}
-              style={[
-                styles.personCard,
-                { borderColor: border, backgroundColor: cardColor },
-              ]}
-              onPress={() => router.push("/friend-profile")}
-            >
-              <View style={styles.personImageContainer}>
-                <Image
-                  source={{ uri: person.image }}
-                  style={styles.personImage}
-                />
-                <View style={styles.personImageOverlay} />
-                <View style={styles.personNameContainer}>
-                  <Text style={styles.personNameAge}>
-                    {person.name}, {person.age}
-                  </Text>
-                </View>
-                <Pressable style={styles.likeBtn}>
-                  <Icon
-                    name={person.liked ? Heart : HeartOff}
-                    size={20}
-                    color={person.liked ? "#10B981" : "#FFF"}
-                  />
-                </Pressable>
-              </View>
-
-              <View style={styles.personContent}>
-                <View style={styles.personTags}>
-                  {person.tags.map((tag) => (
-                    <View
-                      key={tag}
-                      style={[
-                        styles.smallPill,
-                        { backgroundColor: primary + "15" },
-                      ]}
-                    >
-                      <Text
-                        style={[styles.smallPillText, { color: "#2B4A4A" }]}
-                      >
-                        {tag}
+        {suggestionsQuery.isError ? (
+          <View style={styles.inlineMessage}>
+            <Text style={{ color: muted }}>Couldn&apos;t load suggestions.</Text>
+            <Pressable onPress={() => suggestionsQuery.refetch()}>
+              <Text style={{ color: primary, fontWeight: "600" }}>Retry</Text>
+            </Pressable>
+          </View>
+        ) : suggestions.length === 0 ? (
+          <Text style={[styles.emptyText, { color: muted }]}>
+            No suggestions right now.
+          </Text>
+        ) : (
+          <View style={styles.grid}>
+            {suggestions.map((person) => {
+              const isSending =
+                sendMutation.isPending && sendMutation.variables === person.id;
+              return (
+                <Pressable
+                  key={person.id}
+                  style={[
+                    styles.personCard,
+                    { borderColor: border, backgroundColor: cardColor },
+                  ]}
+                  onPress={() => router.push("/friend-profile")}
+                >
+                  <View style={styles.personImageContainer}>
+                    <Image
+                      source={{ uri: person.photo }}
+                      style={styles.personImage}
+                    />
+                    <View style={styles.personImageOverlay} />
+                    <View style={styles.personNameContainer}>
+                      <Text style={styles.personNameAge}>
+                        {person.username}, {person.age}
                       </Text>
                     </View>
-                  ))}
-                </View>
+                  </View>
 
-                <Text
-                  style={[styles.personBio, { color: muted }]}
-                  numberOfLines={2}
-                >
-                  {person.bio}
-                </Text>
+                  <View style={styles.personContent}>
+                    <View style={styles.personTags}>
+                      {person.tags.map((tag) => (
+                        <View
+                          key={tag}
+                          style={[
+                            styles.smallPill,
+                            { backgroundColor: primary + "15" },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.smallPillText,
+                              { color: "#2B4A4A" },
+                            ]}
+                          >
+                            {tag}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
 
-                <Pressable
-                  style={[styles.addFriendBtn, { backgroundColor: primary }]}
-                >
-                  <Text style={[styles.addFriendText, { color: "#FFF" }]}>
-                    Add Friend
-                  </Text>
+                    <Text
+                      style={[styles.personBio, { color: muted }]}
+                      numberOfLines={2}
+                    >
+                      {person.bio}
+                    </Text>
+
+                    <Pressable
+                      style={[
+                        styles.addFriendBtn,
+                        {
+                          backgroundColor: primary,
+                          opacity: isSending ? 0.6 : 1,
+                        },
+                      ]}
+                      disabled={isSending}
+                      onPress={() => handleAddFriend(person.id)}
+                    >
+                      <Text style={[styles.addFriendText, { color: "#FFF" }]}>
+                        {isSending ? "Sending…" : "Add Friend"}
+                      </Text>
+                    </Pressable>
+                  </View>
                 </Pressable>
-              </View>
-            </Pressable>
-          ))}
-        </View>
+              );
+            })}
+          </View>
+        )}
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -249,6 +353,11 @@ export default function FriendsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  centered: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
   header: {
     flexDirection: "row",
@@ -395,17 +504,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
   },
-  likeBtn: {
-    position: "absolute",
-    top: 12,
-    right: 12,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "rgba(255,255,255,0.3)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
   personContent: {
     padding: 12,
   },
@@ -437,5 +535,15 @@ const styles = StyleSheet.create({
   addFriendText: {
     fontSize: 12,
     fontWeight: "bold",
+  },
+  inlineMessage: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 12,
+  },
+  emptyText: {
+    fontSize: 14,
+    paddingVertical: 12,
   },
 });

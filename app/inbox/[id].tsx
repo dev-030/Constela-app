@@ -1,16 +1,16 @@
-import React, { useState, useCallback } from "react";
+import React, { useCallback, useEffect, useMemo } from "react";
 import {
   View,
   StyleSheet,
-  Platform,
   Pressable,
   Image,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, router } from "expo-router";
-import { ChevronLeft, Phone, Video, MoreVertical } from "lucide-react-native";
+import { ChevronLeft } from "lucide-react-native";
 import {
-  GiftedChat,
   Bubble,
   InputToolbar,
   Send,
@@ -25,66 +25,44 @@ import { Text } from "@/components/ui/text";
 import { Icon } from "@/components/ui/icon";
 import { useColor } from "@/hooks/useColor";
 import { SafeGiftedChat } from "@/components/safeGiftedChat";
+import {
+  useDirectHistoryQuery,
+  useSendDirectMessageMutation,
+} from "@/api/messages";
+import { useGetProfileDetailsQuery } from "@/api/profile";
+import { useProfileStore } from "@/store/profileStore";
 
-const OTHER_USER = {
-  _id: 2,
-  name: "Sam",
-  avatar: "https://i.pravatar.cc/120?img=12",
-};
-
-const CURRENT_USER = {
-  _id: 1,
-  name: "You",
-  avatar: "https://i.pravatar.cc/120?img=68",
-};
-
-const INITIAL_MESSAGES: IMessage[] = [
-  {
-    _id: 1,
-    text: "Hey! How are you doing?",
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2),
-    user: OTHER_USER,
+function mapApiMessageToIMessage(
+  msg: {
+    id: string;
+    sender: string;
+    receiver: string;
+    sender_name: string;
+    sender_photo: string;
+    content: string;
+    timestamp: string;
   },
-  {
-    _id: 2,
-    text: "I'm doing great! Thanks for asking 😊",
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2 + 60000),
-    user: CURRENT_USER,
-  },
-  {
-    _id: 3,
-    text: "Are you still up for the quiet museum tour this weekend?",
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24),
-    user: OTHER_USER,
-  },
-  {
-    _id: 4,
-    text: "That sounds like a great plan! What time were you thinking?",
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 + 120000),
-    user: CURRENT_USER,
-  },
-  {
-    _id: 5,
-    text: "How about 2 PM? The sensory-friendly hours start then.",
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 12),
-    user: OTHER_USER,
-  },
-  {
-    _id: 6,
-    text: "Perfect, 2 PM works for me! See you there 👋",
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 6),
-    user: CURRENT_USER,
-  },
-  {
-    _id: 7,
-    text: "Awesome! I'll send you the exact meetup spot in the morning.",
-    createdAt: new Date(Date.now() - 1000 * 60 * 30),
-    user: OTHER_USER,
-  },
-];
+  currentUserId: string,
+  currentUserName: string,
+  currentUserPhoto: string
+): IMessage {
+  const isCurrentUser = msg.sender === currentUserId;
+  return {
+    _id: msg.id,
+    text: msg.content,
+    createdAt: new Date(msg.timestamp),
+    user: {
+      _id: msg.sender,
+      name: isCurrentUser ? currentUserName : msg.sender_name,
+      avatar: isCurrentUser ? currentUserPhoto : msg.sender_photo,
+    },
+  };
+}
 
 export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const recipientId = typeof id === "string" ? id : "";
+
   const insets = useSafeAreaInsets();
   const background = useColor("background");
   const primary = useColor("primary");
@@ -93,13 +71,87 @@ export default function ChatScreen() {
   const border = useColor("border");
   const card = useColor("card");
 
-  const [messages, setMessages] = useState<IMessage[]>(INITIAL_MESSAGES);
+  const { profile, fetchProfile } = useProfileStore();
 
-  const onSend = useCallback((newMessages: IMessage[] = []) => {
-    setMessages((previousMessages) =>
-      GiftedChat.append(previousMessages, newMessages)
-    );
-  }, []);
+  useEffect(() => {
+    if (!profile) {
+      fetchProfile();
+    }
+  }, [profile, fetchProfile]);
+
+  const recipientProfileQuery = useGetProfileDetailsQuery(recipientId);
+
+  const currentUserId = profile?.user.id ?? "";
+  const currentUserName = profile?.username ?? "You";
+  const currentUserPhoto =
+    profile?.photos?.find((p) => p.is_main)?.image ??
+    profile?.photos?.[0]?.image ??
+    "";
+
+  const giftedUser = useMemo(
+    () => ({
+      _id: currentUserId || "me",
+      name: currentUserName,
+      avatar: currentUserPhoto,
+    }),
+    [currentUserId, currentUserName, currentUserPhoto]
+  );
+
+  const historyQuery = useDirectHistoryQuery(recipientId);
+  const sendMutation = useSendDirectMessageMutation(recipientId);
+
+  const apiMessages = useMemo(
+    () => historyQuery.data ?? [],
+    [historyQuery.data]
+  );
+
+  const messages = useMemo<IMessage[]>(() => {
+    if (!currentUserId) {
+      return [];
+    }
+    return apiMessages
+      .map((msg) =>
+        mapApiMessageToIMessage(
+          msg,
+          currentUserId,
+          currentUserName,
+          currentUserPhoto
+        )
+      )
+      .sort((a, b) => +b.createdAt - +a.createdAt);
+  }, [apiMessages, currentUserId, currentUserName, currentUserPhoto]);
+
+  const onSend = useCallback(
+    (newMessages: IMessage[] = []) => {
+      const text = newMessages[0]?.text?.trim();
+      if (!text || !recipientId) {
+        return;
+      }
+      sendMutation.mutate(text, {
+        onError: (err: any) => {
+          const status = err?.response?.status;
+          const message =
+            err?.response?.data?.error || "Please try again in a moment.";
+
+          if (status === 400) {
+            Alert.alert("Cannot send", message);
+          } else if (status === 403) {
+            Alert.alert("Limit reached", message);
+          } else {
+            Alert.alert("Couldn't send", message);
+          }
+        },
+      });
+    },
+    [recipientId, sendMutation]
+  );
+
+  const recipientUsername =
+    recipientProfileQuery.data?.username ?? "Conversation";
+  const recipientPhoto =
+    recipientProfileQuery.data?.photos?.find((p) => p.is_main)?.image ??
+    recipientProfileQuery.data?.photos?.[0]?.image ??
+    "";
 
   const renderBubble = useCallback(
     (props: any) => {
@@ -216,7 +268,9 @@ export default function ChatScreen() {
             height: 44,
             borderRadius: 22,
             backgroundColor: primary,
+            opacity: sendMutation.isPending ? 0.4 : 1,
           }}
+          disabled={sendMutation.isPending}
           disabledStyle={{
             opacity: 0.4,
           }}
@@ -228,7 +282,7 @@ export default function ChatScreen() {
         </Send>
       );
     },
-    [primary]
+    [primary, sendMutation.isPending]
   );
 
   const renderTime = useCallback(
@@ -314,6 +368,9 @@ export default function ChatScreen() {
     );
   }, [primary, background]);
 
+  const isInitialLoading =
+    historyQuery.isLoading && apiMessages.length === 0;
+
   return (
     <View style={[styles.container, { backgroundColor: background }]}>
       {/* Header */}
@@ -337,66 +394,77 @@ export default function ChatScreen() {
           </Pressable>
 
           <View style={styles.headerCenter}>
-            <Image
-              source={{ uri: OTHER_USER.avatar }}
-              style={styles.headerAvatar}
-            />
+            {recipientPhoto ? (
+              <Image source={{ uri: recipientPhoto }} style={styles.headerAvatar} />
+            ) : (
+              <View style={[styles.headerAvatar, styles.headerAvatarFallback]}>
+                <Text style={{ color: muted, fontWeight: "700" }}>
+                  {recipientUsername.charAt(0).toUpperCase()}
+                </Text>
+              </View>
+            )}
             <View style={styles.headerInfo}>
-              <Text
-                style={[
-                  styles.headerName,
-                  { color: text },
-                ]}
-              >
-                {OTHER_USER.name}
+              <Text style={[styles.headerName, { color: text }]}>
+                {recipientUsername}
               </Text>
               <Text style={[styles.headerStatus, { color: muted }]}>
-                Online
+                {historyQuery.isLoading ? "Loading…" : "Direct message"}
               </Text>
             </View>
           </View>
         </View>
       </View>
 
-      {/* Chat */}
-      <SafeGiftedChat
-        messages={messages}
-        onSend={(newMessages) => onSend(newMessages)}
-        user={CURRENT_USER}
-        renderBubble={renderBubble}
-        renderInputToolbar={renderInputToolbar}
-        renderComposer={renderComposer}
-        renderSend={renderSend}
-        renderTime={renderTime}
-        renderAvatar={renderAvatar}
-        renderSystemMessage={renderSystemMessage}
-        isScrollToBottomEnabled
-        scrollToBottomComponent={scrollToBottomComponent}
-        scrollToBottomOffset={120}
-        isSendButtonAlwaysVisible
-        isUserAvatarVisible
-        locale="en"
-        minInputToolbarHeight={52}
-        maxComposerHeight={120}
-        minComposerHeight={44}
-        
-        textInputProps={{
-          accessibilityLabel: "Message input",
-          placeholder: "Message...",
-        }}
-        messagesContainerStyle={{
-          backgroundColor: background,
-        }}
-        listProps={{
-          keyboardShouldPersistTaps: "never",
-          style: {
+      {isInitialLoading ? (
+        <View style={styles.centered}>
+          <ActivityIndicator color={primary} />
+        </View>
+      ) : historyQuery.isError ? (
+        <View style={styles.centered}>
+          <Text style={{ color: muted }}>Couldn&apos;t load messages.</Text>
+          <Pressable onPress={() => historyQuery.refetch()}>
+            <Text style={{ color: primary, fontWeight: "700" }}>Retry</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <SafeGiftedChat
+          messages={messages}
+          onSend={(newMessages) => onSend(newMessages)}
+          user={giftedUser}
+          renderBubble={renderBubble}
+          renderInputToolbar={renderInputToolbar}
+          renderComposer={renderComposer}
+          renderSend={renderSend}
+          renderTime={renderTime}
+          renderAvatar={renderAvatar}
+          renderSystemMessage={renderSystemMessage}
+          isScrollToBottomEnabled
+          scrollToBottomComponent={scrollToBottomComponent}
+          scrollToBottomOffset={120}
+          isSendButtonAlwaysVisible
+          isUserAvatarVisible
+          locale="en"
+          minInputToolbarHeight={52}
+          maxComposerHeight={120}
+          minComposerHeight={44}
+          textInputProps={{
+            accessibilityLabel: "Message input",
+            placeholder: "Message...",
+          }}
+          messagesContainerStyle={{
             backgroundColor: background,
-          },
-          contentContainerStyle: {
-            paddingBottom: 8,
-          },
-        }}
-      />
+          }}
+          listProps={{
+            keyboardShouldPersistTaps: "never",
+            style: {
+              backgroundColor: background,
+            },
+            contentContainerStyle: {
+              paddingBottom: 8,
+            },
+          }}
+        />
+      )}
     </View>
   );
 }
@@ -404,6 +472,13 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  centered: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+    gap: 8,
   },
   header: {
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -433,6 +508,11 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     marginRight: 10,
   },
+  headerAvatarFallback: {
+    backgroundColor: "rgba(128,128,128,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   headerInfo: {
     justifyContent: "center",
   },
@@ -444,17 +524,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "500",
     marginTop: 1,
-  },
-  headerActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  headerActionBtn: {
-    width: 36,
-    height: 36,
-    justifyContent: "center",
-    alignItems: "center",
   },
 
   sendArrow: {

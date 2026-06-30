@@ -1,147 +1,223 @@
 import { Text } from "@/components/ui/text";
 import { useColor } from "@/hooks/useColor";
-import { Image, Pressable, StyleSheet, View } from "react-native";
+import {
+  ActivityIndicator,
+  Image,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  View,
+} from "react-native";
 import { router } from "expo-router";
+import { useEffect, useState } from "react";
 import Header from "../../../components/header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MessageThread, ThreadType, useThreadsQuery } from "@/api/messages";
 
-const datingConversations = [
-  {
-    id: "sam",
-    name: "Sam",
-    message: "That sounds like a great plan!",
-    time: "10:45 AM",
-    unread: 1,
-    online: true,
-    avatar: "https://i.pravatar.cc/120?img=12",
-  },
-  {
-    id: "jordan",
-    name: "Jordan",
-    message: "Would love to see that exhibit too!",
-    time: "Yesterday",
-    unread: 0,
-    online: false,
-    avatar: "https://i.pravatar.cc/120?img=60",
-  },
-  {
-    id: "alex",
-    name: "Alex",
-    message: "Thanks for a wonderful evening 🌙",
-    time: "2 days ago",
-    unread: 2,
-    online: true,
-    avatar: "https://i.pravatar.cc/120?img=45",
-  },
-];
+// Format a UTC timestamp as "10:45 AM", "Yesterday", or "N days ago".
+function formatThreadTime(iso: string): string {
+  if (!iso) {
+    return "";
+  }
+  const date = new Date(iso);
+  const now = new Date();
+  const startOfDay = (d: Date) =>
+    new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const today = startOfDay(now);
+  const thatDay = startOfDay(date);
+  const dayDiff = Math.round(
+    (today.getTime() - thatDay.getTime()) / (1000 * 60 * 60 * 24),
+  );
 
-const friendsConversations = [
-  {
-    id: "david",
-    name: "David",
-    message: "Are you still up for the quiet museum tour?",
-    time: "Yesterday",
-    unread: 0,
-    online: false,
-    avatar: "https://i.pravatar.cc/120?img=33",
-  },
-  {
-    id: "emma",
-    name: "Emma",
-    message: "Movie night this Friday? 🍿",
-    time: "3 days ago",
-    unread: 1,
-    online: true,
-    avatar: "https://i.pravatar.cc/120?img=25",
-  },
-  {
-    id: "mike",
-    name: "Mike",
-    message: "Check out this new cafe I found!",
-    time: "1 week ago",
-    unread: 0,
-    online: true,
-    avatar: "https://i.pravatar.cc/120?img=53",
-  },
-];
+  if (dayDiff === 0) {
+    return date.toLocaleTimeString(undefined, {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
+  if (dayDiff === 1) {
+    return "Yesterday";
+  }
+  if (dayDiff < 7) {
+    return `${dayDiff} days ago`;
+  }
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+}
 
 function ConversationList({
-  conversations,
+  threads,
+  isLoading,
+  isError,
+  onRefresh,
+  isRefreshing,
+  emptyText,
 }: {
-  conversations: typeof datingConversations;
+  threads: MessageThread[];
+  isLoading: boolean;
+  isError: boolean;
+  onRefresh: () => void;
+  isRefreshing: boolean;
+  emptyText: string;
 }) {
   const background = useColor("background");
 
-  return (
-    <View style={styles.messageList}>
-      {conversations.map((conversation) => (
-        <Pressable
-          key={conversation.id}
-          style={styles.conversationRow}
-          onPress={() => {
-            router.push(`/inbox/${conversation.id}`);
-          }}
-        >
-          <View style={styles.avatarWrap}>
-            <Image
-              source={{ uri: conversation.avatar }}
-              style={styles.avatar}
-            />
-            <View
-              style={[
-                styles.statusDot,
-                {
-                  backgroundColor: conversation.online ? "#25C45E" : "#CFD5D8",
-                  borderColor: background,
-                },
-              ]}
-            />
-          </View>
+  if (isLoading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator color="#1F3A3D" />
+      </View>
+    );
+  }
 
-          <View style={styles.conversationBody}>
-            <View style={styles.conversationTop}>
-              <Text style={styles.name}>{conversation.name}</Text>
-              <Text style={styles.time}>{conversation.time}</Text>
-            </View>
-            <View style={styles.previewRow}>
-              <Text numberOfLines={1} style={styles.messagePreview}>
-                {conversation.message}
-              </Text>
-              {conversation.unread ? (
-                <View style={styles.unreadBadge}>
-                  <Text style={styles.unreadText}>{conversation.unread}</Text>
-                </View>
-              ) : null}
-            </View>
-          </View>
+  if (isError) {
+    return (
+      <ScrollView
+        contentContainerStyle={styles.centered}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={onRefresh}
+            tintColor="#1F3A3D"
+          />
+        }
+      >
+        <Text style={styles.emptyText}>Couldn&apos;t load conversations.</Text>
+        <Pressable onPress={onRefresh}>
+          <Text style={styles.retryText}>Retry</Text>
         </Pressable>
-      ))}
-    </View>
+      </ScrollView>
+    );
+  }
+
+  if (threads.length === 0) {
+    return (
+      <ScrollView
+        contentContainerStyle={styles.centered}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={onRefresh}
+            tintColor="#1F3A3D"
+          />
+        }
+      >
+        <Text style={styles.emptyText}>{emptyText}</Text>
+      </ScrollView>
+    );
+  }
+
+  return (
+    <ScrollView
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={isRefreshing}
+          onRefresh={onRefresh}
+          tintColor="#1F3A3D"
+        />
+      }
+    >
+      <View style={styles.messageList}>
+        {threads.map((thread) => (
+          <Pressable
+            key={thread.profile.id}
+            style={styles.conversationRow}
+            onPress={() => router.push(`/inbox/${thread.profile.id}`)}
+          >
+            <View style={styles.avatarWrap}>
+              <Image
+                source={{ uri: thread.profile.photo }}
+                style={styles.avatar}
+              />
+              <View
+                style={[
+                  styles.statusDot,
+                  {
+                    backgroundColor: "#CFD5D8",
+                    borderColor: background,
+                  },
+                ]}
+              />
+            </View>
+
+            <View style={styles.conversationBody}>
+              <View style={styles.conversationTop}>
+                <Text style={styles.name}>{thread.profile.username}</Text>
+                <Text style={styles.time}>
+                  {formatThreadTime(thread.last_message_time)}
+                </Text>
+              </View>
+              <View style={styles.previewRow}>
+                <Text numberOfLines={1} style={styles.messagePreview}>
+                  {thread.last_message}
+                </Text>
+                {thread.unread_count > 0 ? (
+                  <View style={styles.unreadBadge}>
+                    <Text style={styles.unreadText}>{thread.unread_count}</Text>
+                  </View>
+                ) : null}
+              </View>
+            </View>
+          </Pressable>
+        ))}
+      </View>
+    </ScrollView>
   );
 }
 
 export default function MessagesScreen() {
   const background = useColor("background");
 
+  const [tab, setTab] = useState<ThreadType>("dating");
+
+   const datingQuery = useThreadsQuery("dating");
+   const friendsQuery = useThreadsQuery("friends");
+
   return (
     <View style={[styles.container, { backgroundColor: background }]}>
       <Header />
-      <Tabs defaultValue="Dating" enableSwipe>
+      <Tabs
+        value={tab}
+        onValueChange={(v) => setTab(v as ThreadType)}
+        enableSwipe
+      >
         <TabsList style={styles.tabsList}>
-          <TabsTrigger value="Dating" textStyle={styles.triggerText}>
+          <TabsTrigger value="dating" textStyle={styles.triggerText}>
             Dating
           </TabsTrigger>
-          <TabsTrigger value="Friends" textStyle={styles.triggerText}>
+          <TabsTrigger value="friends" textStyle={styles.triggerText}>
             Friends
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="Dating" style={{ paddingTop: 0 }}>
-          <ConversationList conversations={datingConversations} />
+        <TabsContent value="dating" style={{ paddingTop: 0 }}>
+          <ConversationList
+            threads={datingQuery.data ?? []}
+            isLoading={datingQuery.isLoading}
+            isError={!!datingQuery.isError}
+            onRefresh={() => datingQuery.refetch()}
+            isRefreshing={datingQuery.isFetching}
+            emptyText={
+              tab === "dating"
+                ? "No matches yet. Start liking profiles to begin a thread."
+                : "No conversations."
+            }
+          />
         </TabsContent>
 
-        <TabsContent value="Friends" style={{ paddingTop: 0 }}>
-          <ConversationList conversations={friendsConversations} />
+        <TabsContent value="friends" style={{ paddingTop: 0 }}>
+          <ConversationList
+            threads={friendsQuery.data ?? []}
+            isLoading={friendsQuery.isLoading}
+            isError={!!friendsQuery.isError}
+            onRefresh={() => friendsQuery.refetch()}
+            isRefreshing={friendsQuery.isFetching}
+            emptyText="No friends to chat with yet."
+          />
         </TabsContent>
       </Tabs>
     </View>
@@ -222,8 +298,9 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   unreadBadge: {
-    width: 19,
+    minWidth: 19,
     height: 19,
+    paddingHorizontal: 4,
     borderRadius: 10,
     backgroundColor: "#9A3B00",
     alignItems: "center",
@@ -235,5 +312,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "800",
     lineHeight: 14,
+  },
+  centered: {
+    flexGrow: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 48,
+    gap: 8,
+  },
+  emptyText: {
+    color: "#71717A",
+    fontSize: 14,
+  },
+  retryText: {
+    color: "#9A3B00",
+    fontWeight: "700",
   },
 });
