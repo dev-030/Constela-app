@@ -320,30 +320,6 @@ export default function CommunityScreen() {
           </Text>
         </View>
 
-        <View style={styles.sectionHeader}>
-          <View
-            style={[
-              styles.searchBox,
-              colorScheme === "dark" && styles.searchBoxDark,
-            ]}
-          >
-            <Search
-              size={22}
-              color={colorScheme === "dark" ? "#2E735F" : "#9C786C"}
-            />
-            <TextInput
-              placeholder="Search rooms or interests..."
-              placeholderTextColor={
-                colorScheme === "dark" ? "#2E735F" : "#9C786C"
-              }
-              style={[styles.searchInput, { color: text }]}
-              value={search}
-              onChangeText={setSearch}
-              returnKeyType="search"
-            />
-          </View>
-        </View>
-
         <Text
           style={[
             styles.exploreTitle,

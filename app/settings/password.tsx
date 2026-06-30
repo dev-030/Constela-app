@@ -4,10 +4,13 @@ import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
 import { useColor } from '@/hooks/useColor';
 import { router } from 'expo-router';
-import { ChevronLeft, Eye, EyeOff, Key, Lock } from 'lucide-react-native';
+import { ChevronLeft, Eye, EyeOff, Lock } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View, ScrollView } from 'react-native';
+import { Pressable, StyleSheet, View, ScrollView, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useChangePasswordMutation } from '@/api/settings';
+
+const MIN_PASSWORD_LENGTH = 8;
 
 export default function ChangePasswordScreen() {
   const insets = useSafeAreaInsets();
@@ -19,9 +22,15 @@ export default function ChangePasswordScreen() {
   const border = useColor('border');
   const secondary = useColor('secondary');
 
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [confirm, setConfirm] = useState('');
+
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+
+  const changePassword = useChangePasswordMutation();
 
   const styles = useMemo(() => StyleSheet.create({
     container: {
@@ -53,7 +62,7 @@ export default function ChangePasswordScreen() {
       width: 72,
       height: 72,
       borderRadius: 36,
-      backgroundColor: '#E0F2F1', // Teal background
+      backgroundColor: '#E0F2F1',
       justifyContent: 'center',
       alignItems: 'center',
       marginBottom: 16,
@@ -100,8 +109,57 @@ export default function ChangePasswordScreen() {
       backgroundColor: secondary,
       borderRadius: 12,
       marginTop: 8,
-    }
+    },
   }), [background, cardColor, text, muted, border, secondary]);
+
+  const validate = (): string | null => {
+    if (!current) {
+      return 'Please enter your current password.';
+    }
+    if (!next || next.length < MIN_PASSWORD_LENGTH) {
+      return `New password must be at least ${MIN_PASSWORD_LENGTH} characters.`;
+    }
+    if (next !== confirm) {
+      return 'New password and confirmation do not match.';
+    }
+    if (next === current) {
+      return 'New password must be different from the current one.';
+    }
+    return null;
+  };
+
+  const handleSave = () => {
+    const validationError = validate();
+    if (validationError) {
+      Alert.alert('Check your input', validationError);
+      return;
+    }
+
+    changePassword.mutate(
+      { current_password: current, new_password: next },
+      {
+        onSuccess: () => {
+          Alert.alert(
+            'Password updated',
+            'Your password has been changed successfully.',
+            [{ text: 'OK', onPress: () => router.back() }]
+          );
+          setCurrent('');
+          setNext('');
+          setConfirm('');
+        },
+        onError: (err: any) => {
+          const message =
+            err?.response?.data?.error ||
+            err?.response?.data?.message ||
+            'We couldn\u2019t change your password. Please try again.';
+          Alert.alert('Couldn\u2019t change password', message);
+        },
+      }
+    );
+  };
+
+  const isBusy = changePassword.isPending;
 
   return (
     <View style={styles.container}>
@@ -129,6 +187,9 @@ export default function ChangePasswordScreen() {
             <Input
               placeholder="Enter current password"
               secureTextEntry={!showCurrent}
+              value={current}
+              onChangeText={setCurrent}
+              editable={!isBusy}
               rightComponent={
                 <Pressable onPress={() => setShowCurrent(!showCurrent)} hitSlop={10}>
                   <Icon name={showCurrent ? EyeOff : Eye} size={20} color={muted} />
@@ -142,6 +203,9 @@ export default function ChangePasswordScreen() {
             <Input
               placeholder="Enter new password"
               secureTextEntry={!showNew}
+              value={next}
+              onChangeText={setNext}
+              editable={!isBusy}
               rightComponent={
                 <Pressable onPress={() => setShowNew(!showNew)} hitSlop={10}>
                   <Icon name={showNew ? EyeOff : Eye} size={20} color={muted} />
@@ -155,6 +219,9 @@ export default function ChangePasswordScreen() {
             <Input
               placeholder="Re-type new password"
               secureTextEntry={!showConfirm}
+              value={confirm}
+              onChangeText={setConfirm}
+              editable={!isBusy}
               rightComponent={
                 <Pressable onPress={() => setShowConfirm(!showConfirm)} hitSlop={10}>
                   <Icon name={showConfirm ? EyeOff : Eye} size={20} color={muted} />
@@ -163,7 +230,12 @@ export default function ChangePasswordScreen() {
             />
           </View>
 
-          <Button style={styles.saveBtn}>
+          <Button
+            style={styles.saveBtn}
+            onPress={handleSave}
+            loading={isBusy}
+            disabled={isBusy}
+          >
             Save New Password
           </Button>
         </View>

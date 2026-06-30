@@ -226,7 +226,7 @@ export default function SettingsIndexScreen() {
         {/* SUBSCRIPTION */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>SUBSCRIPTION</Text>
-          {renderItem("Payment History", "/settings")}
+          {renderItem("Payment History", "/settings/payment-history")}
         </View>
 
         <Button

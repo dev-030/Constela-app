@@ -6,7 +6,6 @@ import { router } from "expo-router";
 import {
   ArrowLeft,
   Check,
-  ChevronRight,
   Filter,
   MessageSquare,
   Rocket,
@@ -15,16 +14,38 @@ import {
 } from "lucide-react-native";
 import { useState } from "react";
 import {
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SubscriptionTier,
+  useUpgradeSubscriptionMutation,
+} from "@/api/settings";
+import { useProfileStore } from "@/store/profileStore";
 
 const PRIMARY = "#DE4177";
 const GOLD = "#1A3A2A";
 const GOLD_TEXT = "#FFFFFF";
+
+type LightPlanChoice = "1m" | "3m" | "6m" | "lifetime";
+type PlusPlanChoice = "1m" | "3m" | "1yr";
+
+const LIGHT_PRICES: Record<LightPlanChoice, number> = {
+  "1m": 4.99,
+  "3m": 12.99,
+  "6m": 39.99,
+  lifetime: 99.99,
+};
+
+const PLUS_PRICES: Record<PlusPlanChoice, number> = {
+  "1m": 9.99,
+  "3m": 24.99,
+  "1yr": 199.99,
+};
 
 // ─── Reusable row ───────────────────────────────────────────────────────────
 
@@ -117,10 +138,49 @@ export default function SubscriptionScreen() {
   const card = useColor("card");
   const border = useColor("border");
   const primary = useColor("primary");
-  const primaryForeground = useColor("primaryForeground");
 
-  const [lightPlan, setLightPlan] = useState<"1m" | "3m" | "6m" | "lifetime">("6m");
-  const [plusPlan, setPlusPlan] = useState<"1m" | "3m" | "1yr">("1yr");
+  const { profile, fetchProfile } = useProfileStore();
+
+  const [lightPlan, setLightPlan] = useState<LightPlanChoice>("6m");
+  const [plusPlan, setPlusPlan] = useState<PlusPlanChoice>("1yr");
+
+  const upgradeMutation = useUpgradeSubscriptionMutation();
+
+  const currentTier: SubscriptionTier =
+    (profile?.subscription_tier as SubscriptionTier | undefined) ?? "freemium";
+
+  const handleUpgrade = (
+    tier: SubscriptionTier,
+    amount: number,
+    label: string
+  ) => {
+    if (tier === currentTier) {
+      Alert.alert("Already on this plan", `You're already subscribed to ${label}.`);
+      return;
+    }
+
+    upgradeMutation.mutate(
+      { tier, amount },
+      {
+        onSuccess: () => {
+          Alert.alert(
+            "Subscription updated",
+            `You are now on ${label}. Enjoy!`,
+            [{ text: "OK", onPress: () => fetchProfile() }]
+          );
+        },
+        onError: (err: any) => {
+          const message =
+            err?.response?.data?.error ||
+            err?.response?.data?.message ||
+            "We couldn\u2019t process your upgrade. Please try again.";
+          Alert.alert("Upgrade failed", message);
+        },
+      }
+    );
+  };
+
+  const isUpgrading = upgradeMutation.isPending;
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: background }]} edges={["top"]}>
@@ -149,11 +209,13 @@ export default function SubscriptionScreen() {
               <Text style={[styles.planName, { color: text }]}>Freemium Access</Text>
               <Text style={{ fontSize: 13, color: primary, fontWeight: "700" }}>Free</Text>
             </View>
-            <View style={[styles.currentBadge, { backgroundColor: GOLD }]}>
-              <Text style={{ fontSize: 10, fontWeight: "700", color: GOLD_TEXT, letterSpacing: 0.3 }}>
-                CURRENT PLAN
-              </Text>
-            </View>
+            {currentTier === "freemium" && (
+              <View style={[styles.currentBadge, { backgroundColor: GOLD }]}>
+                <Text style={{ fontSize: 10, fontWeight: "700", color: GOLD_TEXT, letterSpacing: 0.3 }}>
+                  CURRENT PLAN
+                </Text>
+              </View>
+            )}
           </View>
           <View style={{ gap: 6, marginTop: 12 }}>
             <FeatureRow label="Browse dating & friendship profiles" muted={muted} primary={primary} text={text} />
@@ -169,10 +231,19 @@ export default function SubscriptionScreen() {
         </View>
 
         {/* ── Premium Light ── */}
-        <View style={[styles.planCard, { backgroundColor: card, borderColor: border, borderWidth: 1, marginTop: 12 }]}>
-          <View>
-            <Text style={[styles.planName, { color: text }]}>Premium Light</Text>
-            <Text style={{ fontSize: 12, color: muted }}>For serious, intentional browsing</Text>
+        <View style={[styles.planCard, { backgroundColor: card, borderColor: currentTier === "light" ? primary : border, borderWidth: currentTier === "light" ? 1.5 : 1, marginTop: 12 }]}>
+          <View style={styles.planCardHeader}>
+            <View>
+              <Text style={[styles.planName, { color: text }]}>Premium Light</Text>
+              <Text style={{ fontSize: 12, color: muted }}>For serious, intentional browsing</Text>
+            </View>
+            {currentTier === "light" && (
+              <View style={[styles.currentBadge, { backgroundColor: GOLD }]}>
+                <Text style={{ fontSize: 10, fontWeight: "700", color: GOLD_TEXT, letterSpacing: 0.3 }}>
+                  CURRENT PLAN
+                </Text>
+              </View>
+            )}
           </View>
           <View style={{ gap: 6, marginTop: 12 }}>
             <FeatureRow label="See who liked you" muted={muted} primary={primary} text={text} />
@@ -191,7 +262,15 @@ export default function SubscriptionScreen() {
           </View>
 
           <Button
-            onPress={() => {}}
+            onPress={() =>
+              handleUpgrade(
+                "light",
+                LIGHT_PRICES[lightPlan],
+                "Premium Light"
+              )
+            }
+            disabled={isUpgrading}
+            loading={isUpgrading}
             style={{ borderRadius: 28, marginTop: 14, height: 48 }}
           >
             Upgrade to Light
@@ -207,8 +286,8 @@ export default function SubscriptionScreen() {
             styles.planCard,
             {
               backgroundColor: PRIMARY + "0D",
-              borderColor: PRIMARY,
-              borderWidth: 1.5,
+              borderColor: currentTier === "plus" ? PRIMARY : PRIMARY,
+              borderWidth: currentTier === "plus" ? 2 : 1.5,
               marginTop: 12,
             },
           ]}
@@ -220,9 +299,18 @@ export default function SubscriptionScreen() {
             </Text>
           </View>
 
-          <View>
-            <Text style={[styles.planName, { color: text }]}>Premium Plus</Text>
-            <Text style={{ fontSize: 12, color: muted }}>The complete experience with total freedom.</Text>
+          <View style={styles.planCardHeader}>
+            <View>
+              <Text style={[styles.planName, { color: text }]}>Premium Plus</Text>
+              <Text style={{ fontSize: 12, color: muted }}>The complete experience with total freedom.</Text>
+            </View>
+            {currentTier === "plus" && (
+              <View style={[styles.currentBadge, { backgroundColor: GOLD }]}>
+                <Text style={{ fontSize: 10, fontWeight: "700", color: GOLD_TEXT, letterSpacing: 0.3 }}>
+                  CURRENT PLAN
+                </Text>
+              </View>
+            )}
           </View>
 
           <View style={{ gap: 7, marginTop: 14 }}>
@@ -262,7 +350,15 @@ export default function SubscriptionScreen() {
           </View>
 
           <Button
-            onPress={() => {}}
+            onPress={() =>
+              handleUpgrade(
+                "plus",
+                PLUS_PRICES[plusPlan],
+                "Premium Plus"
+              )
+            }
+            disabled={isUpgrading}
+            loading={isUpgrading}
             icon={Rocket}
             style={{ borderRadius: 28, marginTop: 14, height: 52 }}
           >
