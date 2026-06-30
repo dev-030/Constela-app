@@ -1,14 +1,15 @@
-import React, { useState, useCallback } from "react";
+import React, { useCallback, useEffect, useMemo } from "react";
 import {
   View,
   StyleSheet,
   Pressable,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { ArrowLeft, LogOut, Users } from "lucide-react-native";
 import {
-  GiftedChat,
   Bubble,
   InputToolbar,
   Send,
@@ -23,94 +24,57 @@ import { Text } from "@/components/ui/text";
 import { Icon } from "@/components/ui/icon";
 import { useColor } from "@/hooks/useColor";
 import { SafeGiftedChat } from "@/components/safeGiftedChat";
+import {
+  useJoinRoomMutation,
+  useLeaveRoomMutation,
+  useRoomMessagesQuery,
+  useSendRoomMessageMutation,
+  isPremiumRequiredError,
+} from "@/api/chat";
+import { useProfileStore } from "@/store/profileStore";
 
-const CURRENT_USER = {
-  _id: 1,
-  name: "You",
-  avatar: "https://i.pravatar.cc/120?img=68",
-};
+// Stable palette for the username-label color band on incoming messages.
+function hashStringToColor(input: string): string {
+  let hash = 0;
+  for (let i = 0; i < input.length; i++) {
+    hash = input.charCodeAt(i) + ((hash << 5) - hash);
+    hash |= 0;
+  }
+  const hue = Math.abs(hash) % 360;
+  return `hsl(${hue}, 55%, 40%)`;
+}
 
-const GROUP_MEMBERS = {
-  samantha: {
-    _id: 2,
-    name: "Samantha",
-    avatar: "https://i.pravatar.cc/120?img=32",
+// Backend returns messages oldest-first. GiftedChat wants newest-first.
+function mapApiMessageToIMessage(
+  msg: {
+    id: string;
+    sender: string;
+    sender_name: string;
+    sender_photo: string;
+    content: string;
+    timestamp: string;
   },
-  nico: {
-    _id: 3,
-    name: "Nico Alexis",
-    avatar: "https://i.pravatar.cc/120?img=47",
-  },
-  bima: {
-    _id: 4,
-    name: "Bima Algifari",
-    avatar: "https://i.pravatar.cc/120?img=12",
-  },
-};
-
-const GROUP_NAME_COLORS: Record<number, string> = {
-  [GROUP_MEMBERS.samantha._id]: "#C35A22",
-  [GROUP_MEMBERS.nico._id]: "#A34828",
-  [GROUP_MEMBERS.bima._id]: "#8B4B27",
-};
-
-const MEMBER_COUNT = "1.2k members";
-
-// GiftedChat expects messages sorted newest-first (reverse chronological)
-const INITIAL_MESSAGES: IMessage[] = [
-  {
-    _id: 8,
-    text: "Let me share some initial findings from the user research phase.",
-    createdAt: new Date(Date.now() - 1000 * 60 * 5),
-    user: GROUP_MEMBERS.nico,
-  },
-  {
-    _id: 7,
-    text: "I like this approach 👍",
-    createdAt: new Date(Date.now() - 1000 * 60 * 30),
-    user: GROUP_MEMBERS.samantha,
-  },
-  {
-    _id: 6,
-    text: "Thank you. Based on this data, we can start creating user personas @Samantha",
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 6),
-    user: GROUP_MEMBERS.bima,
-  },
-  {
-    _id: 5,
-    text: "That sounds great. Do we have any data on how users currently interact with our site?",
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 12),
-    user: GROUP_MEMBERS.samantha,
-  },
-  {
-    _id: 4,
-    text: "Of course, thank you for joining 🥳",
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 + 120000),
-    user: GROUP_MEMBERS.nico,
-  },
-  {
-    _id: 3,
-    text: "Hi @Nico Alexis I'm very excited to start working on this project. Can we begin by discussing the main goals and objectives of the design?",
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24),
-    user: GROUP_MEMBERS.samantha,
-  },
-  {
-    _id: 2,
-    text: "Hi everyone! Excited to be here 🙌",
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2 + 60000),
-    user: CURRENT_USER,
-  },
-  {
-    _id: 1,
-    text: "Welcome to the ADHD Hub! 🎉 Feel free to introduce yourselves.",
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2),
-    user: GROUP_MEMBERS.samantha,
-  },
-];
+  currentUserId: string,
+  currentUserName: string,
+  currentUserAvatar: string
+): IMessage {
+  const isCurrentUser = msg.sender === currentUserId;
+  return {
+    _id: msg.id,
+    text: msg.content,
+    createdAt: new Date(msg.timestamp),
+    user: {
+      _id: msg.sender,
+      name: isCurrentUser ? currentUserName : msg.sender_name,
+      avatar: isCurrentUser ? currentUserAvatar : msg.sender_photo,
+    },
+  };
+}
 
 export default function CommunityChatScreen() {
-  const { title } = useLocalSearchParams();
-  const groupTitle = typeof title === "string" ? title : "ADHD Hub";
+  const params = useLocalSearchParams<{ title?: string; roomId?: string }>();
+  const groupTitle = typeof params.title === "string" ? params.title : "Community";
+  const roomId = typeof params.roomId === "string" ? params.roomId : "";
 
   const insets = useSafeAreaInsets();
   const background = useColor("background");
@@ -120,28 +84,134 @@ export default function CommunityChatScreen() {
   const border = useColor("border");
   const card = useColor("card");
 
-  const [messages, setMessages] = useState<IMessage[]>(INITIAL_MESSAGES);
+  const { profile, fetchProfile } = useProfileStore();
 
-  const onSend = useCallback((newMessages: IMessage[] = []) => {
-    setMessages((previousMessages) =>
-      GiftedChat.append(previousMessages, newMessages)
-    );
-  }, []);
+  useEffect(() => {
+    if (!profile) {
+      fetchProfile();
+    }
+  }, [profile, fetchProfile]);
+
+  const currentUserId = profile?.user.id ?? "";
+  const currentUserName = profile?.username ?? "You";
+  const currentUserAvatar =
+    profile?.photos?.find((p) => p.is_main)?.image ??
+    profile?.photos?.[0]?.image ??
+    "";
+
+  const giftedUser = useMemo(
+    () => ({
+      _id: currentUserId || "me",
+      name: currentUserName,
+      avatar: currentUserAvatar,
+    }),
+    [currentUserId, currentUserName, currentUserAvatar]
+  );
+
+  const messagesQuery = useRoomMessagesQuery(roomId);
+  const sendMutation = useSendRoomMessageMutation(roomId);
+  const joinMutation = useJoinRoomMutation();
+  const leaveMutation = useLeaveRoomMutation();
+
+  const apiMessages = useMemo(() => messagesQuery.data ?? [], [messagesQuery.data]);
+  const messages = useMemo<IMessage[]>(() => {
+    if (!currentUserId) {
+      return [];
+    }
+    return apiMessages
+      .map((msg) =>
+        mapApiMessageToIMessage(
+          msg,
+          currentUserId,
+          currentUserName,
+          currentUserAvatar
+        )
+      )
+      .sort((a, b) => +b.createdAt - +a.createdAt);
+  }, [apiMessages, currentUserId, currentUserName, currentUserAvatar]);
+
+  // For the username-label palette, build a memo of sender-id → color.
+  const nameColors = useMemo(() => {
+    const map: Record<string, string> = {};
+    apiMessages.forEach((m) => {
+      if (m.sender !== currentUserId && !map[m.sender]) {
+        map[m.sender] = hashStringToColor(m.sender);
+      }
+    });
+    return map;
+  }, [apiMessages, currentUserId]);
+
+  const onSend = useCallback(
+    (newMessages: IMessage[] = []) => {
+      const text = newMessages[0]?.text?.trim();
+      if (!text || !roomId) {
+        return;
+      }
+      sendMutation.mutate(text, {
+        onError: (err: any) => {
+          if (err?.response?.status === 400) {
+            Alert.alert("Cannot send", err.response.data?.error || "Message cannot be empty.");
+          } else if (err?.response?.status === 403) {
+            const message =
+              err.response.data?.error ||
+              "You must join this room before you can send messages.";
+            const isJoined = (err.response.data?.error || "")
+              .toLowerCase()
+              .includes("join");
+            if (isJoined) {
+              Alert.alert("Join required", message, [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Join room",
+                  onPress: () => joinMutation.mutate(roomId),
+                },
+              ]);
+            } else if (isPremiumRequiredError(err)) {
+              Alert.alert("Premium required", message);
+            } else {
+              Alert.alert("Cannot send", message);
+            }
+          } else {
+            Alert.alert("Couldn't send", "Please try again.");
+          }
+        },
+      });
+    },
+    [roomId, sendMutation, joinMutation]
+  );
+
+  const handleLeave = useCallback(() => {
+    if (!roomId) {
+      return;
+    }
+    Alert.alert("Leave room?", `You'll stop receiving messages from ${groupTitle}.`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Leave",
+        style: "destructive",
+        onPress: () =>
+          leaveMutation.mutate(roomId, {
+            onSuccess: () => router.back(),
+            onError: () => Alert.alert("Couldn't leave", "Please try again."),
+          }),
+      },
+    ]);
+  }, [roomId, groupTitle, leaveMutation]);
 
   const renderBubble = useCallback(
     (props: any) => {
       const { currentMessage } = props;
-      const isCurrentUser = currentMessage.user._id === CURRENT_USER._id;
+      const isCurrentUser = currentMessage.user._id === giftedUser._id;
 
       return (
         <View>
-          {/* Username label for group chat — only shown on others' messages */}
           {!isCurrentUser && (
             <Text
               style={{
                 fontSize: 13,
                 fontWeight: "700",
-                color: GROUP_NAME_COLORS[currentMessage.user._id] || muted,
+                color:
+                  nameColors[currentMessage.user._id as string] || muted,
                 marginBottom: 2,
                 marginLeft: isCurrentUser ? 0 : 12,
               }}
@@ -200,7 +270,7 @@ export default function CommunityChatScreen() {
         </View>
       );
     },
-    [primary, card, text, muted]
+    [primary, card, text, muted, giftedUser._id, nameColors]
   );
 
   const renderInputToolbar = useCallback(
@@ -262,7 +332,9 @@ export default function CommunityChatScreen() {
             height: 44,
             borderRadius: 22,
             backgroundColor: primary,
+            opacity: sendMutation.isPending ? 0.4 : 1,
           }}
+          disabled={sendMutation.isPending}
           disabledStyle={{
             opacity: 0.4,
           }}
@@ -274,7 +346,7 @@ export default function CommunityChatScreen() {
         </Send>
       );
     },
-    [primary]
+    [primary, sendMutation.isPending]
   );
 
   const renderTime = useCallback(
@@ -299,8 +371,7 @@ export default function CommunityChatScreen() {
   );
 
   const renderAvatar = useCallback((props: any) => {
-    // Don't show avatar for own messages in group chat
-    if (props.currentMessage.user._id === CURRENT_USER._id) {
+    if (props.currentMessage.user._id === giftedUser._id) {
       return null;
     }
     return (
@@ -320,7 +391,7 @@ export default function CommunityChatScreen() {
         }}
       />
     );
-  }, []);
+  }, [giftedUser._id]);
 
   const renderSystemMessage = useCallback(
     (props: any) => {
@@ -364,6 +435,9 @@ export default function CommunityChatScreen() {
     );
   }, [primary, background]);
 
+  const isInitialLoading =
+    messagesQuery.isLoading && apiMessages.length === 0;
+
   return (
     <View style={[styles.container, { backgroundColor: background }]}>
       {/* Header */}
@@ -395,7 +469,7 @@ export default function CommunityChatScreen() {
                 {groupTitle}
               </Text>
               <Text style={[styles.headerStatus, { color: muted }]}>
-                {MEMBER_COUNT}
+                {messagesQuery.isLoading ? "Loading…" : "Community room"}
               </Text>
             </View>
           </View>
@@ -403,7 +477,13 @@ export default function CommunityChatScreen() {
           <View style={styles.headerActions}>
             <Pressable
               hitSlop={8}
-              style={[styles.headerActionBtn, styles.leaveBtn]}
+              onPress={handleLeave}
+              disabled={leaveMutation.isPending}
+              style={[
+                styles.headerActionBtn,
+                styles.leaveBtn,
+                { opacity: leaveMutation.isPending ? 0.6 : 1 },
+              ]}
             >
               <Icon name={LogOut} size={16} color={muted} />
               <Text style={[styles.leaveText, { color: muted }]}>Leave</Text>
@@ -412,44 +492,64 @@ export default function CommunityChatScreen() {
         </View>
       </View>
 
-      {/* Chat */}
-      <SafeGiftedChat
-        messages={messages}
-        onSend={(newMessages) => onSend(newMessages)}
-        user={CURRENT_USER}
-        renderBubble={renderBubble}
-        renderInputToolbar={renderInputToolbar}
-        renderComposer={renderComposer}
-        renderSend={renderSend}
-        renderTime={renderTime}
-        renderAvatar={renderAvatar}
-        renderSystemMessage={renderSystemMessage}
-        isScrollToBottomEnabled
-        scrollToBottomComponent={scrollToBottomComponent}
-        scrollToBottomOffset={120}
-        isSendButtonAlwaysVisible
-        isUserAvatarVisible
-        locale="en"
-        minInputToolbarHeight={52}
-        maxComposerHeight={120}
-        minComposerHeight={44}
-        textInputProps={{
-          accessibilityLabel: "Message input",
-          placeholder: `Message ${groupTitle}...`,
-        }}
-        messagesContainerStyle={{
-          backgroundColor: background,
-        }}
-        listProps={{
-          keyboardShouldPersistTaps: "never",
-          style: {
+      {isInitialLoading ? (
+        <View style={styles.centered}>
+          <ActivityIndicator color={primary} />
+        </View>
+      ) : messagesQuery.isError && isPremiumRequiredError(messagesQuery.error) ? (
+        <View style={styles.centered}>
+          <Text style={{ color: text, marginBottom: 8 }}>Premium required</Text>
+          <Text style={{ color: muted, textAlign: "center", paddingHorizontal: 24 }}>
+            {(messagesQuery.error as any)?.response?.data?.error ||
+              "Upgrade to Premium to access this community room."}
+          </Text>
+        </View>
+      ) : messagesQuery.isError ? (
+        <View style={styles.centered}>
+          <Text style={{ color: muted }}>Couldn&apos;t load messages.</Text>
+          <Pressable onPress={() => messagesQuery.refetch()}>
+            <Text style={{ color: primary, fontWeight: "700" }}>Retry</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <SafeGiftedChat
+          messages={messages}
+          onSend={(newMessages) => onSend(newMessages)}
+          user={giftedUser}
+          renderBubble={renderBubble}
+          renderInputToolbar={renderInputToolbar}
+          renderComposer={renderComposer}
+          renderSend={renderSend}
+          renderTime={renderTime}
+          renderAvatar={renderAvatar}
+          renderSystemMessage={renderSystemMessage}
+          isScrollToBottomEnabled
+          scrollToBottomComponent={scrollToBottomComponent}
+          scrollToBottomOffset={120}
+          isSendButtonAlwaysVisible
+          isUserAvatarVisible
+          locale="en"
+          minInputToolbarHeight={52}
+          maxComposerHeight={120}
+          minComposerHeight={44}
+          textInputProps={{
+            accessibilityLabel: "Message input",
+            placeholder: `Message ${groupTitle}...`,
+          }}
+          messagesContainerStyle={{
             backgroundColor: background,
-          },
-          contentContainerStyle: {
-            paddingBottom: 8,
-          },
-        }}
-      />
+          }}
+          listProps={{
+            keyboardShouldPersistTaps: "never",
+            style: {
+              backgroundColor: background,
+            },
+            contentContainerStyle: {
+              paddingBottom: 8,
+            },
+          }}
+        />
+      )}
     </View>
   );
 }
@@ -457,6 +557,13 @@ export default function CommunityChatScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  centered: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+    gap: 8,
   },
   header: {
     borderBottomWidth: StyleSheet.hairlineWidth,
