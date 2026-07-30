@@ -1,3 +1,4 @@
+import React, { useEffect } from 'react';
 import { Platform } from 'react-native';
 import { useColor } from '@/hooks/useColor';
 import { isLiquidGlassAvailable } from 'expo-glass-effect';
@@ -10,6 +11,8 @@ import {
   NativeTabs,
   VectorIcon,
 } from 'expo-router/unstable-native-tabs';
+import { useProfileStore } from '@/store/profileStore';
+import { initializePurchases } from '@/api/purchases';
 
 export default function TabsLayout() {
   const red = useColor('red');
@@ -18,6 +21,15 @@ export default function TabsLayout() {
   const activeColor = useColor('tabIconSelected');
   const background = useColor('background');
   const border = useColor('border');
+
+  const { profile } = useProfileStore();
+
+  // Initialize RevenueCat once we know the user's ID
+  useEffect(() => {
+    if (profile?.id) {
+      initializePurchases(String(profile.id));
+    }
+  }, [profile?.id]);
 
   if (Platform.OS !== 'ios') {
     return (

@@ -18,9 +18,12 @@ import {
   Switch,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Avatar } from "@/components/ui/avatar";
+import { useLogout } from "@/api/auth";
 
 export default function SettingsIndexScreen() {
   const insets = useSafeAreaInsets();
+  const logout = useLogout();
 
   const background = useColor("background");
   const cardColor = useColor("card");
@@ -79,7 +82,6 @@ export default function SettingsIndexScreen() {
           width: 72,
           height: 72,
           borderRadius: 36,
-          overflow: "hidden",
           borderWidth: 2,
           borderColor: border,
         },
@@ -163,12 +165,7 @@ export default function SettingsIndexScreen() {
         {/* Profile Section */}
         <View style={styles.profileContainer}>
           <View style={styles.avatarContainer}>
-            <Image
-              source={{
-                uri: profile?.photos?.[0]?.image || "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&q=80",
-              }}
-              style={styles.avatar}
-            />
+            <Avatar uri={profile?.photos?.[0]?.image} size={72} />
           </View>
           <View>
             <Text style={styles.name}>{profile?.username || 'Loading...'}</Text>
@@ -231,7 +228,8 @@ export default function SettingsIndexScreen() {
 
         <Button
           variant="destructive"
-          onPress={() => {
+          onPress={async () => {
+            await logout();
             router.replace("/login");
           }}
         >

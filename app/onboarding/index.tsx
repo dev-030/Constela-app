@@ -4,7 +4,7 @@ import { Text } from "@/components/ui/text";
 import { useOnboarding, type Gender } from "@/providers/onboarding-context";
 import { useColor } from "@/hooks/useColor";
 import * as ImagePicker from "expo-image-picker";
-import { Camera, ImagePlus } from "lucide-react-native";
+import { Camera, ImagePlus, Check, X } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { useState, useEffect } from "react";
 import { Image, Pressable, ScrollView, TextInput, View, ActivityIndicator } from "react-native";
@@ -37,6 +37,9 @@ export default function OnboardingStep1() {
 
   const { data: usernameCheck, isFetching: isCheckingUsername } = useCheckUsernameQuery(debouncedUsername);
 
+  // We are checking if the query is loading/fetching or if the user is typing (debounce pending)
+  const isChecking = isCheckingUsername || (data.username !== debouncedUsername && data.username.length >= 3);
+
   const handlePickPhoto = async (slot: number) => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) return;
@@ -57,6 +60,9 @@ export default function OnboardingStep1() {
     let ok = true;
     if (!data.username.trim()) {
       setUsernameError("Username is required");
+      ok = false;
+    } else if (isChecking) {
+      setUsernameError("Checking username availability...");
       ok = false;
     } else if (usernameCheck && !usernameCheck.available) {
       setUsernameError("Username is already taken");
@@ -149,12 +155,22 @@ export default function OnboardingStep1() {
     );
   };
 
+  const isFormValid =
+    !!(data.photos[0] && data.photos[1] && data.photos[2]) &&
+    data.username.trim().length >= 3 &&
+    !isChecking &&
+    usernameCheck?.available === true &&
+    data.age.trim().length > 0 &&
+    data.height.trim().length > 0 &&
+    data.gender !== null;
+
   return (
     <OnboardingShell
       title="About You"
       subtitle="Help us understand you better to find the most compatible connections."
-      onBack={() => router.back()}
+      showBack={false}
       onContinue={validateAndContinue}
+      continueDisabled={!isFormValid}
       onSkip={() => router.push("/onboarding/basics")}
     >
       <ScrollView
@@ -214,19 +230,26 @@ export default function OnboardingStep1() {
             placeholderTextColor={muted}
             style={{ color: text, fontSize: 15, padding: 0, flex: 1 }}
           />
-          {isCheckingUsername ? (
+          {isChecking ? (
             <ActivityIndicator size="small" color={muted} />
           ) : (
-            usernameCheck && data.username.length >= 3 && (
-              <Text
-                style={{
-                  color: usernameCheck.available ? "#22C55E" : danger,
-                  fontSize: 12,
-                  fontWeight: "600",
-                }}
-              >
-                {usernameCheck.available ? "Available" : "Taken"}
-              </Text>
+            usernameCheck && data.username.length >= 3 && data.username === debouncedUsername && (
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                {usernameCheck.available ? (
+                  <Check size={16} color="#22C55E" />
+                ) : (
+                  <X size={16} color={danger} />
+                )}
+                <Text
+                  style={{
+                    color: usernameCheck.available ? "#22C55E" : danger,
+                    fontSize: 13,
+                    fontWeight: "600",
+                  }}
+                >
+                  {usernameCheck.available ? "Available" : "Taken"}
+                </Text>
+              </View>
             )
           )}
         </View>

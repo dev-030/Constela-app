@@ -32,14 +32,22 @@ export function UndoButton({ disabled, onPress }: UndoButtonProps) {
 
 const styles = StyleSheet.create({
   row: {
-    width: "100%",
-    flexDirection: "row",
-    justifyContent: "flex-start",
-    paddingHorizontal: 16,
+    position: "absolute",
+    top: 12,
+    right: 12,
+    zIndex: 20,
   },
   button: {
-    backgroundColor: "rgba(255,255,255,0.85)",
-    padding: 8,
-    borderRadius: BORDER_RADIUS,
+    backgroundColor: "#FFFFFF",
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
 });

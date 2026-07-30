@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ChatSocketProvider } from '@/api/ChatSocketProvider';
 import { Toaster } from 'sonner-native';
 import { useAuthStore } from '@/store/authStore';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -7,7 +8,7 @@ import { ThemeProvider } from '@/theme/theme-provider';
 import { osName } from 'expo-device';
 import { isLiquidGlassAvailable } from 'expo-glass-effect';
 import * as NavigationBar from 'expo-navigation-bar';
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { setBackgroundColorAsync } from 'expo-system-ui';
@@ -125,19 +126,33 @@ function RootLayoutContent() {
 const queryClient = new QueryClient();
 
 export default function RootLayout() {
-  const { restoreAuth } = useAuthStore();
+  const { restoreAuth, isAuthenticated, isRestoring } = useAuthStore();
+  const segments = useSegments();
+  const router = useRouter();
 
   useEffect(() => {
     restoreAuth();
   }, []);
 
+  useEffect(() => {
+    if (isRestoring) return;
+
+    const inAuthGroup = segments[0] === '(auth)';
+
+    if (!isAuthenticated && !inAuthGroup) {
+      router.replace('/(auth)/login');
+    }
+  }, [isAuthenticated, isRestoring, segments]);
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
-        <ThemeContextProvider>
-          <RootLayoutContent />
-          <Toaster />
-        </ThemeContextProvider>
+        <ChatSocketProvider>
+          <ThemeContextProvider>
+            <RootLayoutContent />
+            <Toaster />
+          </ThemeContextProvider>
+        </ChatSocketProvider>
       </QueryClientProvider>
     </GestureHandlerRootView>
   );

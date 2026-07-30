@@ -1,17 +1,18 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, ScrollView, Pressable, TextInput, Alert, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { ChevronLeft, Camera, Edit3, ChevronDown } from 'lucide-react-native';
+import { ChevronLeft, Camera, X } from 'lucide-react-native';
+import * as ImagePicker from 'expo-image-picker';
 
+import { Avatar } from '@/components/ui/avatar';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
 import { Button } from '@/components/ui/button';
 import { FilterPill } from '@/components/ui/filter-pill';
 import { useColor } from '@/hooks/useColor';
-import { BORDER_RADIUS } from '@/theme/globals';
 import { useProfileStore } from '@/store/profileStore';
-import { useEffect } from 'react';
+import { updateMyProfile } from '@/api/profile';
 
 export default function EditBasicScreen() {
   const insets = useSafeAreaInsets();
@@ -28,9 +29,95 @@ export default function EditBasicScreen() {
     if (!profile) fetchProfile();
   }, []);
 
-  const [gender, setGender] = useState(profile?.gender || 'Non-Binary');
-  const [lookingFor, setLookingFor] = useState(profile?.looking_for || 'Non-Binary');
-  const [maritalStatus, setMaritalStatus] = useState(profile?.marital_status || 'Single');
+  const [username, setUsername] = useState(profile?.username || '');
+  const [age, setAge] = useState(profile?.age?.toString() || '');
+  const [height, setHeight] = useState(profile?.height_cm?.toString() || '');
+  const [weight, setWeight] = useState(profile?.weight_kg?.toString() || '');
+  const [city, setCity] = useState(profile?.city || '');
+  const [country, setCountry] = useState(profile?.country || '');
+  const [gender, setGender] = useState(profile?.gender || '');
+  const [lookingFor, setLookingFor] = useState(profile?.looking_for || '');
+  const [maritalStatus, setMaritalStatus] = useState(profile?.marital_status || '');
+  const [educationLevel, setEducationLevel] = useState(profile?.education_level || '');
+  const [spokenLanguages, setSpokenLanguages] = useState(profile?.spoken_languages?.join(', ') || '');
+  
+  const [localPhotos, setLocalPhotos] = useState<{uri?: string, id?: string, image?: string, is_main?: boolean}[]>([]);
+  useEffect(() => {
+    if (profile?.photos) {
+      setLocalPhotos(profile.photos.map(p => ({ id: p.id, image: p.image, is_main: p.is_main })));
+    }
+  }, [profile]);
+
+  const [isSaving, setIsSaving] = useState(false);
+
+  const pickImage = async () => {
+    if (localPhotos.length >= 3) {
+      Alert.alert('Limit Reached', 'You can upload up to 3 photos.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 5],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      setLocalPhotos([...localPhotos, { uri: result.assets[0].uri }]);
+    }
+  };
+
+  const removeImage = async (index: number, photoId?: string) => {
+    if (photoId) {
+      // In a real app we'd call an API to delete the photo here. 
+      // For now we just remove it locally and when we hit save, the new ones will be appended.
+      // E.g. await deleteMyPhoto(photoId);
+    }
+    const newPhotos = [...localPhotos];
+    newPhotos.splice(index, 1);
+    setLocalPhotos(newPhotos);
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const formData = new FormData();
+      formData.append('username', username);
+      if (age) formData.append('age', age);
+      if (height) formData.append('height_cm', height);
+      if (weight) formData.append('weight_kg', weight);
+      formData.append('city', city);
+      formData.append('country', country);
+      formData.append('gender', gender);
+      formData.append('looking_for', lookingFor);
+      formData.append('marital_status', maritalStatus);
+      formData.append('education_level', educationLevel);
+      
+      const languagesArray = spokenLanguages.split(',').map(l => l.trim()).filter(Boolean);
+      languagesArray.forEach(l => formData.append('spoken_languages', l));
+
+      localPhotos.forEach((photo, index) => {
+        if (photo.uri && !photo.id) {
+          const filename = photo.uri.split('/').pop() || `photo${index}.jpg`;
+          const match = /\.(\w+)$/.exec(filename);
+          const type = match ? `image/${match[1]}` : 'image/jpeg';
+          formData.append('photos', {
+            uri: photo.uri,
+            name: filename,
+            type,
+          } as any);
+        }
+      });
+
+      await updateMyProfile(formData);
+      await fetchProfile();
+      router.back();
+    } catch (error) {
+      console.error(error);
+      Alert.alert("Error", "Failed to save profile");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: background }]}>
@@ -45,133 +132,118 @@ export default function EditBasicScreen() {
       <View style={[styles.divider, { backgroundColor: border }]} />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-
         {/* Profile Photos */}
-        <Text style={styles.sectionTitle}>PROFILE PHOTOS (AT LEAST 1 PHOTO)</Text>
+        <Text style={styles.sectionTitle}>PROFILE PHOTOS (UP TO 3)</Text>
         <View style={styles.photoGrid}>
-          {/* Main Photo */}
-          <View style={styles.photoBox}>
-            <Image
-              source={{ uri: profile?.photos?.[0]?.image || 'https://i.pravatar.cc/150?img=68' }}
-              style={styles.photoImg}
-            />
-            <View style={[styles.editIconBadge, { backgroundColor: '#E65100' }]}>
-              <Icon name={Edit3} size={14} color="#FFF" />
+          {localPhotos.map((photo, index) => (
+            <View key={index} style={styles.avatarContainer}>
+              <Avatar uri={photo.uri || photo.image} size={100} style={{ borderRadius: 12, height: 120, width: 100 }} />
+              <Pressable 
+                style={[styles.removeIconContainer, { backgroundColor: '#FF3B30' }]} 
+                onPress={() => removeImage(index, photo.id)}
+              >
+                <Icon name={X} size={14} color="#FFF" />
+              </Pressable>
             </View>
-          </View>
-
-          {/* Add Photo Placeholders */}
-          <Pressable style={[styles.addPhotoBox, { borderColor: border, backgroundColor: cardColor }]}>
-            <Icon name={Camera} size={20} color={muted} />
-            <Text style={[styles.addPhotoText, { color: muted }]}>Add Photo</Text>
-          </Pressable>
-          <Pressable style={[styles.addPhotoBox, { borderColor: border, backgroundColor: cardColor }]}>
-            <Icon name={Camera} size={20} color={muted} />
-            <Text style={[styles.addPhotoText, { color: muted }]}>Add Photo</Text>
-          </Pressable>
+          ))}
+          {localPhotos.length < 3 && (
+            <Pressable style={[styles.addPhotoBox, { borderColor: border, backgroundColor: cardColor }]} onPress={pickImage}>
+              <Icon name={Camera} size={20} color={muted} />
+              <Text style={[styles.addPhotoText, { color: muted }]}>Add Photo</Text>
+            </Pressable>
+          )}
         </View>
 
-        {/* Personal Details */}
         <Text style={styles.sectionTitle}>PERSONAL DETAILS</Text>
 
         <View style={styles.formGroup}>
           <Text style={styles.inputLabel}>Username *</Text>
-          <View style={[styles.inputContainer, { borderColor: border }]}>
-            <Text style={styles.inputValue}>{profile?.username || ''}</Text>
+          <View style={[styles.inputContainer, { borderColor: border, backgroundColor: cardColor }]}>
+            <TextInput style={[styles.inputValue, { color: text }]} value={username} onChangeText={setUsername} placeholderTextColor={muted} />
           </View>
         </View>
 
-        <View style={styles.formGroup}>
-          <Text style={styles.inputLabel}>Age *</Text>
-          <View style={[styles.inputContainer, { borderColor: border }]}>
-            <Text style={styles.inputValue}>{profile?.age || ''}</Text>
+        <View style={{ flexDirection: 'row', gap: 12 }}>
+          <View style={[styles.formGroup, { flex: 1 }]}>
+            <Text style={styles.inputLabel}>Age *</Text>
+            <View style={[styles.inputContainer, { borderColor: border, backgroundColor: cardColor }]}>
+              <TextInput style={[styles.inputValue, { color: text }]} value={age} onChangeText={setAge} keyboardType="numeric" placeholderTextColor={muted} />
+            </View>
+          </View>
+          <View style={[styles.formGroup, { flex: 1 }]}>
+            <Text style={styles.inputLabel}>Height (cm)</Text>
+            <View style={[styles.inputContainer, { borderColor: border, backgroundColor: cardColor }]}>
+              <TextInput style={[styles.inputValue, { color: text }]} value={height} onChangeText={setHeight} keyboardType="numeric" placeholderTextColor={muted} />
+            </View>
+          </View>
+          <View style={[styles.formGroup, { flex: 1 }]}>
+            <Text style={styles.inputLabel}>Weight (kg)</Text>
+            <View style={[styles.inputContainer, { borderColor: border, backgroundColor: cardColor }]}>
+              <TextInput style={[styles.inputValue, { color: text }]} value={weight} onChangeText={setWeight} keyboardType="numeric" placeholderTextColor={muted} />
+            </View>
           </View>
         </View>
 
-        <View style={styles.formGroup}>
-          <Text style={styles.inputLabel}>Height (cm)</Text>
-          <View style={[styles.inputContainer, { borderColor: border }]}>
-            <Text style={styles.inputValue}>{profile?.height_cm || ''}</Text>
+        <View style={{ flexDirection: 'row', gap: 12 }}>
+          <View style={[styles.formGroup, { flex: 1 }]}>
+            <Text style={styles.inputLabel}>City *</Text>
+            <View style={[styles.inputContainer, { borderColor: border, backgroundColor: cardColor }]}>
+              <TextInput style={[styles.inputValue, { color: text }]} value={city} onChangeText={setCity} placeholderTextColor={muted} />
+            </View>
+          </View>
+          <View style={[styles.formGroup, { flex: 1 }]}>
+            <Text style={styles.inputLabel}>Country *</Text>
+            <View style={[styles.inputContainer, { borderColor: border, backgroundColor: cardColor }]}>
+              <TextInput style={[styles.inputValue, { color: text }]} value={country} onChangeText={setCountry} placeholderTextColor={muted} />
+            </View>
           </View>
         </View>
 
-        <View style={styles.formGroup}>
-          <Text style={styles.inputLabel}>Weight (kg)</Text>
-          <View style={[styles.inputContainer, { borderColor: border }]}>
-            <Text style={styles.inputValue}>{profile?.weight_kg || ''}</Text>
-          </View>
-        </View>
-
-        <View style={styles.formGroup}>
-          <Text style={styles.inputLabel}>City *</Text>
-          <View style={[styles.inputContainer, { borderColor: border }]}>
-            <Text style={styles.inputValue}>{profile?.city || ''}</Text>
-          </View>
-        </View>
-
-        <View style={styles.formGroup}>
-          <Text style={styles.inputLabel}>Country *</Text>
-          <View style={[styles.inputContainer, { borderColor: border }]}>
-            <Text style={styles.inputValue}>{profile?.country || ''}</Text>
-          </View>
-        </View>
-
-        {/* Identity & Status */}
         <Text style={styles.sectionTitle}>IDENTITY & STATUS</Text>
 
         <Text style={styles.inputLabel}>Gender *</Text>
         <View style={styles.pillRow}>
-          {['Non-Binary', 'Male', 'Female', 'Other'].map(item => (
-            <FilterPill
-              key={item} label={item}
-              selected={gender === item}
-              onPress={() => setGender(item)}
-              style={gender !== item && { backgroundColor: 'transparent', borderWidth: 1, borderColor: border }}
-            />
+          {['Non-Binary', 'Man', 'Woman', 'Other'].map(item => (
+            <FilterPill key={item} label={item} selected={gender === item} onPress={() => setGender(item)} style={gender !== item && { backgroundColor: 'transparent', borderWidth: 1, borderColor: border }} />
           ))}
         </View>
 
         <Text style={[styles.inputLabel, { marginTop: 16 }]}>Looking for *</Text>
         <View style={styles.pillRow}>
-          {['Non-Binary', 'Man', 'Woman'].map(item => (
-            <FilterPill
-              key={item} label={item}
-              selected={lookingFor === item}
-              onPress={() => setLookingFor(item)}
-              style={lookingFor !== item && { backgroundColor: 'transparent', borderWidth: 1, borderColor: border }}
-            />
+          {['Friendship', 'Serious Relationship', 'We\'ll See', 'Going Out'].map(item => (
+            <FilterPill key={item} label={item} selected={lookingFor === item} onPress={() => setLookingFor(item)} style={lookingFor !== item && { backgroundColor: 'transparent', borderWidth: 1, borderColor: border }} />
           ))}
         </View>
 
         <Text style={[styles.inputLabel, { marginTop: 16 }]}>Marital Status *</Text>
         <View style={styles.pillRow}>
-          {['Single', 'Widowed', 'Divorced', 'Separated'].map(item => (
-            <FilterPill
-              key={item} label={item}
-              selected={maritalStatus === item}
-              onPress={() => setMaritalStatus(item)}
-              style={maritalStatus !== item && { backgroundColor: 'transparent', borderWidth: 1, borderColor: border }}
-            />
+          {['single', 'married', 'divorced', 'widowed'].map(item => (
+            <FilterPill key={item} label={item} selected={maritalStatus === item} onPress={() => setMaritalStatus(item)} style={maritalStatus !== item && { backgroundColor: 'transparent', borderWidth: 1, borderColor: border }} />
           ))}
         </View>
 
-        {/* Education */}
-        <Text style={styles.sectionTitle}>EDUCATION</Text>
-        <Text style={styles.inputLabel}>Education Level</Text>
-        <View style={[styles.inputContainer, styles.rowBetween, { borderColor: border }]}>
-          <Text style={styles.inputValue}>{profile?.education_level || ''}</Text>
-          <Icon name={ChevronDown} size={20} color={muted} />
+        <Text style={styles.sectionTitle}>EDUCATION & LANGUAGES</Text>
+        
+        <View style={styles.formGroup}>
+          <Text style={styles.inputLabel}>Education Level</Text>
+          <View style={[styles.inputContainer, { borderColor: border, backgroundColor: cardColor }]}>
+            <TextInput style={[styles.inputValue, { color: text }]} value={educationLevel} onChangeText={setEducationLevel} placeholder="e.g. Bachelor's Degree" placeholderTextColor={muted} />
+          </View>
+        </View>
+        
+        <View style={styles.formGroup}>
+          <Text style={styles.inputLabel}>Spoken Languages (comma separated)</Text>
+          <View style={[styles.inputContainer, { borderColor: border, backgroundColor: cardColor }]}>
+            <TextInput style={[styles.inputValue, { color: text }]} value={spokenLanguages} onChangeText={setSpokenLanguages} placeholder="e.g. English, ASL" placeholderTextColor={muted} />
+          </View>
         </View>
 
         <View style={{ height: 40 }} />
       </ScrollView>
 
-      <View style={[styles.footer, { paddingBottom: insets.bottom || 24, backgroundColor: background }]}>
-        <Button
-          onPress={() => router.back()}
-          style={styles.saveBtn}
-        >
-            Save Changes
+      <View style={[styles.footer, { paddingBottom: insets.bottom || 24, backgroundColor: background, borderTopColor: border }]}>
+        <Button onPress={handleSave} style={styles.saveBtn} disabled={isSaving}>
+          {isSaving ? <ActivityIndicator color="#FFF" /> : "Save Changes"}
         </Button>
       </View>
     </View>
@@ -179,110 +251,23 @@ export default function EditBasicScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-  },
-  backBtn: {
-    width: 40,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  divider: {
-    height: 1,
-  },
-  scrollContent: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    letterSpacing: 0.5,
-    marginTop: 24,
-    marginBottom: 16,
-    color: '#555',
-  },
-  photoGrid: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  photoBox: {
-    width: 100,
-    height: 120,
-    borderRadius: 12,
-  },
-  photoImg: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 12,
-  },
-  editIconBadge: {
-    position: 'absolute',
-    bottom: -8,
-    right: -8,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#FFF',
-  },
-  addPhotoBox: {
-    width: 100,
-    height: 120,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-  },
-  addPhotoText: {
-    fontSize: 12,
-  },
-  formGroup: {
-    marginBottom: 16,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  inputContainer: {
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  inputValue: {
-    fontSize: 16,
-  },
-  rowBetween: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  pillRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  footer: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.05)',
-  },
-  saveBtn: {
-    borderRadius: 24,
-  },
+  container: { flex: 1 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16 },
+  backBtn: { width: 40 },
+  headerTitle: { fontSize: 18, fontWeight: 'bold' },
+  divider: { height: 1 },
+  scrollContent: { padding: 20, paddingBottom: 40 },
+  sectionTitle: { fontSize: 12, fontWeight: 'bold', letterSpacing: 0.5, marginTop: 24, marginBottom: 16, color: '#555' },
+  formGroup: { marginBottom: 16 },
+  inputLabel: { fontSize: 14, fontWeight: '600', marginBottom: 8 },
+  inputContainer: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12 },
+  inputValue: { fontSize: 16, padding: 0 },
+  pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  footer: { paddingHorizontal: 20, paddingTop: 16, borderTopWidth: 1 },
+  saveBtn: { borderRadius: 24 },
+  photoGrid: { flexDirection: 'row', gap: 12, flexWrap: 'wrap' },
+  avatarContainer: { width: 100, height: 120, borderRadius: 12, position: 'relative', justifyContent: 'center', alignItems: 'center' },
+  removeIconContainer: { position: 'absolute', top: -6, right: -6, width: 24, height: 24, borderRadius: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#FFF' },
+  addPhotoBox: { width: 100, height: 120, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center', gap: 8 },
+  addPhotoText: { fontSize: 12 },
 });

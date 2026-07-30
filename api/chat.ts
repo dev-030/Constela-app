@@ -39,6 +39,17 @@ export const useChatRoomsQuery = (search: string = '') => {
   });
 };
 
+export const useChatRoomQuery = (roomId: string) => {
+  return useQuery({
+    queryKey: ['chatRoom', roomId],
+    queryFn: async () => {
+      const response = await apiClient.get<ChatRoom>(`/api/chat/rooms/${roomId}/`);
+      return response.data;
+    },
+    enabled: !!roomId,
+  });
+};
+
 export const useJoinRoomMutation = () => {
   const queryClient = useQueryClient();
 
@@ -51,6 +62,7 @@ export const useJoinRoomMutation = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['chatRooms'] });
+      queryClient.invalidateQueries({ queryKey: ['chatRoom'] });
       queryClient.invalidateQueries({ queryKey: ['roomMessages'] });
     },
   });
@@ -68,6 +80,7 @@ export const useLeaveRoomMutation = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['chatRooms'] });
+      queryClient.invalidateQueries({ queryKey: ['chatRoom'] });
       queryClient.invalidateQueries({ queryKey: ['roomMessages'] });
     },
   });

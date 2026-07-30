@@ -1,5 +1,5 @@
 import React from "react";
-import { View, StyleSheet, ScrollView, Image, Pressable } from "react-native";
+import { View, StyleSheet, ScrollView, Image, Pressable, Dimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import {
@@ -22,6 +22,7 @@ import { useColor } from "@/hooks/useColor";
 import { BottomSheet, useBottomSheet } from "@/components/ui/bottom-sheet";
 import ManageProfileScreen from "./manage-profile";
 import { Button } from "@/components/ui/button";
+import { Avatar } from "@/components/ui/avatar";
 
 export default function FriendProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -53,10 +54,9 @@ export default function FriendProfileScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Hero Image */}
-        <Image
-          source={{ uri: "https://i.pravatar.cc/400?img=11" }}
-          style={styles.heroImage}
-        />
+        <View style={styles.heroImageContainer}>
+          <Avatar uri={null} size={Dimensions.get('window').width - 40} style={{ borderRadius: 24 }} />
+        </View>
 
         {/* Neurotype */}
         <SectionHeader title="NEUROTYPE" />
@@ -170,10 +170,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 40,
   },
-  heroImage: {
+  heroImageContainer: {
     width: "100%",
     aspectRatio: 1,
-    borderRadius: 24,
     marginBottom: 24,
   },
   sectionTitle: {

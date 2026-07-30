@@ -1,5 +1,5 @@
 import { useColor } from "@/hooks/useColor";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, View, Text } from "react-native";
 import { ActionButtons } from "./action-buttons";
 import { SwipeDeck } from "./swipe-deck";
 import { UndoButton } from "./undo-button";
@@ -65,24 +65,34 @@ export function CardStackArea({
         onRetry={onRetry}
       />
 
-      <ActionButtons
-        onReject={onReject}
-        onSuper={onSuper}
-        onLike={onLike}
-        disabled={matches.length === 0 || isLoading}
-        likePending={swipePending}
-      />
+      <View style={{ alignItems: "center", width: "100%" }}>
+        <ActionButtons
+          onReject={onReject}
+          onSuper={onSuper}
+          onLike={onLike}
+          disabled={matches.length === 0 || isLoading}
+          likePending={swipePending}
+        />
+        <Text style={styles.showMoreText}>Show More Profiles</Text>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   area: {
-    flex: 1,
     borderRadius: 24,
     paddingTop: 12,
-    paddingBottom: 18,
+    paddingBottom: 12,
     alignItems: "center",
     justifyContent: "space-between",
+    marginBottom: 24,
+  },
+  showMoreText: {
+    color: "#6B7280",
+    fontSize: 13,
+    fontWeight: "600",
+    marginTop: 10,
+    letterSpacing: 0.2,
   },
 });

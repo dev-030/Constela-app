@@ -4,8 +4,9 @@ import { Text } from "@/components/ui/text";
 import { useColor } from "@/hooks/useColor";
 import { router, useLocalSearchParams } from "expo-router";
 import { Check, Heart, MoreHorizontal, Star, X } from "lucide-react-native";
-import { Image, ScrollView, StyleSheet, View, Pressable, ActivityIndicator } from "react-native";
+import { Image, ScrollView, StyleSheet, View, Pressable, ActivityIndicator, Alert } from "react-native";
 import { useGetProfileDetailsQuery } from "@/api/profile";
+import { useBlockUserMutation, useUnmatchMutation, useUnfriendMutation } from "@/api/matching";
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -22,6 +23,61 @@ export default function ProfileSheet() {
   
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: profile, isLoading, isError } = useGetProfileDetailsQuery(id || "");
+  const { mutate: blockUser } = useBlockUserMutation();
+  const { mutate: unmatchUser } = useUnmatchMutation();
+  const { mutate: unfriendUser } = useUnfriendMutation();
+
+  const openActionMenu = () => {
+    if (!profile) return;
+    Alert.alert(
+      "Profile Options",
+      "Choose an action",
+      [
+        {
+          text: "Remove from Matches",
+          style: "destructive",
+          onPress: () => {
+            unmatchUser(profile.id, {
+              onSuccess: () => {
+                Alert.alert("Success", "User unmatched.");
+                router.back();
+              }
+            });
+          },
+        },
+        {
+          text: "Unfriend",
+          style: "destructive",
+          onPress: () => {
+            unfriendUser(profile.id, {
+              onSuccess: () => {
+                Alert.alert("Success", "Removed from friends.");
+                router.back();
+              }
+            });
+          },
+        },
+        {
+          text: "Block User",
+          style: "destructive",
+          onPress: () => {
+            Alert.alert("Confirm Block", "Are you sure you want to block this user?", [
+              { text: "Cancel", style: "cancel" },
+              { text: "Block", style: "destructive", onPress: () => {
+                blockUser(profile.id, {
+                  onSuccess: () => {
+                    Alert.alert("Blocked", "User has been blocked.");
+                    router.back();
+                  }
+                });
+              }}
+            ]);
+          },
+        },
+        { text: "Cancel", style: "cancel" }
+      ]
+    );
+  };
 
   if (isLoading) {
     return (
@@ -52,6 +108,9 @@ export default function ProfileSheet() {
           <Icon name={X} size={24} color={text} />
         </Pressable>
         <Text style={[styles.name, { color: text }]}>{profile.username}, {profile.age}</Text>
+        <Pressable onPress={openActionMenu}>
+          <Icon name={MoreHorizontal} size={24} color={text} />
+        </Pressable>
       </View>
       <ScrollView
         contentContainerStyle={styles.scrollContent}

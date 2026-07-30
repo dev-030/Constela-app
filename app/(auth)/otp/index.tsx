@@ -37,7 +37,7 @@ export default function OtpScreen() {
       {
         onSuccess: (data) => {
           toast.success(data.message || "OTP verified successfully");
-          router.replace("/onboarding");
+          router.replace("/");
         },
         onError: (err: any) => {
           const errMsg =

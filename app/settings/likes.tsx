@@ -10,6 +10,7 @@ import {
   ScrollView,
   StyleSheet,
   View,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, {
@@ -17,56 +18,7 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
-
-// ─── Data ─────────────────────────────────────────────────────────────────────
-
-const LIKED_PROFILES = [
-  {
-    id: "1",
-    name: "Jordan",
-    age: 24,
-    tag: "Sensory: Low light",
-    image: require("@/assets/profiles/jordan.png"),
-  },
-  {
-    id: "2",
-    name: "Mia",
-    age: 22,
-    tag: "Neurotype: ADHD",
-    image: require("@/assets/profiles/mia.png"),
-  },
-  {
-    id: "3",
-    name: "Liam",
-    age: 27,
-    tag: "Sensory: Quiet space",
-    image: require("@/assets/profiles/liam.png"),
-  },
-  {
-    id: "4",
-    name: "Casey",
-    age: 25,
-    tag: "Neurotype: Autistic",
-    image: require("@/assets/profiles/casey.png"),
-  },
-];
-
-const LIKES_YOU_PROFILES = [
-  {
-    id: "5",
-    name: "Alex",
-    age: 23,
-    tag: "Sensory: Dim light",
-    image: require("@/assets/profiles/mia.png"),
-  },
-  {
-    id: "6",
-    name: "Sam",
-    age: 26,
-    tag: "Neurotype: Dyslexic",
-    image: require("@/assets/profiles/liam.png"),
-  },
-];
+import { useLikesSentQuery, useLikesReceivedQuery, MutualMatchProfile } from "@/api/matching";
 
 // ─── Underline tab bar ────────────────────────────────────────────────────────
 
@@ -125,41 +77,58 @@ function ProfileCard({
   muted,
   card,
   border,
+  showSentBadge,
 }: {
-  profile: (typeof LIKED_PROFILES)[0];
+  profile: MutualMatchProfile;
   primary: string;
   text: string;
   muted: string;
   card: string;
   border: string;
+  showSentBadge?: boolean;
 }) {
   const scale = useSharedValue(1);
   const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+
+  const photoUri = profile.photos?.[0]?.image;
+  const tag = profile.neurotype_labels?.[0]
+    ? `Neurotype: ${profile.neurotype_labels[0]}`
+    : profile.city
+    ? `From ${profile.city}`
+    : "";
 
   return (
     <Animated.View style={[styles.card, animStyle]}>
       {/* Photo */}
       <View style={styles.photoWrapper}>
-        <Image source={profile.image} style={styles.photo} resizeMode="cover" />
+        <Image
+          source={photoUri ? { uri: photoUri } : require("@/assets/profiles/mia.png")}
+          style={styles.photo}
+          resizeMode="cover"
+        />
         {/* SENT badge */}
-        <View style={[styles.sentBadge, { backgroundColor: primary }]}>
-          <Heart size={10} color="#FFF" fill="#FFF" />
-          <Text style={{ fontSize: 10, fontWeight: "700", color: "#FFF" }}>SENT</Text>
-        </View>
+        {showSentBadge && (
+          <View style={[styles.sentBadge, { backgroundColor: primary }]}>
+            <Heart size={10} color="#FFF" fill="#FFF" />
+            <Text style={{ fontSize: 10, fontWeight: "700", color: "#FFF" }}>SENT</Text>
+          </View>
+        )}
       </View>
 
       {/* Info */}
       <View style={styles.cardInfo}>
         <Text style={{ fontSize: 15, fontWeight: "700", color: text }}>
-          {profile.name}, {profile.age}
+          {profile.username}, {profile.age}
         </Text>
-        <Text style={{ fontSize: 12, color: muted, marginTop: 2 }}>{profile.tag}</Text>
+        <Text style={{ fontSize: 12, color: muted, marginTop: 2 }} numberOfLines={1}>
+          {tag}
+        </Text>
 
         <Pressable
           style={[styles.viewBtn, { borderColor: border }]}
           onPressIn={() => { scale.value = withTiming(0.97, { duration: 100 }); }}
           onPressOut={() => { scale.value = withTiming(1, { duration: 150 }); }}
-          onPress={() => {}}
+          onPress={() => router.push(`/sheet?id=${profile.id}`)}
         >
           <Text style={{ fontSize: 13, fontWeight: "600", color: text }}>View Profile</Text>
         </Pressable>
@@ -182,7 +151,25 @@ export default function LikesScreen() {
 
   const [activeTab, setActiveTab] = useState("Liked");
 
-  const profiles = activeTab === "Liked" ? LIKED_PROFILES : LIKES_YOU_PROFILES;
+  const { data: likesSentData, isLoading: isLoadingSent } = useLikesSentQuery();
+  const { data: likesReceivedData, isLoading: isLoadingReceived, error: receivedError, isError: isReceivedError } = useLikesReceivedQuery();
+
+  const isLikedTab = activeTab === "Liked";
+  const isLoading = isLikedTab ? isLoadingSent : isLoadingReceived;
+
+  let profiles: MutualMatchProfile[] = [];
+  if (isLikedTab && likesSentData) {
+    profiles = likesSentData.map((entry) => entry.profile);
+  } else if (!isLikedTab && likesReceivedData) {
+    profiles = likesReceivedData;
+  }
+
+  const getErrorMessage = (error: any) => {
+    if (error?.response?.data?.error) {
+      return error.response.data.error;
+    }
+    return "Failed to load.";
+  };
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: background }]} edges={["top"]}>
@@ -208,22 +195,67 @@ export default function LikesScreen() {
       />
 
       {/* Grid */}
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.grid}
-      >
-        {profiles.map((profile) => (
-          <ProfileCard
-            key={profile.id}
-            profile={profile}
-            primary={primary}
-            text={text}
-            muted={muted}
-            card={card}
-            border={border}
-          />
-        ))}
-      </ScrollView>
+      {isLoading ? (
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+          <ActivityIndicator size="large" color={primary} />
+        </View>
+      ) : !isLikedTab && isReceivedError ? (
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 32 }}>
+          <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: primary + "1A", justifyContent: "center", alignItems: "center", marginBottom: 24 }}>
+            <Icon name={Heart} size={40} color={primary} fill={primary} />
+          </View>
+          <Text style={{ color: text, textAlign: "center", fontSize: 24, fontWeight: "800", marginBottom: 12 }}>
+            See Who Likes You
+          </Text>
+          <Text style={{ color: muted, textAlign: "center", fontSize: 16, lineHeight: 24, marginBottom: 32 }}>
+            {getErrorMessage(receivedError) === "Upgrade to Premium to see who liked you." 
+              ? "Match instantly with people who already like you by upgrading to Premium." 
+              : getErrorMessage(receivedError)}
+          </Text>
+          <Pressable 
+            style={{ 
+              backgroundColor: primary, 
+              width: "100%", 
+              paddingVertical: 16, 
+              borderRadius: 30,
+              alignItems: "center",
+              shadowColor: primary,
+              shadowOffset: { width: 0, height: 8 },
+              shadowOpacity: 0.3,
+              shadowRadius: 12,
+              elevation: 8,
+            }}
+          >
+            <Text style={{ color: "#FFF", fontWeight: "700", fontSize: 16 }}>Upgrade to Premium</Text>
+          </Pressable>
+        </View>
+      ) : profiles.length === 0 ? (
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 32 }}>
+          <Text style={{ color: muted, textAlign: "center", fontSize: 16 }}>
+            {isLikedTab
+              ? "You haven't liked anyone yet."
+              : "No one has liked you yet."}
+          </Text>
+        </View>
+      ) : (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.grid}
+        >
+          {profiles.map((profile) => (
+            <ProfileCard
+              key={profile.id}
+              profile={profile}
+              primary={primary}
+              text={text}
+              muted={muted}
+              card={card}
+              border={border}
+              showSentBadge={isLikedTab}
+            />
+          ))}
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }

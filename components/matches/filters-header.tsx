@@ -28,16 +28,16 @@ export function FiltersHeader({ title }: FiltersHeaderProps) {
 
 const styles = StyleSheet.create({
   row: {
-    paddingTop: 30,
+    paddingTop: 8,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 4,
     zIndex: 999,
     elevation: 10,
   },
   title: {
-    fontSize: 20,
-    fontWeight: "bold",
+    fontSize: 16,
+    fontWeight: "700",
   },
 });

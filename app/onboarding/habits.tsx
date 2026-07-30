@@ -36,12 +36,20 @@ export default function OnboardingStep4() {
     }
   };
 
+  const isFormValid =
+    data.smoking !== null &&
+    data.alcohol !== null &&
+    data.pets !== null &&
+    data.sport !== null &&
+    data.eatingHabits.length > 0;
+
   return (
     <OnboardingShell
       title="Lifestyle Habits"
       subtitle="These help us understand your daily routine."
       onBack={() => router.back()}
       onContinue={() => router.push("/onboarding/qualities")}
+      continueDisabled={!isFormValid}
       onSkip={() => router.push("/onboarding/qualities")}
       continueLabel="Continue"
     >

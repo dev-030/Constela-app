@@ -9,6 +9,7 @@ import {
   StyleSheet,
   View,
   Dimensions,
+  Text,
 } from "react-native";
 import Animated, {
   Extrapolation,
@@ -53,8 +54,6 @@ function Card({
   isTop,
   isSecond,
   isThird,
-  width,
-  height,
   topTranslateX,
   topTranslateY,
 }: {
@@ -62,15 +61,9 @@ function Card({
   isTop: boolean;
   isSecond: boolean;
   isThird: boolean;
-  width: number;
-  height: number;
   topTranslateX: SharedValue<number>;
   topTranslateY: SharedValue<number>;
 }) {
-  const handlePress = () => {
-    router.push({ pathname: "/sheet", params: { id: user.id } });
-  };
-
   const topAnimated = useAnimatedStyle(() => {
     const rotateZ = interpolate(
       topTranslateX.value,
@@ -142,21 +135,15 @@ function Card({
       {isThird ? (
         <Animated.View
           pointerEvents="none"
-          style={[
-            styles.cardContainer,
-            {
-              width,
-              height,
-              zIndex: 0,
-            },
-            thirdAnimated,
-          ]}
+          style={[styles.cardContainer, { zIndex: 0 }, thirdAnimated]}
         >
-          <View style={[styles.cardInner, { backgroundColor: "#E5E5EA" }]}>
-            <Image
-              source={{ uri: user.photo }}
-              style={[styles.image, { opacity: 0.6 }]}
-            />
+          <View style={styles.cardInner}>
+            <View style={styles.imageWrapper}>
+              <Image
+                source={{ uri: user.photo }}
+                style={[styles.image, { opacity: 0.6 }]}
+              />
+            </View>
           </View>
         </Animated.View>
       ) : null}
@@ -164,72 +151,81 @@ function Card({
       {isSecond ? (
         <Animated.View
           pointerEvents="none"
-          style={[
-            styles.cardContainer,
-            {
-              width,
-              height,
-              zIndex: 1,
-            },
-            secondAnimated,
-          ]}
+          style={[styles.cardContainer, { zIndex: 1 }, secondAnimated]}
         >
-          <View style={[styles.cardInner, { backgroundColor: "#FFFFFF" }]}>
-            <Image source={{ uri: user.photo }} style={styles.image} />
+          <View style={styles.cardInner}>
+            <View style={styles.imageWrapper}>
+              <Image source={{ uri: user.photo }} style={styles.image} />
+            </View>
           </View>
         </Animated.View>
       ) : null}
 
       {isTop ? (
         <Animated.View
-          style={[
-            styles.cardContainer,
-            {
-              width,
-              height,
-              zIndex: 2,
-            },
-            topAnimated,
-          ]}
+          style={[styles.cardContainer, { zIndex: 2 }, topAnimated]}
         >
-          <Pressable
-            onPress={handlePress}
-            style={[styles.cardInner, { backgroundColor: "#FFFFFF" }]}
-          >
-            <Image source={{ uri: user.photo }} style={styles.image} />
+          <View style={styles.cardInner}>
+            {/* Banner at top center */}
+            <View style={styles.perfectMatchBanner}>
+              <Text style={styles.perfectMatchBannerText}>YOUR PERFECT MATCH</Text>
+            </View>
 
-            <LinearGradient
-              pointerEvents="none"
-              colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.55)", "rgba(0,0,0,0.85)"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-              style={styles.bottomGradientLayer}
-            />
+            {/* Inset Image wrapper */}
+            <View style={styles.imageWrapper}>
+              <Image source={{ uri: user.photo }} style={styles.image} />
 
-            <Animated.View
-              pointerEvents="none"
-              style={[styles.badgeLike, likeBadgeStyle]}
-            >
+              <LinearGradient
+                pointerEvents="none"
+                colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.45)", "rgba(0,0,0,0.75)"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                style={styles.bottomGradientLayer}
+              />
+
+              {/* Floating heart icon on top right */}
+              <View style={styles.floatingHeart}>
+                <Heart size={16} color="#E91E63" fill="#E91E63" />
+              </View>
+
+              {/* Text overlays (Name/Bio) on the image */}
+              <View style={styles.imageDetails} pointerEvents="none">
+                <Text numberOfLines={1} style={styles.name}>
+                  {user.username}, {user.age}
+                </Text>
+                {user.bio ? (
+                  <Text numberOfLines={1} style={styles.bio}>
+                    {user.bio}
+                  </Text>
+                ) : null}
+              </View>
+            </View>
+
+            {/* Gold tags below the image */}
+            <View style={styles.tagsContainer}>
+              {(user.tags || []).slice(0, 3).map((tag) => (
+                <View key={tag} style={styles.goldTagPill}>
+                  <Text style={styles.goldTagText}>{tag}</Text>
+                </View>
+              ))}
+            </View>
+
+            {/* Like/Nope/Super badges floating overlays */}
+            <Animated.View pointerEvents="none" style={[styles.badgeLike, likeBadgeStyle]}>
               <View style={[styles.badgeInner, { borderColor: "#10B981" }]}>
                 <Heart size={28} color="#10B981" fill="#10B981" />
                 <Animated.Text style={styles.badgeLikeText}>LIKE</Animated.Text>
               </View>
             </Animated.View>
 
-            <Animated.View
-              pointerEvents="none"
-              style={[styles.badgeNope, nopeBadgeStyle]}
-            >
+            <Animated.View pointerEvents="none" style={[styles.badgeNope, nopeBadgeStyle]}>
               <View style={[styles.badgeInner, { borderColor: "#EF4444" }]}>
                 <X size={28} color="#EF4444" strokeWidth={3} />
                 <Animated.Text style={styles.badgeNopeText}>NOPE</Animated.Text>
               </View>
             </Animated.View>
 
-            <Animated.View
-              pointerEvents="none"
-              style={[styles.badgeSuper, superBadgeStyle]}
-            >
+            <Animated.View pointerEvents="none" style={[styles.badgeSuper, superBadgeStyle]}>
               <View
                 style={[
                   styles.badgeInner,
@@ -242,45 +238,7 @@ function Card({
                 </Animated.Text>
               </View>
             </Animated.View>
-
-            <View style={styles.details} pointerEvents="none">
-              <View style={styles.detailsRow}>
-                <View style={{ flex: 1 }}>
-                  <Animated.Text numberOfLines={1} style={styles.name}>
-                    {user.username}, {user.age}
-                  </Animated.Text>
-                  {user.city || user.country ? (
-                    <Animated.Text numberOfLines={1} style={styles.location}>
-                      {[user.city, user.country].filter(Boolean).join(", ")}
-                    </Animated.Text>
-                  ) : null}
-                </View>
-                {typeof user.compatibility_score === "number" ? (
-                  <View style={styles.scorePill}>
-                    <Animated.Text style={styles.scoreText}>
-                      {user.compatibility_score}%
-                    </Animated.Text>
-                  </View>
-                ) : null}
-              </View>
-              {user.bio ? (
-                <Animated.Text numberOfLines={2} style={styles.bio}>
-                  {user.bio}
-                </Animated.Text>
-              ) : null}
-              {user.tags?.length ? (
-                <View style={styles.interestsRow}>
-                  {user.tags.slice(0, 4).map((tag) => (
-                    <View key={tag} style={styles.interestPill}>
-                      <Animated.Text numberOfLines={1} style={styles.interestText}>
-                        {tag}
-                      </Animated.Text>
-                    </View>
-                  ))}
-                </View>
-              ) : null}
-            </View>
-          </Pressable>
+          </View>
         </Animated.View>
       ) : null}
     </>
@@ -335,11 +293,13 @@ const Swipe = forwardRef<SwipeHandle, SwipeProps>(function Swipe(
       translateY.value = 0;
       return;
     }
-    setStack((prev) => prev.slice(1));
-    setHistory((prev) => [...prev, profile]);
-    if (onSwipe) onSwipe(profile, direction);
-    translateX.value = 0;
-    translateY.value = 0;
+    setTimeout(() => {
+      setStack((prev) => prev.slice(1));
+      setHistory((prev) => [...prev, profile]);
+      if (onSwipe) onSwipe(profile, direction);
+      translateX.value = 0;
+      translateY.value = 0;
+    }, 0);
   };
 
   const flyOff = (
@@ -348,6 +308,7 @@ const Swipe = forwardRef<SwipeHandle, SwipeProps>(function Swipe(
     direction: SwipeDirection,
     duration: number = SWIPE_OUT_DURATION
   ) => {
+    "worklet";
     translateX.value = withTiming(toX, { duration });
     translateY.value = withTiming(
       toY,
@@ -363,7 +324,11 @@ const Swipe = forwardRef<SwipeHandle, SwipeProps>(function Swipe(
   const triggerProgrammatic = (direction: SwipeDirection) => {
     if (!stack[0]) return;
     const horizontal =
-      direction === "right" ? SCREEN_WIDTH * 1.5 : -SCREEN_WIDTH * 1.5;
+      direction === "right"
+        ? SCREEN_WIDTH * 1.5
+        : direction === "left"
+        ? -SCREEN_WIDTH * 1.5
+        : 0;
     const vertical = direction === "super" ? -SCREEN_HEIGHT * 1.2 : 0;
     triggerHaptic(direction === "left" ? "notificationWarning" : "notificationSuccess");
     flyOff(horizontal, vertical, direction);
@@ -394,28 +359,21 @@ const Swipe = forwardRef<SwipeHandle, SwipeProps>(function Swipe(
   const panGesture = Gesture.Pan()
     .onUpdate((e) => {
       translateX.value = e.translationX;
-      translateY.value = e.translationY;
+      // Lock vertical movement for a strictly horizontal swipe feel
+      translateY.value = 0;
     })
     .onEnd((e) => {
       const farEnoughX =
         Math.abs(e.translationX) > SWIPE_THRESHOLD ||
         Math.abs(e.velocityX) > 800;
-      const farEnoughY =
-        e.translationY < -SWIPE_THRESHOLD || e.velocityY < -800;
-
-      if (farEnoughY && e.translationY < Math.abs(e.translationX) * -1) {
-        runOnJS(triggerHaptic)("notificationSuccess");
-        flyOff(e.translationX, -SCREEN_HEIGHT * 1.2, "super");
-        return;
-      }
 
       if (farEnoughX) {
         if (e.translationX > 0) {
           runOnJS(triggerHaptic)("notificationSuccess");
-          flyOff(SCREEN_WIDTH * 1.5, e.translationY, "right");
+          flyOff(SCREEN_WIDTH * 1.5, 0, "right");
         } else {
           runOnJS(triggerHaptic)("notificationWarning");
-          flyOff(-SCREEN_WIDTH * 1.5, e.translationY, "left");
+          flyOff(-SCREEN_WIDTH * 1.5, 0, "left");
         }
         return;
       }
@@ -425,8 +383,18 @@ const Swipe = forwardRef<SwipeHandle, SwipeProps>(function Swipe(
       translateY.value = withTiming(0, { duration: 220 });
     });
 
+  const tapGesture = Gesture.Tap()
+    .maxDuration(250)
+    .onEnd(() => {
+      if (top) {
+        runOnJS(router.push)({ pathname: "/sheet", params: { id: top.id } });
+      }
+    });
+
+  const combinedGesture = Gesture.Exclusive(panGesture, tapGesture);
+
   const PAGE_WIDTH = SCREEN_WIDTH - 48;
-  const PAGE_HEIGHT = Math.min(SCREEN_HEIGHT * 0.58, 560);
+  const PAGE_HEIGHT = 420;
 
   // Surface empty state via the prop without breaking Rules of Hooks.
   React.useEffect(() => {
@@ -438,7 +406,7 @@ const Swipe = forwardRef<SwipeHandle, SwipeProps>(function Swipe(
       <View
         style={[
           styles.container,
-          { width: PAGE_WIDTH, height: PAGE_HEIGHT },
+          { height: PAGE_HEIGHT, width: "100%" },
         ]}
       />
     );
@@ -448,10 +416,10 @@ const Swipe = forwardRef<SwipeHandle, SwipeProps>(function Swipe(
     <View
       style={[
         styles.container,
-        { width: PAGE_WIDTH, height: PAGE_HEIGHT },
+        { height: PAGE_HEIGHT, width: "100%" },
       ]}
     >
-      <GestureDetector gesture={panGesture}>
+      <GestureDetector gesture={combinedGesture}>
         <View style={StyleSheet.absoluteFill}>
           {third ? (
             <Card
@@ -459,8 +427,6 @@ const Swipe = forwardRef<SwipeHandle, SwipeProps>(function Swipe(
               isTop={false}
               isSecond={false}
               isThird
-              width={PAGE_WIDTH}
-              height={PAGE_HEIGHT}
               topTranslateX={translateX}
               topTranslateY={translateY}
             />
@@ -471,8 +437,6 @@ const Swipe = forwardRef<SwipeHandle, SwipeProps>(function Swipe(
               isTop={false}
               isSecond
               isThird={false}
-              width={PAGE_WIDTH}
-              height={PAGE_HEIGHT}
               topTranslateX={translateX}
               topTranslateY={translateY}
             />
@@ -482,8 +446,6 @@ const Swipe = forwardRef<SwipeHandle, SwipeProps>(function Swipe(
             isTop
             isSecond={false}
             isThird={false}
-            width={PAGE_WIDTH}
-            height={PAGE_HEIGHT}
             topTranslateX={translateX}
             topTranslateY={translateY}
           />
@@ -495,12 +457,17 @@ const Swipe = forwardRef<SwipeHandle, SwipeProps>(function Swipe(
 
 const styles = StyleSheet.create({
   container: {
+    width: "100%",
     justifyContent: "center",
     alignItems: "center",
     position: "relative",
   },
   cardContainer: {
     position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
     borderRadius: 24,
     overflow: "hidden",
     shadowColor: "#000",
@@ -509,10 +476,45 @@ const styles = StyleSheet.create({
     shadowRadius: 14,
     elevation: 8,
   },
+  perfectMatchBanner: {
+    position: "absolute",
+    top: -12,
+    alignSelf: "center",
+    backgroundColor: "#D81B60",
+    paddingHorizontal: 16,
+    paddingVertical: 5,
+    borderRadius: 20,
+    zIndex: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  perfectMatchBannerText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+  },
   cardInner: {
     flex: 1,
     borderRadius: 24,
+    backgroundColor: "#FFFFFF",
+    padding: 12,
+    paddingTop: 22,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  imageWrapper: {
+    flex: 1,
+    width: "100%",
+    borderRadius: 16,
     overflow: "hidden",
+    position: "relative",
   },
   image: {
     width: "100%",
@@ -523,72 +525,58 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: 220,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    height: 120,
   },
-  details: {
+  floatingHeart: {
     position: "absolute",
-    left: 16,
-    right: 16,
-    bottom: 18,
+    top: 12,
+    right: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  detailsRow: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    justifyContent: "space-between",
-    gap: 10,
+  imageDetails: {
+    position: "absolute",
+    left: 12,
+    right: 12,
+    bottom: 12,
   },
   name: {
     color: "#FFFFFF",
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "800",
-    letterSpacing: 0.2,
-  },
-  location: {
-    color: "rgba(255,255,255,0.85)",
-    fontSize: 13,
-    fontWeight: "500",
-    marginTop: 2,
   },
   bio: {
-    color: "rgba(255,255,255,0.9)",
-    fontSize: 13,
-    fontWeight: "500",
-    lineHeight: 18,
-    marginTop: 6,
+    color: "rgba(255,255,255,0.85)",
+    fontSize: 12,
+    marginTop: 2,
   },
-  scorePill: {
-    backgroundColor: "rgba(255,255,255,0.22)",
-    borderColor: "rgba(255,255,255,0.4)",
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  scoreText: {
-    color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: "800",
-  },
-  interestsRow: {
+  tagsContainer: {
     flexDirection: "row",
-    flexWrap: "wrap",
+    justifyContent: "center",
+    alignItems: "center",
     gap: 6,
-    marginTop: 10,
+    paddingTop: 10,
+    paddingBottom: 4,
   },
-  interestPill: {
-    backgroundColor: "rgba(255,255,255,0.18)",
-    borderColor: "rgba(255,255,255,0.35)",
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
+  goldTagPill: {
+    backgroundColor: "#FFC107",
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 12,
   },
-  interestText: {
+  goldTagText: {
     color: "#FFFFFF",
     fontSize: 11,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   badgeLike: {
     position: "absolute",

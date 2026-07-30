@@ -23,6 +23,8 @@ import { Image, Pressable, ScrollView, View, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import CardList from "../../../components/feat-card";
 import Header from "../../../components/header";
+import { useProfileStore } from "@/store/profileStore";
+import { ShieldAlert } from "lucide-react-native";
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -30,6 +32,12 @@ export default function HomeScreen() {
   const primary = useColor("primary");
   const muted = useColor("textMuted");
   const border = useColor("border");
+  const error = useColor("error") || "#ef4444";
+  
+  const profile = useProfileStore((s) => s.profile);
+  const isFaceApproved = profile?.face_verification_status === "approved";
+  const isProfileComplete = profile?.profile_completion_pct === 100;
+  const showWarning = profile && (!isFaceApproved || !isProfileComplete);
 
   return (
     <View style={[styles.container, { backgroundColor: background }]}>
@@ -52,10 +60,27 @@ export default function HomeScreen() {
         {/* Greeting */}
         <View style={styles.greetingContainer}>
           <Text variant="title" style={styles.greetingTitle}>
-            Hello Alex
+            Hello {profile?.username || "there"}
           </Text>
           <Text style={{ color: muted }}>What would you like to do today?</Text>
         </View>
+
+        {showWarning && (
+          <Pressable 
+            style={[styles.warningBanner, { backgroundColor: error + "15", borderColor: error + "30" }]}
+            onPress={() => router.push(isProfileComplete ? "/onboarding/face-verification" : "/(tabs)/profile")}
+          >
+            <Icon name={ShieldAlert} size={20} color={error} />
+            <View style={styles.warningTextContainer}>
+              <Text style={[styles.warningTitle, { color: error }]}>Verification Pending</Text>
+              <Text style={[styles.warningDesc, { color: error }]}>
+                {!isProfileComplete 
+                  ? "Your profile is incomplete. Tap here to finish setting it up."
+                  : "Your face verification is pending admin approval."}
+              </Text>
+            </View>
+          </Pressable>
+        )}
 
         {/* Feature Cards */}
         <CardList />
@@ -93,7 +118,30 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   greetingTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
+    fontSize: 28,
+    marginBottom: 4,
+  },
+  warningBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    marginHorizontal: 24,
+    marginBottom: 24,
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+    gap: 12,
+  },
+  warningTextContainer: {
+    flex: 1,
+  },
+  warningTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 2,
+  },
+  warningDesc: {
+    fontSize: 13,
+    opacity: 0.9,
+    lineHeight: 18,
   },
 });

@@ -62,7 +62,7 @@ export function DeckStatus({ kind, onRetry }: DeckStatusProps) {
 
 const styles = StyleSheet.create({
   center: {
-    flex: 1,
+    height: 420,
     justifyContent: "center",
     alignItems: "center",
     padding: 16,

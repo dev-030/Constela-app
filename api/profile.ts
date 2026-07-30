@@ -37,11 +37,16 @@ export interface UserProfile {
   emotional_needs: string[];
   soothe_methods: string[];
   subscription_tier: string;
+  subscription_product_id: string | null;
   subscription_expires: string | null;
+  has_match_analysis: boolean;
+  has_advanced_filters: boolean;
+  has_all_chat_rooms: boolean;
   is_verified: boolean;
   is_deactivated: boolean;
   profile_completion_pct: number;
   face_verification_status: string;
+  onboarding_part1_completed: boolean;
   photos: {
     id: string;
     image: string;

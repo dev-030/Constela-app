@@ -77,11 +77,11 @@ const initialData: OnboardingData = {
   pets: null,
   sport: null,
   eatingHabits: [],
-  rechargeMethods: ["Silence"],
-  exhaustTriggers: ["Absorbs other people's moods"],
-  emotionalNeeds: ["Predictability"],
-  humor: "Yes",
-  soothesMethods: ["Predictability", "Clear Communication"],
+  rechargeMethods: [],
+  exhaustTriggers: [],
+  emotionalNeeds: [],
+  humor: null,
+  soothesMethods: [],
 };
 
 type OnboardingContextType = {

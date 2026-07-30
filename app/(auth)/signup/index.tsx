@@ -12,6 +12,7 @@ import { toast } from "sonner-native";
 
 export default function SignupScreen() {
   const [showPassword, setShowPassword] = useState(false);
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -24,7 +25,7 @@ export default function SignupScreen() {
   const border = useColor("border");
 
   const handleSignup = () => {
-    if (!email || !password) {
+    if (!name || !email || !password) {
       toast.error("Please fill in all fields");
       return;
     }
@@ -34,7 +35,7 @@ export default function SignupScreen() {
     }
 
     signup.mutate(
-      { email, password },
+      { email, password, first_name: name },
       {
         onSuccess: (data) => {
           toast.success(data.message || "OTP sent to email");
@@ -56,20 +57,20 @@ export default function SignupScreen() {
     <ScrollView
       contentContainerStyle={{ flexGrow: 1, backgroundColor: background }}
     >
-      <View style={{ flex: 1, padding: 24, paddingTop: 60 }}>
+      <View style={{ flex: 1, padding: 24, paddingTop: 50 }}>
         {/* Header - Globe Icon */}
 
         {/* Logo */}
         <View style={{ alignItems: "center", marginTop: 10, marginBottom: 20 }}>
           <Image
             source={require("@/assets/images/logo.png")}
-            style={{ width: 100, height: 100 }}
+            style={{ width: 140, height: 140 }}
             resizeMode="contain"
           />
         </View>
 
         {/* Title */}
-        <View style={{ alignItems: "center", marginBottom: 24 }}>
+        <View style={{ alignItems: "center", marginBottom: 16 }}>
           <Text
             variant="title"
             style={{ fontSize: 28, fontWeight: "bold", marginBottom: 8 }}
@@ -82,7 +83,18 @@ export default function SignupScreen() {
         </View>
 
         {/* Form */}
-        <View style={{ gap: 20 }}>
+        <View style={{ gap: 12 }}>
+          <View style={{ gap: 8 }}>
+            <Text style={{ fontWeight: "600", fontSize: 14 }}>Name</Text>
+            <Input
+              placeholder="e.g. Alex Smith"
+              variant="outline"
+              inputStyle={{ paddingVertical: 14 }}
+              value={name}
+              onChangeText={setName}
+            />
+          </View>
+
           <View style={{ gap: 8 }}>
             <Text style={{ fontWeight: "600", fontSize: 14 }}>Email</Text>
             <Input
@@ -148,7 +160,7 @@ export default function SignupScreen() {
         </View>
 
         {/* Footer */}
-        <View style={{ alignItems: "center", marginTop: 24 }}>
+        <View style={{ alignItems: "center", marginTop: 16 }}>
           <Text>
             Have an account?{" "}
             <Text
@@ -161,12 +173,12 @@ export default function SignupScreen() {
         </View>
 
         {/* Social Login */}
-        <View style={{ marginTop: 32, alignItems: "center" }}>
+        <View style={{ marginTop: 20, alignItems: "center" }}>
           <View
             style={{
               flexDirection: "row",
               alignItems: "center",
-              marginBottom: 24,
+              marginBottom: 12,
             }}
           >
             <View style={{ flex: 1, height: 1, backgroundColor: border }} />

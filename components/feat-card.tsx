@@ -113,30 +113,7 @@ function DashboardCard({
       </View>
 
       {/* Right Visual Element */}
-      {rightElement === "preview" ? (
-        /* Rendered for "Meet" */
-        <View style={styles.previewCard}>
-          <Image
-            source={{
-              uri: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&q=80",
-            }}
-            style={styles.fullSize}
-          />
-          <View style={styles.previewOverlay}>
-            <Text style={styles.previewNameText}>Sam, 28</Text>
-            <View style={styles.tagContainer}>
-              <View style={styles.tag}>
-                <Text style={styles.tagText}>Introvert</Text>
-              </View>
-              <View style={styles.tag}>
-                <Text style={styles.tagText}>Honest</Text>
-              </View>
-            </View>
-          </View>
-        </View>
-      ) : (
-        /* Rendered for "Friends" & "Community" */
-        <View style={styles.mockIllustrationCard}>
+      <View style={styles.mockIllustrationCard}>
           <View
             style={[
               styles.illustrationContent,
@@ -155,14 +132,13 @@ function DashboardCard({
               {config.illustrationText}
             </Text>
             <Icon
-              name={Coffee}
+              name={config.badgeIcon}
               size={40}
               color={themeColors.accentText}
               style={styles.illustrationIcon}
             />
           </View>
         </View>
-      )}
     </View>
   );
 }
@@ -183,7 +159,8 @@ export default function CardList() {
         accentText: "#004D40",
       },
       buttonText: "Matches Now",
-      rightElement: "preview",
+      rightElement: "illustration",
+      illustrationText: "Meet",
       features: [
         { icon: User, text: "Compatible profiles" },
         { icon: Sliders, text: "Sensory filters" },

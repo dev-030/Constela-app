@@ -62,12 +62,15 @@ export default function OnboardingInterestsScreen() {
     }
   };
 
+  const isFormValid = data.interests.length > 0;
+
   return (
     <OnboardingShell
       title="What sparks your curiosity?"
       subtitle="Interests are common ground. Select categories that resonate with you to find people who share your specializations and passions."
       onBack={() => router.back()}
       onContinue={() => router.push("/onboarding/emotional")}
+      continueDisabled={!isFormValid}
       onSkip={() => router.push("/onboarding/emotional")}
     >
       <ScrollView

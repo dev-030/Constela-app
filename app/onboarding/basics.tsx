@@ -40,12 +40,19 @@ export default function OnboardingStep2() {
     if (ok) router.push("/onboarding/lifestyle");
   };
 
+  const isFormValid =
+    !!data.maritalStatus &&
+    !!data.spokenLanguages.trim() &&
+    !!data.city.trim() &&
+    !!data.country.trim();
+
   return (
     <OnboardingShell
       title="The Basics"
       subtitle="Let's find someone whose life rhythm matches yours."
       onBack={() => router.back()}
       onContinue={validateAndContinue}
+      continueDisabled={!isFormValid}
       onSkip={() => router.push("/onboarding/lifestyle")}
     >
       <ScrollView

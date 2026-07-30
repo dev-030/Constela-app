@@ -1,37 +1,56 @@
-import React, { useCallback, useEffect, useMemo } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   View,
   StyleSheet,
   Pressable,
+  Image,
   ActivityIndicator,
   Alert,
+  TextInput,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  Text as RNText,
 } from "react-native";
+import { Swipeable } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { router, useLocalSearchParams } from "expo-router";
-import { ArrowLeft, LogOut, Users } from "lucide-react-native";
+import { useLocalSearchParams, router } from "expo-router";
 import {
-  Bubble,
-  InputToolbar,
+  ChevronLeft,
   Send,
-  Time,
-  Avatar,
-  Composer,
-  SystemMessage,
-  IMessage,
-} from "react-native-gifted-chat";
+  MoreVertical,
+  Reply,
+  LogOut,
+} from "lucide-react-native";
+import { format, isToday, isYesterday } from "date-fns";
 
 import { Text } from "@/components/ui/text";
-import { Icon } from "@/components/ui/icon";
 import { useColor } from "@/hooks/useColor";
-import { SafeGiftedChat } from "@/components/safeGiftedChat";
-import {
-  useJoinRoomMutation,
-  useLeaveRoomMutation,
-  useRoomMessagesQuery,
-  useSendRoomMessageMutation,
-  isPremiumRequiredError,
-} from "@/api/chat";
+import { useChatRoomQuery, useJoinRoomMutation, useLeaveRoomMutation, useRoomMessagesQuery } from "@/api/chat";
 import { useProfileStore } from "@/store/profileStore";
+import { useChatSocket } from "@/api/ChatSocketProvider";
+import { useQueryClient } from "@tanstack/react-query";
+import type { ChatMessage } from "@/api/chat";
+
+// ─── Helpers ───────────────────────────────────────────────────────────────
+
+function formatMessageTime(timestamp: string): string {
+  const date = new Date(timestamp);
+  return format(date, "h:mm a");
+}
+
+function formatDayLabel(timestamp: string): string {
+  const date = new Date(timestamp);
+  if (isToday(date)) return "Today";
+  if (isYesterday(date)) return "Yesterday";
+  return format(date, "MMMM d, yyyy");
+}
 
 // Stable palette for the username-label color band on incoming messages.
 function hashStringToColor(input: string): string {
@@ -44,650 +63,543 @@ function hashStringToColor(input: string): string {
   return `hsl(${hue}, 55%, 40%)`;
 }
 
-// Backend returns messages oldest-first. GiftedChat wants newest-first.
-function mapApiMessageToIMessage(
-  msg: {
-    id: string;
-    sender: string;
-    sender_name: string;
-    sender_photo: string;
-    content: string;
-    timestamp: string;
-  },
-  currentUserId: string,
-  currentUserName: string,
-  currentUserAvatar: string
-): IMessage {
-  const isCurrentUser = msg.sender === currentUserId;
-  return {
-    _id: msg.id,
-    text: msg.content,
-    createdAt: new Date(msg.timestamp),
-    user: {
-      _id: msg.sender,
-      name: isCurrentUser ? currentUserName : msg.sender_name,
-      avatar: isCurrentUser ? currentUserAvatar : msg.sender_photo,
-    },
-  };
+// Group messages by day so we can render day-separator labels
+function groupMessagesByDay(messages: ChatMessage[]) {
+  // Always sort oldest→newest before grouping so the logic is stable
+  // regardless of whether the data came from the REST API or WS cache updates.
+  const sorted = [...messages].sort(
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  );
+
+  const groups: { label: string; data: ChatMessage[] }[] = [];
+  let lastLabel = "";
+  for (const msg of sorted) {
+    const label = formatDayLabel(msg.timestamp);
+    if (label !== lastLabel) {
+      groups.push({ label, data: [msg] });
+      lastLabel = label;
+    } else {
+      groups[groups.length - 1].data.push(msg);
+    }
+  }
+  // Flatten back to a render-list (newest at index 0 for inverted FlatList)
+  const items: Array<ChatMessage | { type: "day"; label: string }> = [];
+  for (const g of groups.reverse()) {
+    // Only push day separator if it is NOT "Today"
+    if (g.label !== "Today") {
+      items.push({ type: "day", label: g.label });
+    }
+    for (const msg of g.data.reverse()) {
+      items.push(msg);
+    }
+  }
+  return items;
 }
 
+// ─── MessageBubble ──────────────────────────────────────────────────────────
+
+function MessageBubble({
+  msg,
+  isMe,
+  showAvatar,
+  isLast,
+  nameColor,
+}: {
+  msg: ChatMessage;
+  isMe: boolean;
+  showAvatar: boolean;
+  isLast: boolean;
+  nameColor: string;
+}) {
+  return (
+    <View
+      style={[
+        bubbleStyles.row,
+        isMe ? bubbleStyles.rowRight : bubbleStyles.rowLeft,
+      ]}
+    >
+      {/* Avatar on the left for received messages */}
+      {!isMe && (
+        <View style={bubbleStyles.avatarCol}>
+          {showAvatar ? (
+            msg.sender_photo ? (
+              <Image source={{ uri: msg.sender_photo }} style={bubbleStyles.avatar} />
+            ) : (
+              <View style={[bubbleStyles.avatar, { backgroundColor: "#E5E7EB", alignItems: 'center', justifyContent: 'center' }]}>
+                 <Text style={{ fontSize: 10, fontWeight: "700", color: "#666" }}>
+                   {msg.sender_name.charAt(0).toUpperCase()}
+                 </Text>
+              </View>
+            )
+          ) : (
+            <View style={{ width: 28 }} />
+          )}
+        </View>
+      )}
+
+      <View style={[
+        bubbleStyles.bubble,
+        isMe ? bubbleStyles.bubbleRight : bubbleStyles.bubbleLeft,
+      ]}>
+        {/* Name Label */}
+        {!isMe && showAvatar && (
+          <Text style={[bubbleStyles.senderName, { color: nameColor }]}>
+            {msg.sender_name}
+          </Text>
+        )}
+
+        {/* Text */}
+        {!!msg.content && (
+          <Text style={[bubbleStyles.text, isMe ? bubbleStyles.textRight : bubbleStyles.textLeft]}>
+            {msg.content}
+          </Text>
+        )}
+
+        {/* Time */}
+        <View style={[bubbleStyles.footer, { justifyContent: isMe ? "flex-end" : "flex-start" }]}>
+          <Text style={[bubbleStyles.time, { color: isMe ? "rgba(255,255,255,0.65)" : "#9CA3AF" }]}>
+            {formatMessageTime(msg.timestamp)}
+          </Text>
+        </View>
+      </View>
+
+      {/* Reply swipe hint (right side spacer for received) */}
+      {!isMe && <View style={{ width: 44 }} />}
+    </View>
+  );
+}
+
+const bubbleStyles = StyleSheet.create({
+  row: { flexDirection: "row", alignItems: "flex-end", paddingHorizontal: 8, marginVertical: 1 },
+  rowRight: { justifyContent: "flex-end" },
+  rowLeft: { justifyContent: "flex-start" },
+  avatarCol: { marginRight: 6, marginBottom: 2 },
+  avatar: { width: 28, height: 28, borderRadius: 14 },
+  bubble: {
+    maxWidth: "72%",
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  bubbleRight: {
+    backgroundColor: "#0084ff",
+    borderBottomRightRadius: 4,
+  },
+  bubbleLeft: {
+    backgroundColor: "#F0F0F0",
+    borderBottomLeftRadius: 4,
+  },
+  senderName: { fontSize: 13, fontWeight: "700", marginBottom: 2 },
+  text: { fontSize: 16, lineHeight: 22 },
+  textRight: { color: "#FFFFFF" },
+  textLeft: { color: "#111827" },
+  footer: { flexDirection: "row", alignItems: "center", marginTop: 4 },
+  time: { fontSize: 11 },
+});
+
+// ─── Main Screen ────────────────────────────────────────────────────────────
+
 export default function CommunityChatScreen() {
-  const params = useLocalSearchParams<{ title?: string; roomId?: string }>();
-  const groupTitle = typeof params.title === "string" ? params.title : "Community";
-  const roomId = typeof params.roomId === "string" ? params.roomId : "";
+  const { title, roomId } = useLocalSearchParams<{ title: string; roomId: string }>();
 
   const insets = useSafeAreaInsets();
   const background = useColor("background");
   const primary = useColor("primary");
-  const text = useColor("text");
+  const textColor = useColor("text");
   const muted = useColor("textMuted");
   const border = useColor("border");
   const card = useColor("card");
 
   const { profile, fetchProfile } = useProfileStore();
+  useEffect(() => { if (!profile) fetchProfile(); }, [profile, fetchProfile]);
 
-  useEffect(() => {
-    if (!profile) {
-      fetchProfile();
-    }
-  }, [profile, fetchProfile]);
+  const currentUserId = profile?.id ?? profile?.user.id ?? "";
 
-  const currentUserId = profile?.user.id ?? "";
-  const currentUserName = profile?.username ?? "You";
-  const currentUserAvatar =
-    profile?.photos?.find((p) => p.is_main)?.image ??
-    profile?.photos?.[0]?.image ??
-    "";
-
-  const giftedUser = useMemo(
-    () => ({
-      _id: currentUserId || "me",
-      name: currentUserName,
-      avatar: currentUserAvatar,
-    }),
-    [currentUserId, currentUserName, currentUserAvatar]
-  );
-
-  const messagesQuery = useRoomMessagesQuery(roomId);
-  const sendMutation = useSendRoomMessageMutation(roomId);
+  const roomQuery = useChatRoomQuery(roomId);
+  const historyQuery = useRoomMessagesQuery(roomId);
   const joinMutation = useJoinRoomMutation();
   const leaveMutation = useLeaveRoomMutation();
 
-  const apiMessages = useMemo(() => messagesQuery.data ?? [], [messagesQuery.data]);
-  const messages = useMemo<IMessage[]>(() => {
-    if (!currentUserId) {
-      return [];
-    }
-    return apiMessages
-      .map((msg) =>
-        mapApiMessageToIMessage(
-          msg,
-          currentUserId,
-          currentUserName,
-          currentUserAvatar
-        )
-      )
-      .sort((a, b) => +b.createdAt - +a.createdAt);
-  }, [apiMessages, currentUserId, currentUserName, currentUserAvatar]);
+  const isJoined = roomQuery.data?.is_joined ?? false;
 
-  // For the username-label palette, build a memo of sender-id → color.
+  const { sendRoomMessage, joinRoom, leaveRoom } = useChatSocket();
+  const queryClient = useQueryClient();
+
+  // Subscribe to the WS room group when screen is open
+  useEffect(() => {
+    if (!roomId) return;
+    joinRoom(roomId);
+    return () => {
+      leaveRoom(roomId);
+    };
+  }, [roomId, joinRoom, leaveRoom]);
+
+  const [text, setText] = useState("");
+  const inputRef = useRef<TextInput>(null);
+  const listRef = useRef<FlatList>(null);
+  const prevMsgCount = useRef(0);
+
+  const openActionMenu = useCallback(() => {
+    const options: any[] = [];
+
+    if (isJoined) {
+      options.push({
+        text: "Leave Room",
+        style: "destructive",
+        onPress: () => {
+          Alert.alert("Leave room?", `You'll stop receiving messages from ${title}.`, [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Leave",
+              style: "destructive",
+              onPress: () =>
+                leaveMutation.mutate(roomId, {
+                  onSuccess: () => router.back(),
+                  onError: () => Alert.alert("Couldn't leave", "Please try again."),
+                }),
+            },
+          ]);
+        },
+      });
+    }
+
+    options.push({ text: "Cancel", style: "cancel" });
+    Alert.alert("Room Options", "Choose an action", options);
+  }, [roomId, title, isJoined, leaveMutation]);
+
+  const handleSend = useCallback(() => {
+    const trimmed = text.trim();
+    if (!trimmed || !roomId) return;
+
+    // Optimistic insert for sender — backend will echo it back via WS with a real id
+    const tempId = `temp-${Date.now()}`;
+    const optimisticMsg: ChatMessage = {
+      id: tempId,
+      room: roomId,
+      sender: String(currentUserId),
+      sender_name: profile?.username ?? "You",
+      sender_photo: profile?.photos?.find((p: any) => p.is_main)?.image ?? profile?.photos?.[0]?.image ?? "",
+      content: trimmed,
+      timestamp: new Date().toISOString(),
+    };
+    queryClient.setQueryData(
+      ['roomMessages', roomId],
+      (oldData: ChatMessage[] | undefined) => {
+        if (!oldData) return [optimisticMsg];
+        return [optimisticMsg, ...oldData];
+      }
+    );
+
+    sendRoomMessage(roomId, trimmed);
+    setText("");
+  }, [text, roomId, currentUserId, profile, queryClient, sendRoomMessage]);
+
+  const handleJoin = useCallback(() => {
+    if (!roomId) return;
+    joinMutation.mutate(roomId, {
+      onError: () => Alert.alert("Error", "Could not join room.")
+    });
+  }, [roomId, joinMutation]);
+
+  // Build the flat-list data
+  const rawMessages = useMemo(() => historyQuery.data ?? [], [historyQuery.data]);
+  const listData = useMemo(() => groupMessagesByDay(rawMessages), [rawMessages]);
+
   const nameColors = useMemo(() => {
     const map: Record<string, string> = {};
-    apiMessages.forEach((m) => {
+    rawMessages.forEach((m) => {
       if (m.sender !== currentUserId && !map[m.sender]) {
         map[m.sender] = hashStringToColor(m.sender);
       }
     });
     return map;
-  }, [apiMessages, currentUserId]);
+  }, [rawMessages, currentUserId]);
 
-  const onSend = useCallback(
-    (newMessages: IMessage[] = []) => {
-      const text = newMessages[0]?.text?.trim();
-      if (!text || !roomId) {
-        return;
-      }
-      sendMutation.mutate(text, {
-        onError: (err: any) => {
-          if (err?.response?.status === 400) {
-            Alert.alert("Cannot send", err.response.data?.error || "Message cannot be empty.");
-          } else if (err?.response?.status === 403) {
-            const message =
-              err.response.data?.error ||
-              "You must join this room before you can send messages.";
-            const isJoined = (err.response.data?.error || "")
-              .toLowerCase()
-              .includes("join");
-            if (isJoined) {
-              Alert.alert("Join required", message, [
-                { text: "Cancel", style: "cancel" },
-                {
-                  text: "Join room",
-                  onPress: () => joinMutation.mutate(roomId),
-                },
-              ]);
-            } else if (isPremiumRequiredError(err)) {
-              Alert.alert("Premium required", message);
-            } else {
-              Alert.alert("Cannot send", message);
-            }
-          } else {
-            Alert.alert("Couldn't send", "Please try again.");
-          }
-        },
-      });
-    },
-    [roomId, sendMutation, joinMutation]
-  );
-
-  const handleLeave = useCallback(() => {
-    if (!roomId) {
-      return;
+  useEffect(() => {
+    const count = rawMessages.length;
+    if (count > prevMsgCount.current && prevMsgCount.current > 0) {
+      listRef.current?.scrollToOffset({ offset: 0, animated: false });
     }
-    Alert.alert("Leave room?", `You'll stop receiving messages from ${groupTitle}.`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Leave",
-        style: "destructive",
-        onPress: () =>
-          leaveMutation.mutate(roomId, {
-            onSuccess: () => router.back(),
-            onError: () => Alert.alert("Couldn't leave", "Please try again."),
-          }),
-      },
-    ]);
-  }, [roomId, groupTitle, leaveMutation]);
+    prevMsgCount.current = count;
+  }, [rawMessages.length]);
 
-  const renderBubble = useCallback(
-    (props: any) => {
-      const { currentMessage } = props;
-      const isCurrentUser = currentMessage.user._id === giftedUser._id;
-
-      return (
-        <View>
-          {!isCurrentUser && (
-            <Text
-              style={{
-                fontSize: 13,
-                fontWeight: "700",
-                color:
-                  nameColors[currentMessage.user._id as string] || muted,
-                marginBottom: 2,
-                marginLeft: isCurrentUser ? 0 : 12,
-              }}
-            >
-              {currentMessage.user.name}
-            </Text>
-          )}
-          <Bubble
-            {...props}
-            wrapperStyle={{
-              right: {
-                backgroundColor: primary,
-                borderRadius: 20,
-                borderBottomRightRadius: 4,
-                paddingHorizontal: 2,
-                paddingVertical: 1,
-                marginVertical: 2,
-              },
-              left: {
-                backgroundColor: card,
-                borderRadius: 20,
-                borderBottomLeftRadius: 4,
-                paddingHorizontal: 2,
-                paddingVertical: 1,
-                marginVertical: 2,
-              },
-            }}
-            textStyle={{
-              right: {
-                color: "#FFFFFF",
-                fontSize: 16,
-                lineHeight: 21,
-              },
-              left: {
-                color: text,
-                fontSize: 16,
-                lineHeight: 21,
-              },
-            }}
-            timeTextStyle={{
-              right: {
-                color: "rgba(255,255,255,0.7)",
-                fontSize: 11,
-                marginTop: 4,
-              },
-              left: {
-                color: muted,
-                fontSize: 11,
-                marginTop: 4,
-              },
-            }}
-            tickStyle={{
-              color: "rgba(255,255,255,0.8)",
-            }}
-          />
-        </View>
-      );
-    },
-    [primary, card, text, muted, giftedUser._id, nameColors]
-  );
-
-  const renderInputToolbar = useCallback(
-    (props: any) => {
-      return (
-        <InputToolbar
-          {...props}
-          containerStyle={{
-            backgroundColor: background,
-            borderTopWidth: 1,
-            borderTopColor: border + "66",
-            paddingHorizontal: 8,
-            paddingVertical: 6,
-            paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
-          }}
-          primaryStyle={{
-            alignItems: "center",
-          }}
-        />
-      );
-    },
-    [background, border, insets.bottom]
-  );
-
-  const renderComposer = useCallback(
-    (props: any) => {
-      return (
-        <Composer
-          {...props}
-          textInputStyle={{
-            backgroundColor: card,
-            color: text,
-            borderRadius: 24,
-            paddingHorizontal: 16,
-            paddingVertical: 10,
-            fontSize: 16,
-            lineHeight: 21,
-            maxHeight: 120,
-            borderWidth: 1,
-            borderColor: border + "44",
-          }}
-          placeholderTextColor={muted}
-        />
-      );
-    },
-    [card, text, muted, border]
-  );
-
-  const renderSend = useCallback(
-    (props: any) => {
-      return (
-        <Send
-          {...props}
-          containerStyle={{
-            justifyContent: "center",
-            alignItems: "center",
-            marginLeft: 8,
-            width: 44,
-            height: 44,
-            borderRadius: 22,
-            backgroundColor: primary,
-            opacity: sendMutation.isPending ? 0.4 : 1,
-          }}
-          disabled={sendMutation.isPending}
-          disabledStyle={{
-            opacity: 0.4,
-          }}
-        >
-          <View style={styles.sendArrow}>
-            <View style={[styles.sendArrowHead, { borderColor: "#FFFFFF" }]} />
-            <View style={[styles.sendArrowShaft, { backgroundColor: "#FFFFFF" }]} />
+  const renderItem = useCallback(
+    ({ item, index }: { item: any; index: number }) => {
+      if (item.type === "day") {
+        return (
+          <View style={styles.daySep}>
+            <View style={[styles.daySepLine, { backgroundColor: border }]} />
+            <Text style={[styles.daySepText, { color: muted }]}>{item.label}</Text>
+            <View style={[styles.daySepLine, { backgroundColor: border }]} />
           </View>
-        </Send>
-      );
-    },
-    [primary, sendMutation.isPending]
-  );
+        );
+      }
+      const msg: ChatMessage = item;
+      const isMe = String(msg.sender) === String(currentUserId);
+      
+      const nextItem = listData[index - 1]; // inverted list: next in array = older
+      const showAvatar =
+        !isMe &&
+        (!nextItem || (nextItem as any).type === "day" || String((nextItem as ChatMessage).sender) !== String(msg.sender));
 
-  const renderTime = useCallback(
-    (props: any) => {
       return (
-        <Time
-          {...props}
-          timeTextStyle={{
-            right: {
-              color: "rgba(255,255,255,0.7)",
-              fontSize: 11,
-            },
-            left: {
-              color: muted,
-              fontSize: 11,
-            },
-          }}
+        <MessageBubble
+          msg={msg}
+          isMe={isMe}
+          showAvatar={showAvatar}
+          isLast={index === 0}
+          nameColor={nameColors[msg.sender] || muted}
         />
       );
     },
-    [muted]
+    [currentUserId, listData, border, muted, nameColors]
   );
 
-  const renderAvatar = useCallback((props: any) => {
-    if (props.currentMessage.user._id === giftedUser._id) {
-      return null;
-    }
-    return (
-      <Avatar
-        {...props}
-        imageStyle={{
-          left: {
-            width: 36,
-            height: 36,
-            borderRadius: 18,
-          },
-          right: {
-            width: 36,
-            height: 36,
-            borderRadius: 18,
-          },
-        }}
-      />
-    );
-  }, [giftedUser._id]);
-
-  const renderSystemMessage = useCallback(
-    (props: any) => {
-      return (
-        <SystemMessage
-          {...props}
-          textStyle={{
-            color: muted,
-            fontSize: 12,
-            fontWeight: "600",
-          }}
-        />
-      );
-    },
-    [muted]
-  );
-
-  const scrollToBottomComponent = useCallback(() => {
-    return (
-      <View
-        style={[
-          styles.scrollToBottomBtn,
-          { backgroundColor: primary, borderColor: background },
-        ]}
-      >
-        <View style={styles.scrollToBottomArrow}>
-          <View
-            style={[
-              styles.scrollArrowLeft,
-              { backgroundColor: "#FFFFFF" },
-            ]}
-          />
-          <View
-            style={[
-              styles.scrollArrowRight,
-              { backgroundColor: "#FFFFFF" },
-            ]}
-          />
-        </View>
-      </View>
-    );
-  }, [primary, background]);
-
-  const isInitialLoading =
-    messagesQuery.isLoading && apiMessages.length === 0;
+  const isLoading = historyQuery.isLoading && rawMessages.length === 0;
 
   return (
-    <View style={[styles.container, { backgroundColor: background }]}>
-      {/* Header */}
-      <View
-        style={[
-          styles.header,
-          {
-            paddingTop: insets.top + 8,
-            borderBottomColor: border + "66",
-            backgroundColor: background,
-          },
-        ]}
-      >
-        <View style={styles.headerRow}>
-          <Pressable
-            onPress={() => router.back()}
-            hitSlop={10}
-            style={styles.headerBackBtn}
-          >
-            <Icon name={ArrowLeft} size={24} color={text} />
-          </Pressable>
+    <View style={[styles.root, { backgroundColor: background }]}>
+      {/* ── Header ── */}
+      <View style={[styles.header, { paddingTop: insets.top + 4, borderBottomColor: border + "44", backgroundColor: background }]}>
+        <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
+          <ChevronLeft size={24} color={textColor} />
+        </Pressable>
 
-          <View style={styles.headerCenter}>
-            <View style={styles.headerGroupAvatar}>
-              <Users size={18} color={primary} />
-            </View>
-            <View style={styles.headerInfo}>
-              <Text style={[styles.headerName, { color: text }]}>
-                {groupTitle}
-              </Text>
-              <Text style={[styles.headerStatus, { color: muted }]}>
-                {messagesQuery.isLoading ? "Loading…" : "Community room"}
-              </Text>
-            </View>
+        <View style={styles.headerCenter}>
+          <View style={[styles.headerAvatar, styles.headerAvatarFallback, { backgroundColor: card }]}>
+            <Text style={{ color: muted, fontWeight: "700", fontSize: 16 }}>
+              {title?.charAt(0).toUpperCase()}
+            </Text>
           </View>
-
-          <View style={styles.headerActions}>
-            <Pressable
-              hitSlop={8}
-              onPress={handleLeave}
-              disabled={leaveMutation.isPending}
-              style={[
-                styles.headerActionBtn,
-                styles.leaveBtn,
-                { opacity: leaveMutation.isPending ? 0.6 : 1 },
-              ]}
-            >
-              <Icon name={LogOut} size={16} color={muted} />
-              <Text style={[styles.leaveText, { color: muted }]}>Leave</Text>
-            </Pressable>
+          <View style={{ marginLeft: 10 }}>
+            <Text style={[styles.headerName, { color: textColor }]}>{title}</Text>
+            <Text style={[styles.headerSub, { color: muted }]}>
+              {roomQuery.data ? `${roomQuery.data.member_count} members` : 'Community Room'}
+            </Text>
           </View>
         </View>
+
+        <Pressable onPress={openActionMenu} hitSlop={12} style={styles.backBtn}>
+          <MoreVertical size={24} color={textColor} />
+        </Pressable>
       </View>
 
-      {isInitialLoading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator color={primary} />
-        </View>
-      ) : messagesQuery.isError && isPremiumRequiredError(messagesQuery.error) ? (
-        <View style={styles.centered}>
-          <Text style={{ color: text, marginBottom: 8 }}>Premium required</Text>
-          <Text style={{ color: muted, textAlign: "center", paddingHorizontal: 24 }}>
-            {(messagesQuery.error as any)?.response?.data?.error ||
-              "Upgrade to Premium to access this community room."}
-          </Text>
-        </View>
-      ) : messagesQuery.isError ? (
-        <View style={styles.centered}>
-          <Text style={{ color: muted }}>Couldn&apos;t load messages.</Text>
-          <Pressable onPress={() => messagesQuery.refetch()}>
-            <Text style={{ color: primary, fontWeight: "700" }}>Retry</Text>
-          </Pressable>
-        </View>
-      ) : (
-        <SafeGiftedChat
-          messages={messages}
-          onSend={(newMessages) => onSend(newMessages)}
-          user={giftedUser}
-          renderBubble={renderBubble}
-          renderInputToolbar={renderInputToolbar}
-          renderComposer={renderComposer}
-          renderSend={renderSend}
-          renderTime={renderTime}
-          renderAvatar={renderAvatar}
-          renderSystemMessage={renderSystemMessage}
-          isScrollToBottomEnabled
-          scrollToBottomComponent={scrollToBottomComponent}
-          scrollToBottomOffset={120}
-          isSendButtonAlwaysVisible
-          isUserAvatarVisible
-          locale="en"
-          minInputToolbarHeight={52}
-          maxComposerHeight={120}
-          minComposerHeight={44}
-          textInputProps={{
-            accessibilityLabel: "Message input",
-            placeholder: `Message ${groupTitle}...`,
-          }}
-          messagesContainerStyle={{
-            backgroundColor: background,
-          }}
-          listProps={{
-            keyboardShouldPersistTaps: "never",
-            style: {
-              backgroundColor: background,
-            },
-            contentContainerStyle: {
-              paddingBottom: 8,
-            },
-          }}
-        />
-      )}
+      {/* ── Message list ── */}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={0}
+      >
+        {isLoading ? (
+          <View style={styles.centered}>
+            <ActivityIndicator color={primary} />
+          </View>
+        ) : historyQuery.isError ? (
+          <View style={styles.centered}>
+            <Text style={{ color: muted, marginBottom: 12 }}>Couldn't load messages.</Text>
+            <Pressable onPress={() => historyQuery.refetch()}>
+              <Text style={{ color: primary, fontWeight: "700" }}>Retry</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <FlatList
+            ref={listRef}
+            data={listData}
+            renderItem={renderItem}
+            keyExtractor={(item, i) =>
+              (item as any).type === "day" ? `day-${i}` : String((item as ChatMessage).id)
+            }
+            inverted
+            contentContainerStyle={{ paddingTop: 12, paddingBottom: 8 }}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
+            maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+            windowSize={10}
+            maxToRenderPerBatch={20}
+            removeClippedSubviews={Platform.OS === "android"}
+            ListEmptyComponent={
+              <View style={styles.emptyWrap}>
+                <Text style={{ fontSize: 36, marginBottom: 12 }}>👋</Text>
+                <Text style={[styles.emptyTitle, { color: textColor }]}>
+                  Welcome to {title}!
+                </Text>
+                <Text style={[styles.emptySub, { color: muted }]}>
+                  This is the beginning of the community conversation.
+                </Text>
+              </View>
+            }
+          />
+        )}
+
+        {/* ── Input bar / Join Gate ── */}
+        {!isJoined ? (
+          <View
+            style={[
+              styles.joinBar,
+              {
+                backgroundColor: background,
+                borderTopColor: border + "33",
+                paddingBottom: insets.bottom > 0 ? insets.bottom : 24,
+              },
+            ]}
+          >
+            <Pressable 
+              style={[styles.joinBtn, { backgroundColor: primary }]} 
+              onPress={handleJoin}
+              disabled={joinMutation.isPending}
+            >
+              {joinMutation.isPending ? (
+                <ActivityIndicator color="#FFF" />
+              ) : (
+                <Text style={styles.joinBtnText}>Join Room to Chat</Text>
+              )}
+            </Pressable>
+          </View>
+        ) : (
+          <View
+            style={[
+              styles.inputBar,
+              {
+                backgroundColor: background,
+                borderTopColor: border + "33",
+                paddingBottom: insets.bottom > 0 ? insets.bottom : 12,
+              },
+            ]}
+          >
+            <View style={[styles.inputPill, { backgroundColor: card, borderColor: border + "55" }]}>
+              <TextInput
+                ref={inputRef}
+                style={[styles.input, { color: textColor }]}
+                value={text}
+                onChangeText={setText}
+                placeholder="Message…"
+                placeholderTextColor={muted}
+                maxLength={2000}
+                returnKeyType="default"
+              />
+            </View>
+
+            <Pressable
+              onPress={handleSend}
+              disabled={!text.trim()}
+              style={[
+                styles.sendBtn,
+                { backgroundColor: text.trim() ? "#0084ff" : card, borderColor: border + "55" },
+              ]}
+            >
+              <Send size={18} color={text.trim() ? "#FFF" : muted} />
+            </Pressable>
+          </View>
+        )}
+      </KeyboardAvoidingView>
     </View>
   );
 }
 
+// ─── Styles ─────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  centered: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 24,
-    gap: 8,
-  },
+  root: { flex: 1 },
+  centered: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24, gap: 8 },
+
+  // Header
   header: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  headerRow: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 8,
     paddingBottom: 10,
-    height: 56,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  headerBackBtn: {
-    width: 40,
-    height: 40,
-    justifyContent: "center",
+  backBtn: { width: 40, height: 40, justifyContent: "center", alignItems: "center" },
+  headerCenter: { flex: 1, flexDirection: "row", alignItems: "center", marginLeft: 2 },
+  headerAvatar: { width: 40, height: 40, borderRadius: 20 },
+  headerAvatarFallback: { alignItems: "center", justifyContent: "center" },
+  headerName: { fontSize: 16, fontWeight: "700" },
+  headerSub: { fontSize: 12, marginTop: 1 },
+
+  // Day separator
+  daySep: {
+    flexDirection: "row",
     alignItems: "center",
+    marginVertical: 12,
+    paddingHorizontal: 16,
+    gap: 8,
   },
-  headerCenter: {
+  daySepLine: { flex: 1, height: StyleSheet.hairlineWidth },
+  daySepText: { fontSize: 12, fontWeight: "600" },
+
+  // Empty state
+  emptyWrap: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingTop: 120,
+    paddingHorizontal: 32,
+  },
+  emptyTitle: { fontSize: 20, fontWeight: "700", marginBottom: 8, textAlign: "center" },
+  emptySub: { fontSize: 14, textAlign: "center", lineHeight: 20 },
+
+  // Join Bar
+  joinBar: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+  },
+  joinBtn: {
+    width: '100%',
+    paddingVertical: 14,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  joinBtnText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+
+  // Input
+  inputBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    paddingTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    gap: 8,
+  },
+  inputPill: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    marginLeft: 4,
-  },
-  headerGroupAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(128,128,128,0.1)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 10,
-  },
-  headerInfo: {
-    justifyContent: "center",
-  },
-  headerName: {
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  headerStatus: {
-    fontSize: 12,
-    fontWeight: "500",
-    marginTop: 1,
-  },
-  headerActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  headerActionBtn: {
-    width: 36,
-    height: 36,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  leaveBtn: {
-    width: "auto",
-    flexDirection: "row",
-    gap: 4,
+    borderRadius: 24,
+    borderWidth: 1,
     paddingHorizontal: 12,
-    borderRadius: 18,
-    backgroundColor: "rgba(128,128,128,0.08)",
+    paddingVertical: 0,
+    height: 44,
   },
-  leaveText: {
-    fontSize: 13,
-    fontWeight: "600",
+  input: {
+    flex: 1,
+    fontSize: 16,
+    lineHeight: 22,
+    paddingVertical: 0,
+    paddingHorizontal: 4,
+    paddingTop: 0,
+    paddingBottom: 0,
+    textAlignVertical: "center",
   },
-
-  sendArrow: {
-    width: 24,
-    height: 24,
-    justifyContent: "center",
+  sendBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: "center",
-  },
-  sendArrowHead: {
-    width: 0,
-    height: 0,
-    borderTopWidth: 5,
-    borderBottomWidth: 5,
-    borderLeftWidth: 8,
-    borderTopColor: "transparent",
-    borderBottomColor: "transparent",
-    borderLeftColor: "#FFFFFF",
-    position: "absolute",
-    right: 2,
-  },
-  sendArrowShaft: {
-    width: 14,
-    height: 2.5,
-    borderRadius: 1,
-    position: "absolute",
-    right: 10,
-  },
-  scrollToBottomBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
     justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  scrollToBottomArrow: {
-    width: 16,
-    height: 12,
-    justifyContent: "center",
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 2,
-  },
-  scrollArrowLeft: {
-    width: 7,
-    height: 2,
-    borderRadius: 1,
-    transform: [{ rotate: "-45deg" }, { translateY: 3 }],
-  },
-  scrollArrowRight: {
-    width: 7,
-    height: 2,
-    borderRadius: 1,
-    transform: [{ rotate: "45deg" }, { translateY: 3 }],
+    borderWidth: 1,
   },
 });

@@ -82,6 +82,8 @@ export const useAcceptFriendRequestMutation = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pendingFriendRequests'] });
       queryClient.invalidateQueries({ queryKey: ['friendSuggestions'] });
+      queryClient.invalidateQueries({ queryKey: ['messageThreads'] });
+      queryClient.invalidateQueries({ queryKey: ['friends'] });
     },
   });
 };

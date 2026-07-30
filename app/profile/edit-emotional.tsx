@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, ScrollView, Pressable, Alert, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ChevronLeft, BatteryMedium, BatteryWarning, Heart, Smile, Leaf } from 'lucide-react-native';
@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { FilterPill } from '@/components/ui/filter-pill';
 import { FilterListItem } from '@/components/ui/filter-list-item';
 import { useColor } from '@/hooks/useColor';
+import { useProfileStore } from '@/store/profileStore';
+import { updateMyProfile } from '@/api/profile';
 
 export default function EditEmotionalScreen() {
   const insets = useSafeAreaInsets();
@@ -19,17 +21,47 @@ export default function EditEmotionalScreen() {
   const primary = useColor('primary');
   const border = useColor('border');
 
-  const [recharge, setRecharge] = useState('Silence');
-  const [exhausts, setExhausts] = useState('Absorbs other people\'s moods');
-  const [needs, setNeeds] = useState('Predictability');
-  const [humor, setHumor] = useState('Yes');
-  const [soothes, setSoothes] = useState(['Predictability', 'Clear Communication', 'Hyperfocus on an interest']);
+  const { profile, fetchProfile } = useProfileStore();
+
+  useEffect(() => {
+    if (!profile) fetchProfile();
+  }, []);
+
+  const [recharge, setRecharge] = useState<string[]>(profile?.recharge_methods || []);
+  const [exhausts, setExhausts] = useState<string[]>(profile?.exhaust_triggers || []);
+  const [needs, setNeeds] = useState<string[]>(profile?.emotional_needs || []);
+  const [humor, setHumor] = useState(profile?.second_degree_humor ? 'Yes' : 'No');
+  const [soothes, setSoothes] = useState<string[]>(profile?.soothe_methods || []);
+  
+  const [isSaving, setIsSaving] = useState(false);
 
   const toggleArrayItem = (arr: string[], setArr: (val: string[]) => void, item: string) => {
     if (arr.includes(item)) {
       setArr(arr.filter((i) => i !== item));
     } else {
       setArr([...arr, item]);
+    }
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const formData = new FormData();
+      
+      recharge.forEach(r => formData.append('recharge_methods', r));
+      exhausts.forEach(e => formData.append('exhaust_triggers', e));
+      needs.forEach(n => formData.append('emotional_needs', n));
+      formData.append('second_degree_humor', humor === 'Yes' ? 'true' : 'false');
+      soothes.forEach(s => formData.append('soothe_methods', s));
+
+      await updateMyProfile(formData);
+      await fetchProfile();
+      router.back();
+    } catch (error) {
+      console.error(error);
+      Alert.alert("Error", "Failed to save profile");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -61,15 +93,15 @@ export default function EditEmotionalScreen() {
         <SectionHeader title="HOW I RECHARGE" icon={BatteryMedium} />
         <FilterListItem 
           title="Silence" subtitle="Reducing noise, Lights, Movement" 
-          selected={recharge === 'Silence'} onPress={() => setRecharge('Silence')} 
+          selected={recharge.includes('Silence')} onPress={() => toggleArrayItem(recharge, setRecharge, 'Silence')} 
         />
         <FilterListItem 
           title="Cocoon Spaces" subtitle="Quiet room, Blanket corner, Soft light" 
-          selected={recharge === 'Cocoon Spaces'} onPress={() => setRecharge('Cocoon Spaces')} 
+          selected={recharge.includes('Cocoon Spaces')} onPress={() => toggleArrayItem(recharge, setRecharge, 'Cocoon Spaces')} 
         />
         <FilterListItem 
           title="Reduced Stimulation" subtitle="Noise-cancelling headphones, tinted glasses, Dim light" 
-          selected={recharge === 'Reduced Stimulation'} onPress={() => setRecharge('Reduced Stimulation')} 
+          selected={recharge.includes('Reduced Stimulation')} onPress={() => toggleArrayItem(recharge, setRecharge, 'Reduced Stimulation')} 
         />
 
         <View style={styles.spacing} />
@@ -78,7 +110,7 @@ export default function EditEmotionalScreen() {
         {['Absorbs other people\'s moods', 'Feels everything deeply', 'Loud or unpredictable noises', 'Bright lights', 'Fast movements around me', 'Strong smells', 'Unpleasant textures'].map(item => (
           <FilterListItem 
             key={item} title={item} 
-            selected={exhausts === item} onPress={() => setExhausts(item)} 
+            selected={exhausts.includes(item)} onPress={() => toggleArrayItem(exhausts, setExhausts, item)} 
           />
         ))}
 
@@ -88,7 +120,7 @@ export default function EditEmotionalScreen() {
         {['Predictability', 'Consistency in behavior', 'Absence of judgement', 'Clear communication', 'Deep talk', 'Need to be alone sometimes'].map(item => (
           <FilterListItem 
             key={item} title={item} 
-            selected={needs === item} onPress={() => setNeeds(item)} 
+            selected={needs.includes(item)} onPress={() => toggleArrayItem(needs, setNeeds, item)} 
           />
         ))}
 
@@ -121,10 +153,12 @@ export default function EditEmotionalScreen() {
 
       <View style={[styles.footer, { paddingBottom: insets.bottom || 24, backgroundColor: background }]}>
         <Button 
-          title="Save Changes" 
-          onPress={() => router.back()} 
+          onPress={handleSave} 
           style={styles.saveBtn} 
-        />
+          disabled={isSaving}
+        >
+          {isSaving ? <ActivityIndicator color="#FFF" /> : "Save Changes"}
+        </Button>
       </View>
     </View>
   );

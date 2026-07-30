@@ -1,9 +1,16 @@
 import axios from 'axios';
+import { Platform } from 'react-native';
 import { useAuthStore } from '../store/authStore';
 
 // Assuming API URL from env or constants. Adjust as needed.
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000'; // Default fallback
+let API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000'; // Default fallback
 
+// Fix for Android emulator to hit local machine's loopback
+if (Platform.OS === 'android' && API_URL.includes('localhost')) {
+  API_URL = API_URL.replace('localhost', '10.0.2.2');
+}
+
+console.log("INITIALIZED API_URL:", API_URL);
 export const apiClient = axios.create({
   baseURL: API_URL,
   headers: {
@@ -32,6 +39,9 @@ apiClient.interceptors.response.use(
     return response;
   },
   async (error) => {
+    if (error?.response?.status !== 403 && error?.response?.status !== 401) {
+      console.error('API Error Response:', error?.message, error?.response?.data, 'URL:', error?.config?.url, 'BaseURL:', error?.config?.baseURL);
+    }
     const originalRequest = error.config;
 
     if (error.response?.status === 401 && !originalRequest._retry) {

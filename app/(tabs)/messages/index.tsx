@@ -9,11 +9,14 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
 import Header from "../../../components/header";
+import VerificationOverlay from "@/components/VerificationOverlay";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MessageThread, ThreadType, useThreadsQuery } from "@/api/messages";
+import { Avatar } from "@/components/ui/avatar";
+import { useChatSocket } from "@/api/ChatSocketProvider";
 
 // Format a UTC timestamp as "10:45 AM", "Yesterday", or "N days ago".
 function formatThreadTime(iso: string): string {
@@ -55,6 +58,7 @@ function ConversationList({
   onRefresh,
   isRefreshing,
   emptyText,
+  type,
 }: {
   threads: MessageThread[];
   isLoading: boolean;
@@ -62,10 +66,15 @@ function ConversationList({
   onRefresh: () => void;
   isRefreshing: boolean;
   emptyText: string;
+  type: "dating" | "friends";
 }) {
   const background = useColor("background");
+  const { onlineUsers } = useChatSocket();
 
-  if (isLoading) {
+  // Only show a full-page spinner on the very first load (no data yet).
+  // When a background refetch is triggered by invalidateQueries, we already
+  // have data in the cache — continue showing it without blocking the screen.
+  if (isLoading && threads.length === 0) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator color="#1F3A3D" />
@@ -122,48 +131,51 @@ function ConversationList({
       }
     >
       <View style={styles.messageList}>
-        {threads.map((thread) => (
-          <Pressable
-            key={thread.profile.id}
-            style={styles.conversationRow}
-            onPress={() => router.push(`/inbox/${thread.profile.id}`)}
-          >
-            <View style={styles.avatarWrap}>
-              <Image
-                source={{ uri: thread.profile.photo }}
-                style={styles.avatar}
-              />
-              <View
-                style={[
-                  styles.statusDot,
-                  {
-                    backgroundColor: "#CFD5D8",
-                    borderColor: background,
-                  },
-                ]}
-              />
-            </View>
+        {threads.map((thread) => {
+          const isOnline = !!onlineUsers[thread.profile.id];
+          return (
+            <Pressable
+              key={thread.profile.id}
+              style={styles.conversationRow}
+              onPress={() => router.push({ pathname: `/inbox/${thread.profile.id}`, params: { type } })}
+            >
+              <View style={styles.avatarWrap}>
+                <Avatar
+                  uri={thread.profile.photo}
+                  size={56}
+                />
+                <View
+                  style={[
+                    styles.statusDot,
+                    {
+                      backgroundColor: isOnline ? "#22C55E" : "#CFD5D8",
+                      borderColor: background,
+                    },
+                  ]}
+                />
+              </View>
 
-            <View style={styles.conversationBody}>
-              <View style={styles.conversationTop}>
-                <Text style={styles.name}>{thread.profile.username}</Text>
-                <Text style={styles.time}>
-                  {formatThreadTime(thread.last_message_time)}
-                </Text>
+              <View style={styles.conversationBody}>
+                <View style={styles.conversationTop}>
+                  <Text style={styles.name}>{thread.profile.username}</Text>
+                  <Text style={styles.time}>
+                    {formatThreadTime(thread.last_message_time)}
+                  </Text>
+                </View>
+                <View style={styles.previewRow}>
+                  <Text numberOfLines={1} style={styles.messagePreview}>
+                    {thread.last_message}
+                  </Text>
+                  {thread.unread_count > 0 ? (
+                    <View style={styles.unreadBadge}>
+                      <Text style={styles.unreadText}>{thread.unread_count}</Text>
+                    </View>
+                  ) : null}
+                </View>
               </View>
-              <View style={styles.previewRow}>
-                <Text numberOfLines={1} style={styles.messagePreview}>
-                  {thread.last_message}
-                </Text>
-                {thread.unread_count > 0 ? (
-                  <View style={styles.unreadBadge}>
-                    <Text style={styles.unreadText}>{thread.unread_count}</Text>
-                  </View>
-                ) : null}
-              </View>
-            </View>
-          </Pressable>
-        ))}
+            </Pressable>
+          );
+        })}
       </View>
     </ScrollView>
   );
@@ -174,12 +186,34 @@ export default function MessagesScreen() {
 
   const [tab, setTab] = useState<ThreadType>("dating");
 
-   const datingQuery = useThreadsQuery("dating");
-   const friendsQuery = useThreadsQuery("friends");
+  const datingQuery = useThreadsQuery("dating");
+  const friendsQuery = useThreadsQuery("friends");
+
+  useFocusEffect(
+    useCallback(() => {
+      datingQuery.refetch();
+      friendsQuery.refetch();
+    }, [datingQuery.refetch, friendsQuery.refetch])
+  );
+
+  const [refreshingDating, setRefreshingDating] = useState(false);
+  const handleDatingRefresh = async () => {
+    setRefreshingDating(true);
+    await datingQuery.refetch();
+    setRefreshingDating(false);
+  };
+
+  const [refreshingFriends, setRefreshingFriends] = useState(false);
+  const handleFriendsRefresh = async () => {
+    setRefreshingFriends(true);
+    await friendsQuery.refetch();
+    setRefreshingFriends(false);
+  };
 
   return (
-    <View style={[styles.container, { backgroundColor: background }]}>
-      <Header />
+    <VerificationOverlay>
+      <View style={[styles.container, { backgroundColor: background }]}>
+        <Header />
       <Tabs
         value={tab}
         onValueChange={(v) => setTab(v as ThreadType)}
@@ -199,8 +233,9 @@ export default function MessagesScreen() {
             threads={datingQuery.data ?? []}
             isLoading={datingQuery.isLoading}
             isError={!!datingQuery.isError}
-            onRefresh={() => datingQuery.refetch()}
-            isRefreshing={datingQuery.isFetching}
+            onRefresh={handleDatingRefresh}
+            isRefreshing={refreshingDating}
+            type="dating"
             emptyText={
               tab === "dating"
                 ? "No matches yet. Start liking profiles to begin a thread."
@@ -214,13 +249,15 @@ export default function MessagesScreen() {
             threads={friendsQuery.data ?? []}
             isLoading={friendsQuery.isLoading}
             isError={!!friendsQuery.isError}
-            onRefresh={() => friendsQuery.refetch()}
-            isRefreshing={friendsQuery.isFetching}
+            onRefresh={handleFriendsRefresh}
+            isRefreshing={refreshingFriends}
+            type="friends"
             emptyText="No friends to chat with yet."
           />
-        </TabsContent>
-      </Tabs>
-    </View>
+          </TabsContent>
+        </Tabs>
+      </View>
+    </VerificationOverlay>
   );
 }
 

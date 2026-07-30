@@ -1,7 +1,7 @@
-import React from 'react';
-import { View, StyleSheet, ScrollView, Image, Pressable } from 'react-native';
+import React, { useState, useCallback, useEffect } from 'react';
+import { View, StyleSheet, ScrollView, Image, Pressable, ActivityIndicator, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { ChevronLeft, User, MapPin, Heart, Activity, CheckCircle, Lightbulb, Edit2, CigaretteOff, WineOff, Dog, Dumbbell, Utensils } from 'lucide-react-native';
 
 import { Text } from '@/components/ui/text';
@@ -9,7 +9,10 @@ import { Icon } from '@/components/ui/icon';
 import { FilterPill } from '@/components/ui/filter-pill';
 import { useColor } from '@/hooks/useColor';
 import { useProfileStore } from '@/store/profileStore';
-import { useEffect } from 'react';
+import { updateMyProfile } from '@/api/profile';
+import * as ImagePicker from 'expo-image-picker';
+import * as Device from 'expo-device';
+import { Avatar } from '@/components/ui/avatar';
 
 const SectionHeader = ({ title, icon, onEdit }: { title: string; icon: any; onEdit?: () => void }) => {
   const primary = useColor('primary');
@@ -41,10 +44,54 @@ export default function ProfileScreen() {
   const border = useColor('border');
 
   const { profile, fetchProfile, isLoading } = useProfileStore();
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
-  useEffect(() => {
-    if (!profile) fetchProfile();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchProfile();
+    }, [fetchProfile])
+  );
+
+  const pickImage = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permission needed', 'We need access to your gallery to change your profile picture.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      const asset = result.assets[0];
+      const formData = new FormData();
+      
+      const filename = asset.fileName || asset.uri.split('/').pop() || 'photo.jpg';
+      const match = /\\.([a-zA-Z]+)$/.exec(filename);
+      const type = match ? `image/${match[1]}` : 'image/jpeg';
+
+      formData.append('photos', {
+        uri: asset.uri,
+        name: filename,
+        type,
+      } as any);
+
+      setIsUploadingPhoto(true);
+      try {
+        await updateMyProfile(formData);
+        await fetchProfile();
+      } catch (error) {
+        console.error('Failed to upload photo:', error);
+        Alert.alert('Upload Failed', 'There was an issue uploading your photo. Please try again.');
+      } finally {
+        setIsUploadingPhoto(false);
+      }
+    }
+  };
 
   if (isLoading || !profile) {
     return (
@@ -56,35 +103,52 @@ export default function ProfileScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: background }]}>
-      {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 16, paddingBottom: 16 }]}>
         <Pressable onPress={() => router.back()} hitSlop={10} style={styles.backBtn}>
           <Icon name={ChevronLeft} size={24} color={text} />
         </Pressable>
         <Text style={styles.headerTitle}>Profile</Text>
-        <View style={styles.backBtn} /> {/* Placeholder for alignment */}
+        <View style={styles.backBtn} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* User Overview */}
         <View style={styles.overview}>
-          <Image
-            source={{ uri: profile.photos && profile.photos.length > 0 ? profile.photos[0].image : 'https://i.pravatar.cc/150?img=68' }}
-            style={styles.avatar}
-          />
+          <Pressable onPress={pickImage} style={styles.avatarContainer}>
+            <Avatar uri={profile.photos?.[0]?.image} size={100} style={styles.avatar} />
+            {isUploadingPhoto ? (
+              <View style={[styles.avatarOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
+                <ActivityIndicator color="#FFF" />
+              </View>
+            ) : (
+              <View style={[styles.avatarEditBtn, { backgroundColor: primary }]}>
+                <Icon name={Edit2} size={14} color="#FFF" />
+              </View>
+            )}
+          </Pressable>
           <Text style={styles.name}>{profile.username}, {profile.age}</Text>
           <View style={[styles.pill, { backgroundColor: primary + '20' }]}>
             <Text style={[styles.pillText, { color: primary }]}>{profile.looking_for || 'Friendship'}</Text>
           </View>
           <Text style={[styles.location, { color: muted }]}>{profile.city}, {profile.country}</Text>
 
+          {/* Compute dynamic bio */}
+          {(() => {
+            const hasQualities = profile.qualities && profile.qualities.length > 0;
+            const hasInterests = profile.interests && profile.interests.length > 0;
+            const dynamicBio = hasQualities && hasInterests 
+              ? `${profile.qualities[0]} • ${profile.interests.slice(0, 3).join(', ')}`
+              : (hasInterests ? profile.interests.slice(0, 3).join(', ') : "Complete your qualities and interests to generate a bio.");
+            
+            return null; // Just want to compute it here or we can compute it inline below
+          })()}
+
           <View style={styles.statsRow}>
             <View style={[styles.statBox, { backgroundColor: cardColor, borderColor: border }]}>
-              <Text style={[styles.statValue, { color: primary }]}>24</Text>
+              <Text style={[styles.statValue, { color: primary }]}>0</Text>
               <Text style={[styles.statLabel, { color: muted }]}>Friends</Text>
             </View>
             <View style={[styles.statBox, { backgroundColor: cardColor, borderColor: border }]}>
-              <Text style={[styles.statValue, { color: primary }]}>12</Text>
+              <Text style={[styles.statValue, { color: primary }]}>0</Text>
               <Text style={[styles.statLabel, { color: muted }]}>Dating</Text>
             </View>
           </View>
@@ -106,7 +170,11 @@ export default function ProfileScreen() {
         <View style={[styles.card, { backgroundColor: background, borderColor: border }]}>
           <SectionHeader title="Basic Info" icon={User} onEdit={() => router.push('/profile/edit-basic')} />
           <Text style={[styles.bio, { color: muted }]}>
-            Passionate about building inclusive digital spaces and finding the perfect quiet corner in a library. I value direct communication and sensory-friendly environments.
+            {(profile.qualities && profile.qualities.length > 0 && profile.interests && profile.interests.length > 0)
+              ? `${profile.qualities[0]} • ${profile.interests.slice(0, 3).join(', ')}`
+              : (profile.interests && profile.interests.length > 0)
+                ? profile.interests.slice(0, 3).join(', ')
+                : "Complete your qualities and interests to generate a bio."}
           </Text>
 
           <View style={styles.infoGrid}>
@@ -161,7 +229,7 @@ export default function ProfileScreen() {
 
         {/* Relationship & Children */}
         <View style={[styles.card, { backgroundColor: background, borderColor: border }]}>
-          <SectionHeader title="Relationship & Children" icon={Heart} onEdit={() => {}} />
+          <SectionHeader title="Relationship & Children" icon={Heart} onEdit={() => router.push('/profile/edit-lifestyle')} />
           <View style={styles.rowBetween}>
             <Text style={[styles.infoLabel, { color: muted }]}>Looking for</Text>
             <Text style={[styles.infoValue, { color: '#D84315' }]}>{profile.looking_for}</Text>
@@ -175,7 +243,7 @@ export default function ProfileScreen() {
 
         {/* Lifestyle Habits */}
         <View style={[styles.card, { backgroundColor: background, borderColor: border }]}>
-          <SectionHeader title="Lifestyle Habits" icon={Activity} onEdit={() => {}} />
+          <SectionHeader title="Lifestyle Habits" icon={Activity} onEdit={() => router.push('/profile/edit-lifestyle')} />
           <View style={styles.habitGrid}>
             <View style={styles.habitItem}><Icon name={CigaretteOff} size={16} color={muted} /><Text style={styles.habitText}>Smoking: {profile.smoking ? 'Yes' : 'No'}</Text></View>
             <View style={styles.habitItem}><Icon name={WineOff} size={16} color={muted} /><Text style={styles.habitText}>Alcohol: {profile.alcohol ? 'Yes' : 'No'}</Text></View>
@@ -187,7 +255,7 @@ export default function ProfileScreen() {
 
         {/* My Qualities */}
         <View style={[styles.card, { backgroundColor: background, borderColor: border }]}>
-          <SectionHeader title="My Qualities" icon={CheckCircle} onEdit={() => {}} />
+          <SectionHeader title="My Qualities" icon={CheckCircle} onEdit={() => router.push('/profile/edit-qualities')} />
           <View style={styles.tagsRow}>
             {profile.qualities?.map((item, index) => (
               <View key={index} style={[styles.tag, { backgroundColor: '#FFE0B2' }]}><Text style={[styles.tagText, { color: '#E65100' }]}>{item}</Text></View>
@@ -197,7 +265,7 @@ export default function ProfileScreen() {
 
         {/* Sparks Curiosity */}
         <View style={[styles.card, { backgroundColor: background, borderColor: border }]}>
-          <SectionHeader title="Sparks Curiosity" icon={Lightbulb} onEdit={() => {}} />
+          <SectionHeader title="Sparks Curiosity" icon={Lightbulb} onEdit={() => router.push('/profile/edit-qualities')} />
 
           <Text style={styles.subHeading}>INTERESTS</Text>
           <View style={styles.tagsRow}>
@@ -237,11 +305,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 24,
   },
+  avatarContainer: {
+    position: 'relative',
+    marginBottom: 16,
+  },
   avatar: {
     width: 100,
     height: 100,
     borderRadius: 24,
-    marginBottom: 16,
+  },
+  avatarOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarEditBtn: {
+    position: 'absolute',
+    bottom: -4,
+    right: -4,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#FFF',
   },
   name: {
     fontSize: 24,

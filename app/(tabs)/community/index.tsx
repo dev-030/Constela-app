@@ -15,6 +15,7 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { useEffect, useState } from "react";
 import { Search, Zap, Lock } from "lucide-react-native";
 import Header from "../../../components/header";
+import VerificationOverlay from "@/components/VerificationOverlay";
 import { router } from "expo-router";
 import {
   ChatRoom,
@@ -287,8 +288,9 @@ export default function CommunityScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: background }]}>
-      <Header />
+    <VerificationOverlay>
+      <View style={[styles.container, { backgroundColor: background }]}>
+        <Header />
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
@@ -368,8 +370,9 @@ export default function CommunityScreen() {
             ))}
           </View>
         )}
-      </ScrollView>
-    </View>
+        </ScrollView>
+      </View>
+    </VerificationOverlay>
   );
 }
 

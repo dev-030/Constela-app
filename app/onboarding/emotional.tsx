@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, StyleSheet, ScrollView, Pressable } from "react-native";
+import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import {
@@ -8,6 +8,7 @@ import {
   Heart,
   Smile,
   Leaf,
+  ArrowLeft,
 } from "lucide-react-native";
 
 import { Text } from "@/components/ui/text";
@@ -17,6 +18,8 @@ import { FilterPill } from "@/components/ui/filter-pill";
 import { FilterListItem } from "@/components/ui/filter-list-item";
 import { useColor } from "@/hooks/useColor";
 import { useOnboarding } from "@/providers/onboarding-context";
+import { updateMyProfile } from "@/api/profile";
+import { useProfileStore } from "@/store/profileStore";
 
 function SectionHeader({
   title,
@@ -47,6 +50,118 @@ export default function OnboardingEmotionalScreen() {
   const { data, update } = useOnboarding();
   const { rechargeMethods, exhaustTriggers, emotionalNeeds, humor, soothesMethods } = data;
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { fetchProfile } = useProfileStore();
+
+  const handleNext = async (isSkipping: boolean) => {
+    setIsSubmitting(true);
+    try {
+      const formData = new FormData();
+      formData.append("onboarding_part1_completed", "true");
+
+      if (data.username && data.username.trim()) formData.append("username", data.username);
+      if (data.age) formData.append("age", data.age);
+      if (data.height) formData.append("height_cm", data.height);
+      if (data.weight) formData.append("weight_kg", data.weight);
+
+      const genderMap: any = {
+        Woman: "woman",
+        Man: "man",
+        "Non-binary": "non_binary",
+        Other: "other",
+      };
+      if (data.gender)
+        formData.append("gender", genderMap[data.gender] || data.gender);
+
+      if (data.maritalStatus)
+        formData.append("marital_status", data.maritalStatus);
+      if (data.education) formData.append("education_level", data.education);
+      if (data.spokenLanguages && data.spokenLanguages.trim())
+        formData.append("spoken_languages", data.spokenLanguages);
+      if (data.city && data.city.trim()) formData.append("city", data.city);
+      if (data.country && data.country.trim()) formData.append("country", data.country);
+
+      const lookingForMap: any = {
+        "Serious Relationship": "serious",
+        Friendship: "friendship",
+        "We'll See": "casual",
+        "Going Out": "casual",
+      };
+      if (data.lookingFor && data.lookingFor.length > 0) {
+        formData.append(
+          "looking_for",
+          lookingForMap[data.lookingFor[0]] || data.lookingFor[0],
+        );
+      }
+
+      if (data.hasChildren)
+        formData.append(
+          "has_children",
+          data.hasChildren === "Yes" ? "true" : "false",
+        );
+      if (data.wantChildren)
+        formData.append(
+          "wants_children",
+          data.wantChildren === "Yes" ? "true" : "false",
+        );
+      if (data.smoking)
+        formData.append("smoking", data.smoking === "Yes" ? "true" : "false");
+      if (data.alcohol)
+        formData.append("alcohol", data.alcohol === "Yes" ? "true" : "false");
+      if (data.pets)
+        formData.append("pets", data.pets === "Yes" ? "true" : "false");
+      if (data.sport) formData.append("sport", data.sport);
+      if (data.eatingHabits && data.eatingHabits.length > 0)
+        formData.append("eating_habits", data.eatingHabits[0]);
+
+      if (!isSkipping) {
+        if (rechargeMethods.length > 0)
+          formData.append("recharge_methods", JSON.stringify(rechargeMethods));
+        if (exhaustTriggers.length > 0)
+          formData.append("exhaust_triggers", JSON.stringify(exhaustTriggers));
+        if (emotionalNeeds.length > 0)
+          formData.append("emotional_needs", JSON.stringify(emotionalNeeds));
+        if (soothesMethods.length > 0)
+          formData.append("soothe_methods", JSON.stringify(soothesMethods));
+        if (humor)
+          formData.append(
+            "second_degree_humor",
+            humor === "Yes" ? "true" : "false",
+          );
+      }
+
+      if (data.photos[0]) {
+        formData.append("photo1", {
+          uri: data.photos[0],
+          name: "photo1.jpg",
+          type: "image/jpeg",
+        } as any);
+      }
+      if (data.photos[1]) {
+        formData.append("photo2", {
+          uri: data.photos[1],
+          name: "photo2.jpg",
+          type: "image/jpeg",
+        } as any);
+      }
+      if (data.photos[2]) {
+        formData.append("photo3", {
+          uri: data.photos[2],
+          name: "photo3.jpg",
+          type: "image/jpeg",
+        } as any);
+      }
+
+      await updateMyProfile(formData);
+      await fetchProfile();
+      router.push("/onboarding/face-verification");
+    } catch (err) {
+      console.log("Failed to save onboarding data:", err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const setRecharge = (v: string) => update("rechargeMethods", [v]);
   const setExhausts = (v: string) => update("exhaustTriggers", [v]);
   const setNeeds = (v: string) => update("emotionalNeeds", [v]);
@@ -71,9 +186,16 @@ export default function OnboardingEmotionalScreen() {
       <View
         style={[
           styles.header,
-          { paddingTop: insets.top + 16, paddingBottom: 12 },
+          { paddingTop: insets.top + 16, paddingBottom: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", position: "relative" },
         ]}
       >
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={12}
+          style={{ position: "absolute", left: 20, top: insets.top + 16 }}
+        >
+          <Icon name={ArrowLeft} size={24} color={text} />
+        </Pressable>
         <View style={styles.headerCenter}>
           <Text style={[styles.headerTitle, { color: text }]}>
             Emotional Landscape
@@ -81,18 +203,6 @@ export default function OnboardingEmotionalScreen() {
         </View>
       </View>
 
-      {/* Progress Bar */}
-      <View style={styles.progressContainer}>
-        <View style={[styles.progressTrack, { backgroundColor: border }]}>
-          <View
-            style={[
-              styles.progressFill,
-              { backgroundColor: primary, width: "100%" },
-            ]}
-          />
-        </View>
-        <Text style={[styles.progressLabel, { color: muted }]}>Step 2 of 2</Text>
-      </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Text style={[styles.introText, { color: muted }]}>
@@ -214,28 +324,46 @@ export default function OnboardingEmotionalScreen() {
       </ScrollView>
 
       {/* Footer */}
-      <View
-        style={[
-          styles.footer,
-          {
-            paddingBottom: insets.bottom || 24,
-            backgroundColor: background,
-          },
-        ]}
-      >
-        <View style={styles.footerRow}>
-          <Pressable onPress={() => router.push("/onboarding/face-verification")}>
-            <Text style={[styles.skipText, { color: muted }]}>Skip</Text>
-          </Pressable>
-          <Button
-            onPress={() => router.push("/onboarding/face-verification")}
-            style={styles.finishBtn}
-            textStyle={{ color: primaryForeground }}
+      {(() => {
+        const isFormValid =
+          rechargeMethods.length > 0 &&
+          exhaustTriggers.length > 0 &&
+          emotionalNeeds.length > 0 &&
+          soothesMethods.length > 0;
+
+        return (
+          <View
+            style={[
+              styles.footer,
+              {
+                paddingBottom: insets.bottom || 24,
+                backgroundColor: background,
+              },
+            ]}
           >
-            Continue
-          </Button>
-        </View>
-      </View>
+            <View style={styles.footerRow}>
+              <Pressable
+                onPress={() => !isSubmitting && handleNext(true)}
+                disabled={isSubmitting}
+              >
+                <Text style={[styles.skipText, { color: text, opacity: isSubmitting ? 0.5 : 1 }]}>Skip</Text>
+              </Pressable>
+              <Button
+                onPress={() => handleNext(false)}
+                style={styles.finishBtn}
+                textStyle={{ color: primaryForeground }}
+                disabled={!isFormValid || isSubmitting}
+              >
+                {isSubmitting ? (
+                  <ActivityIndicator color={primaryForeground} />
+                ) : (
+                  "Continue"
+                )}
+              </Button>
+            </View>
+          </View>
+        );
+      })()}
     </View>
   );
 }
@@ -254,26 +382,6 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: "bold",
-  },
-  progressContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    marginBottom: 8,
-    gap: 12,
-  },
-  progressTrack: {
-    flex: 1,
-    height: 4,
-    borderRadius: 2,
-  },
-  progressFill: {
-    height: 4,
-    borderRadius: 2,
-  },
-  progressLabel: {
-    fontSize: 12,
-    fontWeight: "600",
   },
   scrollContent: {
     padding: 20,

@@ -109,6 +109,17 @@ export const useInfinitePerfectMatchQuery = (
   });
 };
 
+export const useMatchAnalysisQuery = () => {
+  return useQuery({
+    queryKey: ['matchAnalysis'],
+    queryFn: async () => {
+      const response = await apiClient.get<{ results: MatchProfile[] }>('/api/matching/analysis/');
+      return response.data.results;
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    retry: 0, // Don't retry on 403 Forbidden
+  });
+};
 export const useSwipeActionMutation = () => {
   const queryClient = useQueryClient();
 
@@ -302,6 +313,8 @@ export const useBlockUserMutation = () => {
       queryClient.invalidateQueries({ queryKey: ['blockedUsers'] });
       queryClient.invalidateQueries({ queryKey: ['perfectMatch'] });
       queryClient.invalidateQueries({ queryKey: ['mutualMatches'] });
+      queryClient.invalidateQueries({ queryKey: ['messageThreads'] });
+      queryClient.invalidateQueries({ queryKey: ['directHistory'] });
     },
   });
 };
@@ -351,5 +364,45 @@ export const useBlockStatusQuery = (targetProfileId: string) => {
       return response.data;
     },
     enabled: !!targetProfileId,
+  });
+};
+
+export const useUnmatchMutation = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (targetProfileId: string) => {
+      const response = await apiClient.post(
+        `/api/matching/${targetProfileId}/unmatch/`
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['mutualMatches'] });
+      queryClient.invalidateQueries({ queryKey: ['likesSent'] });
+      queryClient.invalidateQueries({ queryKey: ['likesReceived'] });
+      queryClient.invalidateQueries({ queryKey: ['perfectMatch'] });
+      queryClient.invalidateQueries({ queryKey: ['messageThreads'] });
+      queryClient.invalidateQueries({ queryKey: ['directHistory'] });
+    },
+  });
+};
+
+export const useUnfriendMutation = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (targetProfileId: string) => {
+      const response = await apiClient.delete(
+        `/api/friends/${targetProfileId}/unfriend/`
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['friends'] });
+      queryClient.invalidateQueries({ queryKey: ['perfectMatch'] });
+      queryClient.invalidateQueries({ queryKey: ['messageThreads'] });
+      queryClient.invalidateQueries({ queryKey: ['directHistory'] });
+    },
   });
 };

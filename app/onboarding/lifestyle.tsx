@@ -33,12 +33,18 @@ export default function OnboardingStep3() {
     }
   };
 
+  const isFormValid =
+    data.lookingFor.length > 0 &&
+    data.hasChildren !== null &&
+    data.wantChildren !== null;
+
   return (
     <OnboardingShell
       title="Lifestyle"
       subtitle="These help us understand your daily routine."
       onBack={() => router.back()}
       onContinue={() => router.push("/onboarding/habits")}
+      continueDisabled={!isFormValid}
       onSkip={() => router.push("/onboarding/habits")}
     >
       <ScrollView

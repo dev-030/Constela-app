@@ -3,10 +3,12 @@ import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { useColor } from '@/hooks/useColor';
 import { router } from 'expo-router';
-import { Image, Pressable, View, Switch, Dimensions } from 'react-native';
+import { Avatar } from '@/components/ui/avatar';
+import { Pressable, View, Switch, Dimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState, useEffect } from 'react';
 import { useProfileStore } from '@/store/profileStore';
+import { useLogout } from '@/api/auth';
 
 const { width, height } = Dimensions.get('window');
 
@@ -21,6 +23,7 @@ export default function DrawerScreen() {
   
   const [needBreak, setNeedBreak] = useState(false);
   const { profile, fetchProfile } = useProfileStore();
+  const logout = useLogout();
 
   useEffect(() => {
     if (!profile) fetchProfile();
@@ -52,12 +55,11 @@ export default function DrawerScreen() {
             borderWidth: 3, 
             borderColor: '#5AC8FA', // Teal ring
             padding: 2,
-            marginBottom: 16
+            marginBottom: 16,
+            justifyContent: 'center',
+            alignItems: 'center'
           }}>
-            <Image 
-              source={{ uri: profile?.photos?.[0]?.image || 'https://i.pravatar.cc/150?img=68' }} 
-              style={{ width: '100%', height: '100%', borderRadius: 40 }} 
-            />
+            <Avatar uri={profile?.photos?.[0]?.image} size={80} />
           </View>
           <Text style={{ fontSize: 24, fontWeight: 'bold' }}>{profile?.username || 'Loading...'}</Text>
           <Text style={{ color: '#004D40', fontSize: 12, fontWeight: '600', marginTop: 4 }}>{profile?.neurotype_labels?.join(' & ') || ''}</Text>
@@ -139,7 +141,10 @@ export default function DrawerScreen() {
         {/* Logout */}
         <Pressable 
           style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16 }}
-          onPress={() => router.replace('/(auth)/login')}
+          onPress={async () => {
+            await logout();
+            router.replace('/(auth)/login');
+          }}
         >
           <Icon name={LogOut} size={20} color={destructive} />
           <Text style={{ color: destructive, fontSize: 16, fontWeight: 'bold' }}>Logout</Text>

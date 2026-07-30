@@ -5,6 +5,7 @@ import { useAuthStore } from '../store/authStore';
 interface SignUpRequest {
   email: string;
   password?: string;
+  first_name: string;
 }
 
 interface VerifyOtpRequest {
@@ -126,13 +127,30 @@ export const useFaceVerifyMutation = () => {
   });
 };
 
+export const useFaceDetectMutation = () => {
+  return useMutation({
+    mutationFn: async (formData: FormData) => {
+      const response = await apiClient.post('/api/auth/face-detect/', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data as { face_detected: boolean; error?: string; faces_count?: number };
+    },
+  });
+};
+
+import { useProfileStore } from '../store/profileStore';
+
 // 4. Logout Hook (optional but handy)
 export const useLogout = () => {
   const { clearAuth } = useAuthStore.getState();
+  const { clearProfile } = useProfileStore.getState();
   const queryClient = useQueryClient();
 
   return async () => {
     await clearAuth();
+    clearProfile();
     queryClient.clear(); // Clear all cached queries
   };
 };

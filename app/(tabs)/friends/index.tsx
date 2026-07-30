@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   View,
   StyleSheet,
@@ -11,7 +11,8 @@ import {
   Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
+import VerificationOverlay from "@/components/VerificationOverlay";
 import { Search, SlidersHorizontal } from "lucide-react-native";
 
 import { Text } from "@/components/ui/text";
@@ -51,6 +52,13 @@ export default function FriendsScreen() {
     search: debouncedSearch || undefined,
   });
   const requestsQuery = usePendingFriendRequestsQuery();
+
+  useFocusEffect(
+    useCallback(() => {
+      suggestionsQuery.refetch();
+      requestsQuery.refetch();
+    }, [suggestionsQuery.refetch, requestsQuery.refetch])
+  );
 
   const sendMutation = useSendFriendRequestMutation();
   const acceptMutation = useAcceptFriendRequestMutation();
@@ -104,9 +112,14 @@ export default function FriendsScreen() {
     });
   };
 
-  const handleRefresh = () => {
-    suggestionsQuery.refetch();
-    requestsQuery.refetch();
+  const [refreshing, setRefreshing] = useState(false);
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([
+      suggestionsQuery.refetch(),
+      requestsQuery.refetch(),
+    ]);
+    setRefreshing(false);
   };
 
   if (isInitialLoading) {
@@ -121,232 +134,234 @@ export default function FriendsScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: background }]}>
-      <Header />
+    <VerificationOverlay>
+      <View style={[styles.container, { backgroundColor: background }]}>
+        <Header title="Friends" />
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={handleRefresh}
-            tintColor={primary}
-            colors={[primary]}
-          />
-        }
-      >
-        {/* Search Bar */}
-        <View style={styles.searchRow}>
-          <View
-            style={[
-              styles.searchContainer,
-              { borderColor: border, backgroundColor: cardColor },
-            ]}
-          >
-            <Icon name={Search} size={20} color={muted} />
-            <TextInput
-              style={[styles.searchInput, { color: text }]}
-              placeholder="Find people..."
-              placeholderTextColor={muted}
-              value={search}
-              onChangeText={setSearch}
-              returnKeyType="search"
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={primary}
+              colors={[primary]}
             />
-          </View>
-          <Pressable
-            onPress={() => router.push("/filters")}
-            style={[
-              styles.filterBtn,
-              { borderColor: border, backgroundColor: cardColor },
-            ]}
-          >
-            <Icon name={SlidersHorizontal} size={20} color={primary} />
-          </Pressable>
-        </View>
-
-        {/* Friend Requests */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Friend Requests</Text>
-          {requests.length > 0 && (
-            <View style={[styles.badge, { backgroundColor: primary }]}>
-              <Text style={styles.badgeText}>
-                {requests.length} New
-              </Text>
+          }
+        >
+          {/* Search Bar */}
+          <View style={styles.searchRow}>
+            <View
+              style={[
+                styles.searchContainer,
+                { borderColor: border, backgroundColor: cardColor },
+              ]}
+            >
+              <Icon name={Search} size={20} color={muted} />
+              <TextInput
+                style={[styles.searchInput, { color: text }]}
+                placeholder="Find people..."
+                placeholderTextColor={muted}
+                value={search}
+                onChangeText={setSearch}
+                returnKeyType="search"
+              />
             </View>
-          )}
-        </View>
-
-        {requestsQuery.isError ? (
-          <View style={styles.inlineMessage}>
-            <Text style={{ color: muted }}>Couldn&apos;t load friend requests.</Text>
-            <Pressable onPress={() => requestsQuery.refetch()}>
-              <Text style={{ color: primary, fontWeight: "600" }}>Retry</Text>
+            <Pressable
+              onPress={() => router.push("/filters")}
+              style={[
+                styles.filterBtn,
+                { borderColor: border, backgroundColor: cardColor },
+              ]}
+            >
+              <Icon name={SlidersHorizontal} size={20} color={primary} />
             </Pressable>
           </View>
-        ) : requests.length === 0 ? (
-          <Text style={[styles.emptyText, { color: muted }]}>
-            No pending requests right now.
-          </Text>
-        ) : (
-          requests.map((req) => {
-            const isPending =
-              acceptMutation.isPending || declineMutation.isPending;
-            return (
-              <View
-                key={req.id}
-                style={[
-                  styles.requestCard,
-                  { borderColor: border, backgroundColor: cardColor },
-                ]}
-              >
-                <View style={styles.requestInfo}>
-                  <Image
-                    source={{ uri: req.photo }}
-                    style={styles.requestAvatar}
-                  />
-                  <View style={styles.requestTextCol}>
-                    <Text style={styles.requestName}>{req.username}</Text>
-                    <Text style={[styles.requestSubtitle, { color: muted }]}>
-                      {req.subtitle}
-                    </Text>
-                  </View>
-                </View>
-                <View style={styles.requestActions}>
-                  <Pressable
-                    style={[
-                      styles.actionBtn,
-                      { backgroundColor: primary, opacity: isPending ? 0.6 : 1 },
-                    ]}
-                    disabled={isPending}
-                    onPress={() => handleAccept(req.id)}
-                  >
-                    <Text style={[styles.actionBtnText, { color: "#FFF" }]}>
-                      {acceptMutation.isPending &&
-                      acceptMutation.variables === req.id
-                        ? "Accepting…"
-                        : "Accept"}
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    style={[
-                      styles.actionBtn,
-                      {
-                        backgroundColor: primary + "20",
-                        opacity: isPending ? 0.6 : 1,
-                      },
-                    ]}
-                    disabled={isPending}
-                    onPress={() => handleDecline(req.id)}
-                  >
-                    <Text style={[styles.actionBtnText, { color: "#2B4A4A" }]}>
-                      {declineMutation.isPending &&
-                      declineMutation.variables === req.id
-                        ? "Declining…"
-                        : "Decline"}
-                    </Text>
-                  </Pressable>
-                </View>
+
+          {/* Friend Requests */}
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Friend Requests</Text>
+            {requests.length > 0 && (
+              <View style={[styles.badge, { backgroundColor: primary }]}>
+                <Text style={styles.badgeText}>
+                  {requests.length} New
+                </Text>
               </View>
-            );
-          })
-        )}
-
-        <View style={{ height: 24 }} />
-
-        {/* Recommendations Grid */}
-        {suggestionsQuery.isError ? (
-          <View style={styles.inlineMessage}>
-            <Text style={{ color: muted }}>Couldn&apos;t load suggestions.</Text>
-            <Pressable onPress={() => suggestionsQuery.refetch()}>
-              <Text style={{ color: primary, fontWeight: "600" }}>Retry</Text>
-            </Pressable>
+            )}
           </View>
-        ) : suggestions.length === 0 ? (
-          <Text style={[styles.emptyText, { color: muted }]}>
-            No suggestions right now.
-          </Text>
-        ) : (
-          <View style={styles.grid}>
-            {suggestions.map((person) => {
-              const isSending =
-                sendMutation.isPending && sendMutation.variables === person.id;
+
+          {requestsQuery.isError ? (
+            <View style={styles.inlineMessage}>
+              <Text style={{ color: muted }}>Couldn&apos;t load friend requests.</Text>
+              <Pressable onPress={() => requestsQuery.refetch()}>
+                <Text style={{ color: primary, fontWeight: "600" }}>Retry</Text>
+              </Pressable>
+            </View>
+          ) : requests.length === 0 ? (
+            <Text style={[styles.emptyText, { color: muted }]}>
+              No pending requests right now.
+            </Text>
+          ) : (
+            requests.map((req) => {
+              const isPending =
+                acceptMutation.isPending || declineMutation.isPending;
               return (
-                <Pressable
-                  key={person.id}
+                <View
+                  key={req.id}
                   style={[
-                    styles.personCard,
+                    styles.requestCard,
                     { borderColor: border, backgroundColor: cardColor },
                   ]}
-                  onPress={() => router.push("/friend-profile")}
                 >
-                  <View style={styles.personImageContainer}>
+                  <View style={styles.requestInfo}>
                     <Image
-                      source={{ uri: person.photo }}
-                      style={styles.personImage}
+                      source={{ uri: req.photo }}
+                      style={styles.requestAvatar}
                     />
-                    <View style={styles.personImageOverlay} />
-                    <View style={styles.personNameContainer}>
-                      <Text style={styles.personNameAge}>
-                        {person.username}, {person.age}
+                    <View style={styles.requestTextCol}>
+                      <Text style={styles.requestName}>{req.username}</Text>
+                      <Text style={[styles.requestSubtitle, { color: muted }]}>
+                        {req.subtitle}
                       </Text>
                     </View>
                   </View>
-
-                  <View style={styles.personContent}>
-                    <View style={styles.personTags}>
-                      {person.tags.map((tag) => (
-                        <View
-                          key={tag}
-                          style={[
-                            styles.smallPill,
-                            { backgroundColor: primary + "15" },
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.smallPillText,
-                              { color: "#2B4A4A" },
-                            ]}
-                          >
-                            {tag}
-                          </Text>
-                        </View>
-                      ))}
-                    </View>
-
-                    <Text
-                      style={[styles.personBio, { color: muted }]}
-                      numberOfLines={2}
-                    >
-                      {person.bio}
-                    </Text>
-
+                  <View style={styles.requestActions}>
                     <Pressable
                       style={[
-                        styles.addFriendBtn,
+                        styles.actionBtn,
+                        { backgroundColor: primary, opacity: isPending ? 0.6 : 1 },
+                      ]}
+                      disabled={isPending}
+                      onPress={() => handleAccept(req.id)}
+                    >
+                      <Text style={[styles.actionBtnText, { color: "#FFF" }]}>
+                        {acceptMutation.isPending &&
+                        acceptMutation.variables === req.id
+                          ? "Accepting…"
+                          : "Accept"}
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      style={[
+                        styles.actionBtn,
                         {
-                          backgroundColor: primary,
-                          opacity: isSending ? 0.6 : 1,
+                          backgroundColor: primary + "20",
+                          opacity: isPending ? 0.6 : 1,
                         },
                       ]}
-                      disabled={isSending}
-                      onPress={() => handleAddFriend(person.id)}
+                      disabled={isPending}
+                      onPress={() => handleDecline(req.id)}
                     >
-                      <Text style={[styles.addFriendText, { color: "#FFF" }]}>
-                        {isSending ? "Sending…" : "Add Friend"}
+                      <Text style={[styles.actionBtnText, { color: "#2B4A4A" }]}>
+                        {declineMutation.isPending &&
+                        declineMutation.variables === req.id
+                          ? "Declining…"
+                          : "Decline"}
                       </Text>
                     </Pressable>
                   </View>
-                </Pressable>
+                </View>
               );
-            })}
-          </View>
-        )}
+            })
+          )}
 
-        <View style={{ height: 40 }} />
-      </ScrollView>
-    </View>
+          <View style={{ height: 24 }} />
+
+          {/* Recommendations Grid */}
+          {suggestionsQuery.isError ? (
+            <View style={styles.inlineMessage}>
+              <Text style={{ color: muted }}>Couldn&apos;t load suggestions.</Text>
+              <Pressable onPress={() => suggestionsQuery.refetch()}>
+                <Text style={{ color: primary, fontWeight: "600" }}>Retry</Text>
+              </Pressable>
+            </View>
+          ) : suggestions.length === 0 ? (
+            <Text style={[styles.emptyText, { color: muted }]}>
+              No suggestions right now.
+            </Text>
+          ) : (
+            <View style={styles.grid}>
+              {suggestions.map((person) => {
+                const isSending =
+                  sendMutation.isPending && sendMutation.variables === person.id;
+                return (
+                  <Pressable
+                    key={person.id}
+                    style={[
+                      styles.personCard,
+                      { borderColor: border, backgroundColor: cardColor },
+                    ]}
+                    onPress={() => router.push("/friend-profile")}
+                  >
+                    <View style={styles.personImageContainer}>
+                      <Image
+                        source={{ uri: person.photo }}
+                        style={styles.personImage}
+                      />
+                      <View style={styles.personImageOverlay} />
+                      <View style={styles.personNameContainer}>
+                        <Text style={styles.personNameAge}>
+                          {person.username}, {person.age}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.personContent}>
+                      <View style={styles.personTags}>
+                        {person.tags.map((tag) => (
+                          <View
+                            key={tag}
+                            style={[
+                              styles.smallPill,
+                              { backgroundColor: primary + "15" },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.smallPillText,
+                                { color: "#2B4A4A" },
+                              ]}
+                            >
+                              {tag}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+
+                      <Text
+                        style={[styles.personBio, { color: muted }]}
+                        numberOfLines={2}
+                      >
+                        {person.bio}
+                      </Text>
+
+                      <Pressable
+                        style={[
+                          styles.addFriendBtn,
+                          {
+                            backgroundColor: primary,
+                            opacity: isSending ? 0.6 : 1,
+                          },
+                        ]}
+                        disabled={isSending}
+                        onPress={() => handleAddFriend(person.id)}
+                      >
+                        <Text style={[styles.addFriendText, { color: "#FFF" }]}>
+                          {isSending ? "Sending…" : "Add Friend"}
+                        </Text>
+                      </Pressable>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
+
+          <View style={{ height: 40 }} />
+        </ScrollView>
+      </View>
+    </VerificationOverlay>
   );
 }
 

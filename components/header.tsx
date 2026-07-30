@@ -5,6 +5,8 @@ import { Bell } from "lucide-react-native";
 import { useColor } from "@/hooks/useColor";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { Avatar } from "@/components/ui/avatar";
+import { useProfileStore } from "@/store/profileStore";
 
 export default function Header() {
   const insets = useSafeAreaInsets();
@@ -13,6 +15,10 @@ export default function Header() {
   const muted = useColor("textMuted");
   const border = useColor("border");
   const router = useRouter();
+  const { profile } = useProfileStore();
+
+  const userPhotoUri = profile?.photos && profile.photos.length > 0 ? profile.photos[0].image : null;
+
   return (
     <View
       style={[
@@ -33,12 +39,7 @@ export default function Header() {
           <Icon name={Bell} size={24} />
         </Pressable>
         <Pressable onPress={() => router.push("/settings")}>
-          <View style={[styles.avatarContainer, { backgroundColor: muted }]}>
-            <Image
-              source={{ uri: "https://i.pravatar.cc/150?img=68" }}
-              style={styles.fullSize}
-            />
-          </View>
+          <Avatar uri={userPhotoUri} size={36} />
           <View style={[styles.statusIndicator, { borderColor: background }]} />
         </Pressable>
       </View>
