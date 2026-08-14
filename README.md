@@ -36,8 +36,29 @@ Create a `.env` file in the root of the `app` directory and populate it with the
 * `EXPO_PUBLIC_API_URL`: The URL of your Django backend.
 * `EXPO_PUBLIC_REVENUECAT_KEY`: Your public RevenueCat API key for processing local purchases.
 
-### Why `google-services.json` is a physical file
-Unlike the backend where we converted the Firebase credentials into a `.env` string, you **must** keep `google-services.json` as a physical file in the root of this `app` directory. 
+---
 
-* **Why?** The Android build process (`Gradle`) natively expects this physical file to exist on the hard drive during compilation. It physically parses the JSON file at build-time to inject Google Play Services directly into the `.apk`/`.aab` binary. It is impossible to pass this securely through a standard `.env` file without complex and brittle custom Expo plugins. 
-* *Note: `google-services.json` only contains public identifiers for your Firebase project, not secret admin keys, so it is safe.*
+## 🏃‍♂️ Developer Quick Start
+
+If you are a new developer cloning this repository, here is exactly how to get the app running on your machine:
+
+1. **Install Dependencies:**
+   ```bash
+   npm install
+   ```
+2. **Environment Setup:**
+   Duplicate `.env.example`, rename it to `.env`, and fill in the required API endpoints.
+3. **Compile Natively:**
+   Because of our custom Vision Camera and RevenueCat native modules, you must build the app natively (Expo Go will throw an error).
+   
+   **For Android:**
+   *(The required `google-services.json` file is already included in this repository).*
+   ```bash
+   npx expo run:android
+   ```
+
+   **For iOS (Mac Required):**
+   ```bash
+   npx expo run:ios
+   ```
+
