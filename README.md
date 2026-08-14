@@ -11,6 +11,10 @@ Because this app utilizes several custom native modules (like camera and payment
 We utilize several critical third-party services to power the native experience:
 
 ### 1. Push Notifications (Direct FCM)
+
+> [!NOTE]
+> **Firebase Project Details:** We are using a Firebase project named **Constela**, which was created using the client's personal Gmail account. If you need to access the Firebase console to configure notifications or download new `google-services.json` files, you must log in with the client's Gmail account.
+
 > [!IMPORTANT]
 > **We are NOT using Expo's Push Notification servers.** 
 
