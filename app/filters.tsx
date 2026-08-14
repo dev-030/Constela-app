@@ -1,5 +1,6 @@
-import React, { useState } from "react";
-import { View, StyleSheet, ScrollView, Pressable, Switch } from "react-native";
+import React, { useState, useEffect, useRef } from "react";
+import { View, StyleSheet, ScrollView, Pressable, Switch, TouchableWithoutFeedback, Platform, Animated, Dimensions, ActivityIndicator } from "react-native";
+import { BlurView } from "expo-blur";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import {
@@ -9,6 +10,7 @@ import {
   HelpCircle,
   PartyPopper,
   Check,
+  Lock,
 } from "lucide-react-native";
 
 import { Text } from "@/components/ui/text";
@@ -20,45 +22,119 @@ import { FilterPill } from "@/components/ui/filter-pill";
 import { FilterCard } from "@/components/ui/filter-card";
 import { FilterListItem } from "@/components/ui/filter-list-item";
 import { useColor } from "@/hooks/useColor";
+import { useQueryClient } from "@tanstack/react-query";
+import { useFilterStore } from "@/store/filterStore";
+import { useProfileStore } from "@/store/profileStore";
+import { useAndroidBack } from "@/hooks/useAndroidBack";
 
 export default function FiltersScreen() {
   const insets = useSafeAreaInsets();
+  useAndroidBack();
   const background = useColor("background");
   const text = useColor("text");
   const muted = useColor("textMuted");
   const primary = useColor("primary");
 
   const [activeTab, setActiveTab] = useState("Basic");
+  const globalFilters = useFilterStore(state => state.filters);
+  const profile = useProfileStore((s) => s.profile);
+  const hasAdvancedAccess = profile?.subscription_tier !== 'freemium' || profile?.has_advanced_filters;
 
   // Basic States
-  const [ageRange, setAgeRange] = useState({ low: 24, high: 35 });
-  const [distance, setDistance] = useState(5);
-  const [height, setHeight] = useState(165);
+  const [ageRange, setAgeRange] = useState({ 
+    low: globalFilters.age_min || 18, 
+    high: globalFilters.age_max || 65 
+  });
+  const [height, setHeight] = useState(globalFilters.height_min || 140);
 
-  const [selectedGender, setSelectedGender] = useState("Woman");
-  const [selectedMaritalStatus, setSelectedMaritalStatus] = useState("Single");
-  const [selectedLanguages, setSelectedLanguages] = useState([
-    "English",
-    "Spanish",
-  ]);
-  const [selectedLookingFor, setSelectedLookingFor] = useState("Friendship");
+  const slideAnim = useRef(new Animated.Value(Dimensions.get('window').height)).current;
+  const [isApplying, setIsApplying] = useState(false);
+  const queryClient = useQueryClient();
+  const setGlobalFilters = useFilterStore(state => state.setFilters);
+
+  useEffect(() => {
+    Animated.spring(slideAnim, {
+      toValue: 0,
+      useNativeDriver: true,
+      tension: 65,
+      friction: 11,
+    }).start();
+  }, []);
+
+  const handleClose = () => {
+    if (isApplying) return;
+    Animated.timing(slideAnim, {
+      toValue: Dimensions.get('window').height,
+      duration: 250,
+      useNativeDriver: true,
+    }).start(() => {
+      router.back();
+    });
+  };
+
+  const handleApply = async () => {
+    setIsApplying(true);
+    
+    // Map gender values to match backend choices
+    let mappedGender: string | undefined = selectedGender || undefined;
+    if (selectedGender === "Non-binary") mappedGender = "non_binary";
+    if (selectedGender === "Other") mappedGender = "other";
+    
+    const newFilters = {
+      age_min: ageRange.low !== 18 ? ageRange.low : undefined,
+      age_max: ageRange.high !== 65 ? ageRange.high : undefined,
+      height_min: height !== 140 ? height : undefined,
+      gender: mappedGender,
+      marital_status: selectedMaritalStatus || undefined,
+      looking_for: selectedLookingFor || undefined,
+      spoken_languages: selectedLanguages.length ? selectedLanguages.join(',') : undefined,
+      education_level: selectedEducation || undefined,
+      smoking: smoking ? true : undefined,
+      alcohol: alcohol ? true : undefined,
+      sport: selectedSport || undefined,
+      interests: selectedInterests.length ? selectedInterests.join(',') : undefined,
+      recharge_methods: recharge || undefined,
+      exhaust_triggers: exhausts || undefined,
+      emotional_needs: needs || undefined,
+      second_degree_humor: humor === 'Yes' ? true : undefined,
+      soothe_methods: soothes.length ? soothes.join(',') : undefined,
+    };
+    
+    setGlobalFilters(newFilters);
+    
+    try {
+      await queryClient.invalidateQueries({ queryKey: ['perfectMatchInfinite'] });
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsApplying(false);
+      handleClose();
+    }
+  };
+
+  const [selectedGender, setSelectedGender] = useState(globalFilters.gender || "");
+  const [selectedMaritalStatus, setSelectedMaritalStatus] = useState(globalFilters.marital_status || "");
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>(
+    globalFilters.spoken_languages ? globalFilters.spoken_languages.split(',') : []
+  );
+  const [selectedLookingFor, setSelectedLookingFor] = useState(globalFilters.looking_for || "");
 
   // Advanced States
-  const [selectedEducation, setSelectedEducation] = useState("Masters");
-  const [smoking, setSmoking] = useState(false);
-  const [alcohol, setAlcohol] = useState(false);
-  const [selectedSport, setSelectedSport] = useState("Moderate");
-  const [selectedInterests, setSelectedInterests] = useState(["Gaming", "Art"]);
+  const [selectedEducation, setSelectedEducation] = useState(globalFilters.education_level || "");
+  const [smoking, setSmoking] = useState(globalFilters.smoking || false);
+  const [alcohol, setAlcohol] = useState(globalFilters.alcohol || false);
+  const [selectedSport, setSelectedSport] = useState(globalFilters.sport || "");
+  const [selectedInterests, setSelectedInterests] = useState<string[]>(
+    globalFilters.interests ? globalFilters.interests.split(',') : []
+  );
 
-  const [recharge, setRecharge] = useState("Silence");
-  const [exhausts, setExhausts] = useState("Absorbs other people's moods");
-  const [needs, setNeeds] = useState("Predictability");
-  const [humor, setHumor] = useState("Yes");
-  const [soothes, setSoothes] = useState([
-    "Predictability",
-    "Clear Communication",
-    "Hyperfocus on an interest",
-  ]);
+  const [recharge, setRecharge] = useState(globalFilters.recharge_methods || "");
+  const [exhausts, setExhausts] = useState(globalFilters.exhaust_triggers || "");
+  const [needs, setNeeds] = useState(globalFilters.emotional_needs || "");
+  const [humor, setHumor] = useState(globalFilters.second_degree_humor ? "Yes" : "");
+  const [soothes, setSoothes] = useState<string[]>(
+    globalFilters.soothe_methods ? globalFilters.soothe_methods.split(',') : []
+  );
 
   const renderSectionHeader = (title: string, valueStr?: string) => (
     <View style={styles.sectionHeader}>
@@ -89,28 +165,17 @@ export default function FiltersScreen() {
         {renderSectionHeader("Age Range", `${ageRange.low} - ${ageRange.high}`)}
         <RangeSlider
           min={18}
-          max={60}
+          max={100}
           low={ageRange.low}
           high={ageRange.high}
-          onValueChanged={(l, h) => setAgeRange({ low: l, high: h || 60 })}
-        />
-      </View>
-
-      <View style={styles.section}>
-        {renderSectionHeader("Distance", `${distance} Kilometer`)}
-        <RangeSlider
-          min={1}
-          max={100}
-          low={distance}
-          single
-          onValueChanged={(l) => setDistance(l)}
+          onValueChanged={(l, h) => setAgeRange({ low: l, high: h || 100 })}
         />
       </View>
 
       <View style={styles.section}>
         {renderSectionHeader("Gender")}
         <View style={styles.wrapContainer}>
-          {["Woman", "Man", "Non-binary", "Agender"].map((g) => (
+          {["Woman", "Man", "Non-binary", "Other"].map((g) => (
             <FilterPill
               key={g}
               label={g}
@@ -202,239 +267,333 @@ export default function FiltersScreen() {
   );
 
   const renderAdvancedTab = () => (
-    <>
-      {renderBasicTab()}
+    <View style={styles.advancedContainer}>
+      <View style={[styles.advancedContent, !hasAdvancedAccess && { opacity: 0.4 }]}>
+        {renderBasicTab()}
 
-      <View style={styles.section}>
-        {renderSectionHeader("Education")}
-        <View style={styles.wrapContainer}>
-          {["Bachelors", "Masters", "PhD", "Before Bachelor"].map((edu) => (
-            <FilterPill
-              key={edu}
-              label={edu}
-              selected={selectedEducation === edu}
-              onPress={() => setSelectedEducation(edu)}
-            />
-          ))}
-        </View>
-      </View>
-
-      <View style={styles.section}>
-        <View style={styles.rowBetween}>
-          <Text style={styles.sectionTitle}>Smoking</Text>
-          <Switch
-            value={smoking}
-            onValueChange={setSmoking}
-            trackColor={{ true: primary }}
-          />
-        </View>
-        <View style={[styles.rowBetween, { marginTop: 16 }]}>
-          <Text style={styles.sectionTitle}>Alcohol</Text>
-          <Switch
-            value={alcohol}
-            onValueChange={setAlcohol}
-            trackColor={{ true: primary }}
-          />
-        </View>
-      </View>
-
-      <View style={styles.section}>
-        {renderSectionHeader("Sport")}
-        <View style={styles.wrapContainer}>
-          {["Intense", "Moderate", "Sedentary"].map((sport) => (
-            <FilterPill
-              key={sport}
-              label={sport}
-              selected={selectedSport === sport}
-              onPress={() => setSelectedSport(sport)}
-            />
-          ))}
-        </View>
-      </View>
-
-      <View style={styles.section}>
-        {renderSectionHeader("Interests")}
-        <View style={styles.wrapContainer}>
-          {["Gaming", "Art", "Coding", "Reading"].map((interest) => {
-            const isSelected = selectedInterests.includes(interest);
-            return (
+        <View style={styles.section}>
+          {renderSectionHeader("Education")}
+          <View style={styles.wrapContainer}>
+            {["Bachelors", "Masters", "PhD", "Before Bachelor"].map((edu) => (
               <FilterPill
-                key={interest}
-                label={interest}
-                selected={isSelected}
-                icon={isSelected ? <Check size={14} color="#FFF" /> : undefined}
-                onPress={() =>
-                  toggleArrayItem(
-                    selectedInterests,
-                    setSelectedInterests,
-                    interest,
-                  )
-                }
+                key={edu}
+                label={edu}
+                selected={selectedEducation === edu}
+                onPress={() => setSelectedEducation(edu)}
               />
-            );
-          })}
+            ))}
+          </View>
         </View>
-      </View>
 
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { marginBottom: 16 }]}>
-          Emotional Profile
-        </Text>
+        <View style={styles.section}>
+          <View style={styles.rowBetween}>
+            <Text style={styles.sectionTitle}>Smoking</Text>
+            <Switch
+              value={smoking}
+              onValueChange={setSmoking}
+              trackColor={{ false: muted + '40', true: primary }}
+              thumbColor={'#ffffff'}
+            />
+          </View>
+          <View style={[styles.rowBetween, { marginTop: 16 }]}>
+            <Text style={styles.sectionTitle}>Alcohol</Text>
+            <Switch
+              value={alcohol}
+              onValueChange={setAlcohol}
+              trackColor={{ false: muted + '40', true: primary }}
+              thumbColor={'#ffffff'}
+            />
+          </View>
+        </View>
 
-        <Text style={styles.subsectionTitle}>🔋 HOW I RECHARGE</Text>
-        <FilterListItem
-          title="Silence"
-          subtitle="Reducing noise, lights, movement"
-          selected={recharge === "Silence"}
-          onPress={() => setRecharge("Silence")}
-        />
-        <FilterListItem
-          title="Cocoon Spaces"
-          subtitle="Quiet room, blanket cocoon, soft light"
-          selected={recharge === "Cocoon Spaces"}
-          onPress={() => setRecharge("Cocoon Spaces")}
-        />
-        <FilterListItem
-          title="Reduced Stimulation"
-          subtitle="Noise-cancelling headphones, blindglasses, dim light"
-          selected={recharge === "Reduced Stimulation"}
-          onPress={() => setRecharge("Reduced Stimulation")}
-        />
+        <View style={styles.section}>
+          {renderSectionHeader("Sport")}
+          <View style={styles.wrapContainer}>
+            {["Intense", "Moderate", "Sedentary"].map((sport) => (
+              <FilterPill
+                key={sport}
+                label={sport}
+                selected={selectedSport === sport}
+                onPress={() => setSelectedSport(sport)}
+              />
+            ))}
+          </View>
+        </View>
 
-        <Text style={[styles.subsectionTitle, { marginTop: 24 }]}>
-          🪫 WHAT EXHAUSTS ME
-        </Text>
-        {[
-          "Absorbs other people's moods",
-          "Feels everything deeply",
-          "Loud or unpredictable noises",
-          "Bright lights",
-          "Fast movements around me",
-          "Strong smells",
-          "Unpleasant textures",
-        ].map((item) => (
+        <View style={styles.section}>
+          {renderSectionHeader("Interests")}
+          <View style={styles.wrapContainer}>
+            {["Gaming", "Art", "Coding", "Reading"].map((interest) => {
+              const isSelected = selectedInterests.includes(interest);
+              return (
+                <FilterPill
+                  key={interest}
+                  label={interest}
+                  selected={isSelected}
+                  icon={isSelected ? <Check size={14} color="#FFF" /> : undefined}
+                  onPress={() =>
+                    toggleArrayItem(
+                      selectedInterests,
+                      setSelectedInterests,
+                      interest,
+                    )
+                  }
+                />
+              );
+            })}
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { marginBottom: 16 }]}>
+            Emotional Profile
+          </Text>
+
+          <Text style={styles.subsectionTitle}>🔋 HOW I RECHARGE</Text>
           <FilterListItem
-            key={item}
-            title={item}
-            selected={exhausts === item}
-            onPress={() => setExhausts(item)}
+            title="Silence"
+            subtitle="Reducing noise, lights, movement"
+            selected={recharge === "Silence"}
+            onPress={() => setRecharge("Silence")}
           />
-        ))}
-
-        <Text style={[styles.subsectionTitle, { marginTop: 24 }]}>
-          🤎 MY EMOTIONAL NEEDS
-        </Text>
-        {[
-          "Predictability",
-          "Consistency in behavior",
-          "Absence of judgement",
-          "Clear communication",
-          "Deep talk",
-          "Need to be alone sometimes",
-        ].map((item) => (
           <FilterListItem
-            key={item}
-            title={item}
-            selected={needs === item}
-            onPress={() => setNeeds(item)}
+            title="Cocoon Spaces"
+            subtitle="Quiet room, blanket cocoon, soft light"
+            selected={recharge === "Cocoon Spaces"}
+            onPress={() => setRecharge("Cocoon Spaces")}
           />
-        ))}
-
-        <Text style={[styles.subsectionTitle, { marginTop: 24 }]}>
-          🤐 SECOND-DEGREE HUMOR
-        </Text>
-        {["Yes", "No"].map((item) => (
           <FilterListItem
-            key={item}
-            title={item}
-            selected={humor === item}
-            onPress={() => setHumor(item)}
+            title="Reduced Stimulation"
+            subtitle="Noise-cancelling headphones, blindglasses, dim light"
+            selected={recharge === "Reduced Stimulation"}
+            onPress={() => setRecharge("Reduced Stimulation")}
           />
-        ))}
 
-        <Text style={[styles.subsectionTitle, { marginTop: 24 }]}>
-          🪴 WHAT SOOTHES ME
-        </Text>
-        <View style={styles.wrapContainer}>
+          <Text style={[styles.subsectionTitle, { marginTop: 24 }]}>
+            🪫 WHAT EXHAUSTS ME
+          </Text>
           {[
-            "Silence or soft sounds",
-            "Dim light",
-            "Massage",
-            "Sensory objects",
-            "Chosen solitude",
-            "Comforting routines",
-            "Predictability",
-            "Clear Communication",
-            "Hyperfocus on an interest",
+            "Absorbs other people's moods",
+            "Feels everything deeply",
+            "Loud or unpredictable noises",
+            "Bright lights",
+            "Fast movements around me",
+            "Strong smells",
+            "Unpleasant textures",
           ].map((item) => (
-            <FilterPill
+            <FilterListItem
               key={item}
-              label={item}
-              selected={soothes.includes(item)}
-              onPress={() => toggleArrayItem(soothes, setSoothes, item)}
+              title={item}
+              selected={exhausts === item}
+              onPress={() => setExhausts(item)}
             />
           ))}
+
+          <Text style={[styles.subsectionTitle, { marginTop: 24 }]}>
+            🤎 MY EMOTIONAL NEEDS
+          </Text>
+          {[
+            "Predictability",
+            "Consistency in behavior",
+            "Absence of judgement",
+            "Clear communication",
+            "Deep talk",
+            "Need to be alone sometimes",
+          ].map((item) => (
+            <FilterListItem
+              key={item}
+              title={item}
+              selected={needs === item}
+              onPress={() => setNeeds(item)}
+            />
+          ))}
+
+          <Text style={[styles.subsectionTitle, { marginTop: 24 }]}>
+            🤐 SECOND-DEGREE HUMOR
+          </Text>
+          {["Yes", "No"].map((item) => (
+            <FilterListItem
+              key={item}
+              title={item}
+              selected={humor === item}
+              onPress={() => setHumor(item)}
+            />
+          ))}
+
+          <Text style={[styles.subsectionTitle, { marginTop: 24 }]}>
+            🪴 WHAT SOOTHES ME
+          </Text>
+          <View style={styles.wrapContainer}>
+            {[
+              "Silence or soft sounds",
+              "Dim light",
+              "Massage",
+              "Sensory objects",
+              "Chosen solitude",
+              "Comforting routines",
+              "Predictability",
+              "Clear Communication",
+              "Hyperfocus on an interest",
+            ].map((item) => (
+              <FilterPill
+                key={item}
+                label={item}
+                selected={soothes.includes(item)}
+                onPress={() => toggleArrayItem(soothes, setSoothes, item)}
+              />
+            ))}
+          </View>
         </View>
       </View>
-    </>
+      
+    </View>
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: background }]}>
-      <View style={[styles.header, { paddingTop: insets.top + 0 }]}>
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={10}
-          style={styles.closeBtn}
-        >
-          <Icon name={X} size={24} color={text} />
-        </Pressable>
-        <Text style={styles.title}>Filters</Text>
-        <Pressable onPress={() => {}} hitSlop={10} style={styles.resetBtn}>
-          <Text style={[styles.resetText, { color: primary }]}>Reset</Text>
-        </Pressable>
-      </View>
+    <BlurView intensity={40} tint="dark" style={styles.backdrop}>
+      <Pressable style={styles.backdropTouchable} onPress={handleClose} />
 
-      <SegmentedTabs
-        tabs={["Basic", "Advanced"]}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-      />
+      <Animated.View style={[styles.container, { backgroundColor: background, transform: [{ translateY: slideAnim }] }]}>
+        <View style={styles.headerBlock}>
+          <View style={styles.pillContainer}>
+            <View style={[styles.pill, { backgroundColor: muted + '50' }]} />
+          </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {activeTab === "Basic" ? renderBasicTab() : renderAdvancedTab()}
-      </ScrollView>
+          <View style={styles.header}>
+            <Text style={styles.title}>Filters</Text>
+            <View style={styles.headerRight}>
+              <Pressable 
+                onPress={() => {
+                  useFilterStore.getState().clearFilters();
+                  setAgeRange({ low: 18, high: 65 });
+                  setHeight(140);
+                  setSelectedGender("");
+                  setSelectedMaritalStatus("");
+                  setSelectedLanguages([]);
+                  setSelectedLookingFor("");
+                  setSelectedEducation("");
+                  setSmoking(false);
+                  setAlcohol(false);
+                  setSelectedSport("");
+                  setSelectedInterests([]);
+                  setRecharge("");
+                  setExhausts("");
+                  setNeeds("");
+                  setHumor("");
+                  setSoothes([]);
+                }} 
+                hitSlop={10} 
+                style={styles.resetBtn}
+              >
+                <Text style={[styles.resetText, { color: primary }]}>Reset</Text>
+              </Pressable>
+              <Pressable
+                onPress={handleClose}
+                hitSlop={10}
+                style={styles.closeBtn}
+              >
+                <Icon name={X} size={26} color={text} />
+              </Pressable>
+            </View>
+          </View>
 
-      <View
-        style={[
-          styles.footer,
-          { paddingBottom: insets.bottom || 24, backgroundColor: background },
-        ]}
-      >
-        <Button onPress={() => router.back()} style={styles.applyBtn}>
-          Apply Filters
-        </Button>
-      </View>
-    </View>
+          <SegmentedTabs
+            tabs={["Basic", "Advanced"]}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+          />
+        </View>
+
+        <View style={{ flex: 1 }}>
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={styles.scrollContent}
+            scrollEnabled={!(activeTab === "Advanced" && !hasAdvancedAccess)}
+          >
+            <View style={styles.filterContent}>
+              {activeTab === "Basic" ? renderBasicTab() : renderAdvancedTab()}
+            </View>
+          </ScrollView>
+
+          {activeTab === "Advanced" && !hasAdvancedAccess && (
+            <View style={styles.lockedOverlay}>
+              <Lock size={48} color={primary} />
+              <Text style={styles.lockedTitle}>Advanced Filters Locked</Text>
+              <Text style={styles.lockedText}>
+                Upgrade to Premium or get the Advanced Filters add-on to access these filters.
+              </Text>
+              <Pressable
+                style={[styles.applyButton, { width: '80%', marginTop: 24, backgroundColor: primary, padding: 16, borderRadius: 24, alignItems: 'center' }]}
+                onPress={() => {
+                  handleClose();
+                  setTimeout(() => {
+                    router.push('/settings/subscription');
+                  }, 300);
+                }}
+              >
+                <Text style={styles.applyButtonText}>Unlock Now</Text>
+              </Pressable>
+            </View>
+          )}
+        </View>
+
+        {!(activeTab === "Advanced" && !hasAdvancedAccess) && (
+          <View style={[styles.footer, { paddingBottom: insets.bottom || 24, backgroundColor: background }]}>
+            <Button onPress={handleApply} style={styles.applyBtn} disabled={isApplying}>
+              {isApplying ? <ActivityIndicator color="#FFF" /> : "Apply Filters"}
+            </Button>
+          </View>
+        )}
+      </Animated.View>
+    </BlurView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  backdrop: {
     flex: 1,
+    justifyContent: 'flex-end',
+  },
+  backdropTouchable: {
+    height: '25%',
+  },
+  container: {
+    width: '100%',
+    height: '75%',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    overflow: 'hidden',
+  },
+  headerBlock: {
+  },
+  pillContainer: {
+    alignItems: "center",
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  pill: {
+    width: 50,
+    height: 5,
+    borderRadius: 3,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
-    paddingBottom: 24,
+    paddingVertical: 12,
+  },
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
   },
   closeBtn: {
-    width: 40,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
   },
   resetBtn: {
     width: 40,
@@ -448,13 +607,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
   },
-  scrollView: {
-    flex: 1,
-    marginTop: 16,
-  },
   scrollContent: {
-    paddingHorizontal: 20,
     paddingBottom: 40,
+  },
+  filterContent: {
+    width: Dimensions.get('window').width,
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    overflow: 'hidden',
   },
   section: {
     marginBottom: 32,
@@ -502,5 +662,32 @@ const styles = StyleSheet.create({
   },
   applyBtn: {
     borderRadius: 24,
+  },
+  applyButtonText: {
+    color: "#FFF",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  lockedOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    padding: 32,
+  },
+  lockedTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  lockedText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });

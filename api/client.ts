@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { Platform } from 'react-native';
 import { useAuthStore } from '../store/authStore';
-
+import { useProfileStore } from '../store/profileStore';
 // Assuming API URL from env or constants. Adjust as needed.
 let API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000'; // Default fallback
 
@@ -13,6 +13,7 @@ if (Platform.OS === 'android' && API_URL.includes('localhost')) {
 console.log("INITIALIZED API_URL:", API_URL);
 export const apiClient = axios.create({
   baseURL: API_URL,
+  timeout: 30000, // 30 seconds timeout to allow slow endpoints like OTP verify
   headers: {
     'Content-Type': 'application/json',
   },
@@ -47,6 +48,7 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       const { refreshToken, updateAccessToken, clearAuth } = useAuthStore.getState();
+      const { clearProfile } = useProfileStore.getState();
 
       if (refreshToken) {
         try {
@@ -66,11 +68,13 @@ apiClient.interceptors.response.use(
         } catch (refreshError) {
           // If refresh token fails (e.g. expired), log the user out
           await clearAuth();
+          clearProfile();
           return Promise.reject(refreshError);
         }
       } else {
         // No refresh token available, clear auth
         await clearAuth();
+        clearProfile();
       }
     }
 

@@ -1,11 +1,11 @@
 import { MatchProfile } from "@/api/matching";
 import Swipe, { SwipeDirection, SwipeHandle } from "@/components/swipe";
-import { Ref } from "react";
+import React, { forwardRef, Ref } from "react";
 import { DeckStatus } from "./deck-status";
 
 interface SwipeDeckProps {
-  ref: Ref<SwipeHandle>;
   matches: MatchProfile[];
+  feedKey?: number;
   /**
    * True when we should show the centered spinner instead of the deck.
    * Covers the initial load AND any subsequent refetch while we don't yet
@@ -14,6 +14,7 @@ interface SwipeDeckProps {
   isLoading: boolean;
   /** True when the most recent fetch returned an error. */
   isError: boolean;
+  locked?: boolean;
   onSwipe: (profile: MatchProfile, direction: SwipeDirection) => void;
   onActiveIndexChange: () => void;
   onRetry: () => void;
@@ -32,15 +33,19 @@ interface SwipeDeckProps {
  * This ordering is important: on a failed refetch the deck may be empty,
  * but we want the user to see the *error* — not "No matches found".
  */
-export function SwipeDeck({
-  matches,
-  isLoading,
-  isError,
-  onSwipe,
-  onActiveIndexChange,
-  onRetry,
-  ref,
-}: SwipeDeckProps) {
+export const SwipeDeck = forwardRef(function SwipeDeck(
+  {
+    matches,
+    feedKey,
+    isLoading,
+    isError,
+    locked,
+    onSwipe,
+    onActiveIndexChange,
+    onRetry,
+  }: SwipeDeckProps,
+  ref: React.ForwardedRef<SwipeHandle>
+) {
   if (isLoading) {
     return <DeckStatus kind="loading" />;
   }
@@ -55,10 +60,12 @@ export function SwipeDeck({
 
   return (
     <Swipe
+      key={feedKey}
       ref={ref}
       profiles={matches}
+      locked={locked}
       onSwipe={onSwipe}
       onActiveIndexChange={onActiveIndexChange}
     />
   );
-}
+});

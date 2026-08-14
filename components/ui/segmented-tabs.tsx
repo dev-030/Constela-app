@@ -14,18 +14,34 @@ type SegmentedTabsProps = {
   onTabChange: (tab: string) => void;
 };
 
+function TabItem({ tab, isActive, onPress, muted }: { tab: string; isActive: boolean; onPress: () => void; muted: string }) {
+  const animatedTextStyle = useAnimatedStyle(() => {
+    return {
+      color: withTiming(isActive ? '#FFF' : muted, {
+        duration: 250,
+        easing: Easing.out(Easing.ease),
+      }),
+    };
+  }, [isActive, muted]);
+
+  return (
+    <Pressable style={styles.tabButton} onPress={onPress}>
+      <Animated.Text style={[styles.tabText, animatedTextStyle]}>
+        {tab}
+      </Animated.Text>
+    </Pressable>
+  );
+}
+
 export function SegmentedTabs({ tabs, activeTab, onTabChange }: SegmentedTabsProps) {
   const primary = useColor('primary');
-  const text = useColor('text');
   const muted = useColor('textMuted');
   const background = useColor('card');
 
   const activeIndex = tabs.indexOf(activeTab);
-  const translateX = useSharedValue(0);
+  const translateX = useSharedValue(activeIndex * 100);
 
   useEffect(() => {
-    // Assuming equal widths for all tabs
-    // In a real app, we might measure the layout
     translateX.value = withTiming(activeIndex * 100, {
       duration: 250,
       easing: Easing.out(Easing.ease),
@@ -34,7 +50,7 @@ export function SegmentedTabs({ tabs, activeTab, onTabChange }: SegmentedTabsPro
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
-      transform: [{ translateX: translateX.value + '%' }],
+      transform: [{ translateX: `${translateX.value}%` }],
       width: `${100 / tabs.length}%`,
     };
   });
@@ -48,25 +64,15 @@ export function SegmentedTabs({ tabs, activeTab, onTabChange }: SegmentedTabsPro
           animatedStyle,
         ]}
       />
-      {tabs.map((tab) => {
-        const isActive = activeTab === tab;
-        return (
-          <Pressable
-            key={tab}
-            style={styles.tabButton}
-            onPress={() => onTabChange(tab)}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                { color: isActive ? '#FFF' : muted },
-              ]}
-            >
-              {tab}
-            </Text>
-          </Pressable>
-        );
-      })}
+      {tabs.map((tab) => (
+        <TabItem
+          key={tab}
+          tab={tab}
+          isActive={activeTab === tab}
+          onPress={() => onTabChange(tab)}
+          muted={muted}
+        />
+      ))}
     </View>
   );
 }

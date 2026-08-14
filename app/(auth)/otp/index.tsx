@@ -7,7 +7,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { ArrowLeft, Mail } from "lucide-react-native";
 import { Pressable, ScrollView, View } from "react-native";
 import { useState } from "react";
-import { useVerifyOtpMutation } from "@/api/auth";
+import { useVerifyOtpMutation, useResendOtpMutation } from "@/api/auth";
 import { toast } from "sonner-native";
 
 export default function OtpScreen() {
@@ -20,6 +20,7 @@ export default function OtpScreen() {
   const [otp, setOtp] = useState("");
 
   const verifyOtp = useVerifyOtpMutation();
+  const resendOtp = useResendOtpMutation();
 
   const handleVerify = () => {
     if (!otp || otp.length < 4) {
@@ -42,6 +43,27 @@ export default function OtpScreen() {
         onError: (err: any) => {
           const errMsg =
             err?.response?.data?.error || err?.message || "Invalid OTP";
+          toast.error(errMsg);
+        },
+      }
+    );
+  };
+
+  const handleResend = () => {
+    if (!email) {
+      toast.error("Email not found. Please sign up again.");
+      return;
+    }
+
+    resendOtp.mutate(
+      { email },
+      {
+        onSuccess: (data) => {
+          toast.success(data.message || "A new code has been sent");
+        },
+        onError: (err: any) => {
+          const errMsg =
+            err?.response?.data?.error || err?.message || "Failed to resend code";
           toast.error(errMsg);
         },
       }
@@ -132,7 +154,15 @@ export default function OtpScreen() {
           </Button>
 
           <View style={{ alignItems: "center" }}>
-            <Text style={{ color: muted }}>Resend new code</Text>
+            <Pressable 
+              onPress={handleResend} 
+              disabled={resendOtp.isPending}
+              style={{ padding: 8 }}
+            >
+              <Text style={{ color: muted }}>
+                {resendOtp.isPending ? "Sending..." : "Resend new code"}
+              </Text>
+            </Pressable>
           </View>
         </View>
       </View>

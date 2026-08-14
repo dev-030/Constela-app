@@ -1,37 +1,103 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Image, Pressable, ActivityIndicator, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Alert, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
-import { ChevronLeft, User, MapPin, Heart, Activity, CheckCircle, Lightbulb, Edit2, CigaretteOff, WineOff, Dog, Dumbbell, Utensils } from 'lucide-react-native';
+import { ChevronLeft, Edit2, MapPin, User, Smile, Heart, Globe, BookOpen, Activity, Coffee, Users, Star, Compass, Brain, Battery, Zap, Search, Utensils, Wine } from 'lucide-react-native';
 
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
-import { FilterPill } from '@/components/ui/filter-pill';
 import { useColor } from '@/hooks/useColor';
 import { useProfileStore } from '@/store/profileStore';
-import { updateMyProfile } from '@/api/profile';
+import { useAndroidBack } from '@/hooks/useAndroidBack';
+import { useAuthStore } from '@/store/authStore';
 import * as ImagePicker from 'expo-image-picker';
-import * as Device from 'expo-device';
 import { Avatar } from '@/components/ui/avatar';
 
-const SectionHeader = ({ title, icon, onEdit }: { title: string; icon: any; onEdit?: () => void }) => {
-  const primary = useColor('primary');
+const InfoRow = ({ icon: IconComp, label, value, isLast = false }: any) => {
   const text = useColor('text');
+  const muted = useColor('textMuted');
+  const border = useColor('border');
+  const primary = useColor('primary');
+
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', paddingLeft: 16 }}>
+      <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: primary + '15', justifyContent: 'center', alignItems: 'center', marginRight: 16 }}>
+        <IconComp size={16} color={primary} />
+      </View>
+      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 16, paddingRight: 16, borderBottomWidth: isLast ? 0 : StyleSheet.hairlineWidth, borderBottomColor: border }}>
+        <Text style={{ fontSize: 16, color: text }}>{label}</Text>
+        <Text style={{ fontSize: 16, color: muted, flex: 1, textAlign: 'right', marginLeft: 16 }}>{value}</Text>
+      </View>
+    </View>
+  );
+};
+
+const InfoTagsRow = ({ icon: IconComp, label, tags, layout = 'column', isLast = false }: any) => {
+  const text = useColor('text');
+  const muted = useColor('textMuted');
+  const border = useColor('border');
+  const primary = useColor('primary');
+
+  if (layout === 'row') {
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingLeft: 16 }}>
+        <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: primary + '15', justifyContent: 'center', alignItems: 'center', marginRight: 16 }}>
+          <IconComp size={16} color={primary} />
+        </View>
+        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, paddingRight: 16, borderBottomWidth: isLast ? 0 : StyleSheet.hairlineWidth, borderBottomColor: border }}>
+          <Text style={{ fontSize: 16, color: text, marginRight: 16 }}>{label}</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, flex: 1, justifyContent: 'flex-end' }}>
+            {tags?.length ? tags.map((item: string, index: number) => (
+              <View key={index} style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, backgroundColor: primary + '15' }}>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: primary }}>{item}</Text>
+              </View>
+            )) : <Text style={{ fontSize: 16, color: muted }}>—</Text>}
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ flexDirection: 'row', paddingLeft: 16 }}>
+      <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: primary + '15', justifyContent: 'center', alignItems: 'center', marginRight: 16, marginTop: 16 }}>
+        <IconComp size={16} color={primary} />
+      </View>
+      <View style={{ flex: 1, paddingVertical: 16, paddingRight: 16, borderBottomWidth: isLast ? 0 : StyleSheet.hairlineWidth, borderBottomColor: border }}>
+        <Text style={{ fontSize: 16, color: text, marginBottom: 8 }}>{label}</Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          {tags?.length ? tags.map((item: string, index: number) => (
+            <View key={index} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: primary + '15' }}>
+              <Text style={{ fontSize: 12, fontWeight: '600', color: primary }}>{item}</Text>
+            </View>
+          )) : <Text style={{ fontSize: 16, color: muted }}>—</Text>}
+        </View>
+      </View>
+    </View>
+  );
+};
+
+const SectionHeader = ({ title, onEdit }: { title: string; onEdit?: () => void }) => {
+  const text = useColor('text');
+  const primary = useColor('primary');
 
   return (
     <View style={styles.sectionHeader}>
-      <View style={styles.sectionHeaderLeft}>
-        <Icon name={icon} size={20} color={primary} />
-        <Text style={[styles.sectionTitle, { color: primary }]}>{title}</Text>
-      </View>
+      <Text style={[styles.sectionTitle, { color: text }]}>{title}</Text>
       {onEdit && (
-        <Pressable onPress={onEdit} style={styles.editBtn} hitSlop={10}>
-          <Icon name={Edit2} size={14} color={primary} />
+        <Pressable onPress={onEdit} hitSlop={10}>
           <Text style={[styles.editText, { color: primary }]}>Edit</Text>
         </Pressable>
       )}
     </View>
   );
+};
+
+const LOOKING_FOR_MAP: Record<string, string> = {
+  'serious': 'Serious Relationship',
+  'friendship': 'Friendship',
+  'undecided': "We'll See",
+  'casual': 'Going Out',
 };
 
 export default function ProfileScreen() {
@@ -45,12 +111,14 @@ export default function ProfileScreen() {
 
   const { profile, fetchProfile, isLoading } = useProfileStore();
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  useAndroidBack();
 
   useFocusEffect(
     useCallback(() => {
       fetchProfile();
     }, [fetchProfile])
   );
+
 
   const pickImage = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -63,7 +131,9 @@ export default function ProfileScreen() {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.8,
+      quality: 0.7,
+      maxWidth: 1080,
+      maxHeight: 1080,
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
@@ -71,10 +141,10 @@ export default function ProfileScreen() {
       const formData = new FormData();
       
       const filename = asset.fileName || asset.uri.split('/').pop() || 'photo.jpg';
-      const match = /\\.([a-zA-Z]+)$/.exec(filename);
+      const match = /\.([a-zA-Z]+)$/.exec(filename);
       const type = match ? `image/${match[1]}` : 'image/jpeg';
 
-      formData.append('photos', {
+      formData.append('photo1', {
         uri: asset.uri,
         name: filename,
         type,
@@ -82,7 +152,41 @@ export default function ProfileScreen() {
 
       setIsUploadingPhoto(true);
       try {
-        await updateMyProfile(formData);
+        const { accessToken } = useAuthStore.getState();
+        const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
+        const baseUrl = API_URL.includes('localhost') && Platform.OS === 'android' 
+          ? API_URL.replace('localhost', '10.0.2.2')
+          : API_URL;
+
+        const currentPhotos = useProfileStore.getState().profile?.photos || [];
+        const mainPhoto = currentPhotos.find(p => p.is_main) || currentPhotos[0];
+        
+        if (mainPhoto?.id) {
+          try {
+            await fetch(`${baseUrl}/api/photos/${mainPhoto.id}/`, {
+              method: 'DELETE',
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+              },
+            });
+          } catch (e) {
+            console.warn("Failed to delete previous main photo", e);
+          }
+        }
+
+        const uploadUrl = `${baseUrl}/api/profile/me/`;
+          
+        const response = await fetch(uploadUrl, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+          },
+          body: formData,
+        });
+
+        if (!response.ok) {
+           throw new Error('Upload failed');
+        }
         await fetchProfile();
       } catch (error) {
         console.error('Failed to upload photo:', error);
@@ -96,7 +200,7 @@ export default function ProfileScreen() {
   if (isLoading || !profile) {
     return (
       <View style={[styles.container, { backgroundColor: background, justifyContent: 'center', alignItems: 'center' }]}>
-        <Text style={{ color: text }}>Loading profile...</Text>
+        <ActivityIndicator color={primary} />
       </View>
     );
   }
@@ -104,177 +208,158 @@ export default function ProfileScreen() {
   return (
     <View style={[styles.container, { backgroundColor: background }]}>
       <View style={[styles.header, { paddingTop: insets.top + 16, paddingBottom: 16 }]}>
-        <Pressable onPress={() => router.back()} hitSlop={10} style={styles.backBtn}>
+        <Pressable onPress={() => router.canGoBack() ? router.back() : router.push('/(tabs)/home')} hitSlop={10} style={styles.backBtn}>
           <Icon name={ChevronLeft} size={24} color={text} />
         </Pressable>
-        <Text style={styles.headerTitle}>Profile</Text>
+        <Text style={[styles.headerTitle, { color: text }]}>Profile</Text>
         <View style={styles.backBtn} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom + 24, 40) }]} showsVerticalScrollIndicator={false}>
+        {/* Profile Header */}
         <View style={styles.overview}>
           <Pressable onPress={pickImage} style={styles.avatarContainer}>
-            <Avatar uri={profile.photos?.[0]?.image} size={100} style={styles.avatar} />
+            <Avatar uri={profile.photos?.[0]?.image} size={110} style={styles.avatar} />
             {isUploadingPhoto ? (
               <View style={[styles.avatarOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
                 <ActivityIndicator color="#FFF" />
               </View>
             ) : (
-              <View style={[styles.avatarEditBtn, { backgroundColor: primary }]}>
+              <View style={[styles.avatarEditBtn, { backgroundColor: primary, borderColor: background }]}>
                 <Icon name={Edit2} size={14} color="#FFF" />
               </View>
             )}
           </Pressable>
-          <Text style={styles.name}>{profile.username}, {profile.age}</Text>
-          <View style={[styles.pill, { backgroundColor: primary + '20' }]}>
-            <Text style={[styles.pillText, { color: primary }]}>{profile.looking_for || 'Friendship'}</Text>
-          </View>
-          <Text style={[styles.location, { color: muted }]}>{profile.city}, {profile.country}</Text>
-
-          {/* Compute dynamic bio */}
-          {(() => {
-            const hasQualities = profile.qualities && profile.qualities.length > 0;
-            const hasInterests = profile.interests && profile.interests.length > 0;
-            const dynamicBio = hasQualities && hasInterests 
-              ? `${profile.qualities[0]} • ${profile.interests.slice(0, 3).join(', ')}`
-              : (hasInterests ? profile.interests.slice(0, 3).join(', ') : "Complete your qualities and interests to generate a bio.");
-            
-            return null; // Just want to compute it here or we can compute it inline below
-          })()}
-
-          <View style={styles.statsRow}>
-            <View style={[styles.statBox, { backgroundColor: cardColor, borderColor: border }]}>
-              <Text style={[styles.statValue, { color: primary }]}>0</Text>
-              <Text style={[styles.statLabel, { color: muted }]}>Friends</Text>
-            </View>
-            <View style={[styles.statBox, { backgroundColor: cardColor, borderColor: border }]}>
-              <Text style={[styles.statValue, { color: primary }]}>0</Text>
-              <Text style={[styles.statLabel, { color: muted }]}>Dating</Text>
-            </View>
+          <Text style={[styles.name, { color: text }]}>{profile.user?.first_name || profile.username}, {profile.age}</Text>
+          <View style={[styles.inlineStats, { marginTop: 16 }]}>
+            <Text style={[styles.inlineStatText, { color: text }]}><Text style={{fontWeight: 'bold'}}>0</Text> Friends</Text>
+            <Text style={[styles.inlineStatDot, { color: muted }]}>•</Text>
+            <Text style={[styles.inlineStatText, { color: text }]}><Text style={{fontWeight: 'bold'}}>0</Text> Dating</Text>
           </View>
         </View>
 
-        {/* Profile Completion */}
-        <View style={[styles.completionCard, { backgroundColor: cardColor, borderColor: border }]}>
-          <View style={styles.completionHeader}>
-            <Text style={styles.completionTitle}>Profile Completion</Text>
-            <Text style={[styles.completionPercent, { color: primary }]}>{profile.profile_completion_pct}%</Text>
+        {/* Profile Completion (Slim) */}
+        {profile.profile_completion_pct < 100 && (
+          <View style={styles.completionSection}>
+            <View style={styles.completionHeader}>
+              <Text style={[styles.completionTitle, { color: muted }]}>Profile Completion</Text>
+              <Text style={[styles.completionPercent, { color: primary }]}>{profile.profile_completion_pct}%</Text>
+            </View>
+            <View style={[styles.progressBarBg, { backgroundColor: border }]}>
+              <View style={[styles.progressBarFill, { backgroundColor: primary, width: `${profile.profile_completion_pct}%` }]} />
+            </View>
           </View>
-          <View style={[styles.progressBarBg, { backgroundColor: border }]}>
-            <View style={[styles.progressBarFill, { backgroundColor: primary, width: `${profile.profile_completion_pct}%` }]} />
+        )}
+
+        {/* Face Verification Section */}
+        <View style={styles.section}>
+          <SectionHeader title="Verification" />
+          <View style={[styles.card, { backgroundColor: cardColor }]}>
+            {profile.face_verification_status === "approved" ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', padding: 16 }}>
+                <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: '#22C55E15', justifyContent: 'center', alignItems: 'center', marginRight: 16 }}>
+                  <Icon name={Smile} size={16} color="#22C55E" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 16, color: text }}>Verified Account</Text>
+                  <Text style={{ fontSize: 13, color: muted, marginTop: 2 }}>Your identity is verified.</Text>
+                </View>
+              </View>
+            ) : profile.face_verification_status === "pending" ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', padding: 16 }}>
+                <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: '#EAB30815', justifyContent: 'center', alignItems: 'center', marginRight: 16 }}>
+                  <Icon name={Smile} size={16} color="#EAB308" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 16, color: text }}>Verification Pending</Text>
+                  <Text style={{ fontSize: 13, color: muted, marginTop: 2 }}>Admin review in progress.</Text>
+                </View>
+              </View>
+            ) : (
+              <Pressable 
+                onPress={() => router.push('/onboarding/face-verification')}
+                style={{ flexDirection: 'row', alignItems: 'center', padding: 16 }}
+              >
+                <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: primary + '15', justifyContent: 'center', alignItems: 'center', marginRight: 16 }}>
+                  <Icon name={Smile} size={16} color={primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 16, color: primary, fontWeight: '600' }}>Get Face Verified</Text>
+                  <Text style={{ fontSize: 13, color: muted, marginTop: 2 }}>Earn the blue tick & boost matches!</Text>
+                </View>
+              </Pressable>
+            )}
           </View>
-          <Text style={[styles.completionDesc, { color: primary }]}>Complete your profile to get more relevant matches.</Text>
         </View>
 
         {/* Basic Info */}
-        <View style={[styles.card, { backgroundColor: background, borderColor: border }]}>
-          <SectionHeader title="Basic Info" icon={User} onEdit={() => router.push('/profile/edit-basic')} />
-          <Text style={[styles.bio, { color: muted }]}>
-            {(profile.qualities && profile.qualities.length > 0 && profile.interests && profile.interests.length > 0)
-              ? `${profile.qualities[0]} • ${profile.interests.slice(0, 3).join(', ')}`
-              : (profile.interests && profile.interests.length > 0)
-                ? profile.interests.slice(0, 3).join(', ')
-                : "Complete your qualities and interests to generate a bio."}
-          </Text>
-
-          <View style={styles.infoGrid}>
-            <View style={styles.infoItem}><Text style={[styles.infoLabel, { color: muted }]}>Gender</Text><Text style={styles.infoValue}>{profile.gender}</Text></View>
-            <View style={styles.infoItem}><Text style={[styles.infoLabel, { color: muted }]}>Marital Status</Text><Text style={styles.infoValue}>{profile.marital_status}</Text></View>
-            <View style={styles.infoItem}><Text style={[styles.infoLabel, { color: muted }]}>Languages</Text><Text style={styles.infoValue}>{profile.spoken_languages?.join(', ')}</Text></View>
-            <View style={styles.infoItem}><Text style={[styles.infoLabel, { color: muted }]}>City</Text><Text style={styles.infoValue}>{profile.city}</Text></View>
-            <View style={styles.infoItem}><Text style={[styles.infoLabel, { color: muted }]}>Height/Weight</Text><Text style={styles.infoValue}>{profile.height_cm}cm, {profile.weight_kg}kg</Text></View>
-            <View style={styles.infoItem}><Text style={[styles.infoLabel, { color: muted }]}>Looking for</Text><Text style={styles.infoValue}>{profile.looking_for}</Text></View>
-            <View style={styles.infoItem}><Text style={[styles.infoLabel, { color: muted }]}>Neurodivergence</Text><Text style={styles.infoValue}>{profile.neurotype_labels?.join(', ')}</Text></View>
-            <View style={styles.infoItem}><Text style={[styles.infoLabel, { color: muted }]}>Education</Text><Text style={styles.infoValue}>{profile.education_level}</Text></View>
-            <View style={styles.infoItem}><Text style={[styles.infoLabel, { color: muted }]}>Has Children</Text><Text style={styles.infoValue}>{profile.has_children ? 'Yes' : 'No'}</Text></View>
-          </View>
-        </View>
-
-        {/* Emotional Landscape */}
-        <View style={[styles.card, { backgroundColor: background, borderColor: border }]}>
-          <SectionHeader title="Emotional Landscape" icon={MapPin} onEdit={() => router.push('/profile/edit-emotional')} />
-
-          <Text style={styles.subHeading}>RECHARGE</Text>
-          <View style={styles.tagsRow}>
-            {profile.recharge_methods?.map((item, index) => (
-              <View key={index} style={[styles.tag, { backgroundColor: primary + '33' }]}><Text style={[styles.tagText, { color: primary }]}>{item}</Text></View>
-            ))}
-          </View>
-
-          <Text style={styles.subHeading}>EXHAUSTS</Text>
-          <View style={styles.tagsRow}>
-            {profile.exhaust_triggers?.map((item, index) => (
-              <View key={index} style={[styles.tag, { backgroundColor: '#FFCDD2' }]}><Text style={[styles.tagText, { color: '#C62828' }]}>{item}</Text></View>
-            ))}
-          </View>
-
-          <Text style={styles.subHeading}>NEEDS</Text>
-          <View style={styles.tagsRow}>
-            {profile.emotional_needs?.map((item, index) => (
-              <View key={index} style={[styles.tag, { backgroundColor: primary + '33' }]}><Text style={[styles.tagText, { color: primary }]}>{item}</Text></View>
-            ))}
-          </View>
-
-          <View style={styles.twoColRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.subHeading}>HUMOR</Text>
-              <Text style={styles.infoValue}>{profile.second_degree_humor ? 'Second-Degree' : 'Normal'}</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.subHeading}>SOOTHES</Text>
-              <Text style={styles.infoValue}>{profile.soothe_methods?.join(', ')}</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Relationship & Children */}
-        <View style={[styles.card, { backgroundColor: background, borderColor: border }]}>
-          <SectionHeader title="Relationship & Children" icon={Heart} onEdit={() => router.push('/profile/edit-lifestyle')} />
-          <View style={styles.rowBetween}>
-            <Text style={[styles.infoLabel, { color: muted }]}>Looking for</Text>
-            <Text style={[styles.infoValue, { color: '#D84315' }]}>{profile.looking_for}</Text>
-          </View>
-          <View style={[styles.divider, { backgroundColor: border }]} />
-          <View style={styles.rowBetween}>
-            <Text style={[styles.infoLabel, { color: muted }]}>Wants Children</Text>
-            <Text style={styles.infoValue}>{profile.wants_children ? 'Yes' : 'No'}</Text>
-          </View>
-        </View>
-
-        {/* Lifestyle Habits */}
-        <View style={[styles.card, { backgroundColor: background, borderColor: border }]}>
-          <SectionHeader title="Lifestyle Habits" icon={Activity} onEdit={() => router.push('/profile/edit-lifestyle')} />
-          <View style={styles.habitGrid}>
-            <View style={styles.habitItem}><Icon name={CigaretteOff} size={16} color={muted} /><Text style={styles.habitText}>Smoking: {profile.smoking ? 'Yes' : 'No'}</Text></View>
-            <View style={styles.habitItem}><Icon name={WineOff} size={16} color={muted} /><Text style={styles.habitText}>Alcohol: {profile.alcohol ? 'Yes' : 'No'}</Text></View>
-            <View style={styles.habitItem}><Icon name={Dog} size={16} color={muted} /><Text style={styles.habitText}>Pets: {profile.pets ? 'Yes' : 'No'}</Text></View>
-            <View style={styles.habitItem}><Icon name={Dumbbell} size={16} color={muted} /><Text style={styles.habitText}>Sport: {profile.sport}</Text></View>
-            <View style={[styles.habitItem, { width: '100%' }]}><Icon name={Utensils} size={16} color={muted} /><Text style={styles.habitText}>Eating Habits: {profile.eating_habits}</Text></View>
+        <View style={styles.section}>
+          <SectionHeader title="Basic Info" onEdit={() => router.push('/profile/edit-basic')} />
+          <View style={[styles.card, { backgroundColor: cardColor }]}>
+            <InfoRow icon={User} label="Name" value={profile.user?.first_name || '—'} />
+            <InfoRow icon={User} label="Username" value={profile.username || '—'} />
+            <InfoRow icon={Smile} label="Gender" value={profile.gender ? profile.gender.charAt(0).toUpperCase() + profile.gender.slice(1).replace('_', '-') : '—'} />
+            <InfoRow icon={Heart} label="Marital Status" value={profile.marital_status ? profile.marital_status.charAt(0).toUpperCase() + profile.marital_status.slice(1) : '—'} />
+            <InfoTagsRow icon={Search} label="Looking For" tags={profile.looking_for ? [LOOKING_FOR_MAP[profile.looking_for] || (profile.looking_for.charAt(0).toUpperCase() + profile.looking_for.slice(1))] : []} layout="row" />
+            <InfoTagsRow icon={Globe} label="Languages" tags={profile.spoken_languages} layout="row" />
+            <InfoRow icon={MapPin} label="City" value={profile.city || '—'} />
+            <InfoRow icon={Activity} label="Height/Weight" value={[profile.height_cm ? `${profile.height_cm}cm` : null, profile.weight_kg ? `${profile.weight_kg}kg` : null].filter(Boolean).join(', ') || '—'} />
+            <InfoRow icon={BookOpen} label="Education" value={profile.education_level || '—'} isLast />
           </View>
         </View>
 
         {/* My Qualities */}
-        <View style={[styles.card, { backgroundColor: background, borderColor: border }]}>
-          <SectionHeader title="My Qualities" icon={CheckCircle} onEdit={() => router.push('/profile/edit-qualities')} />
-          <View style={styles.tagsRow}>
-            {profile.qualities?.map((item, index) => (
-              <View key={index} style={[styles.tag, { backgroundColor: '#FFE0B2' }]}><Text style={[styles.tagText, { color: '#E65100' }]}>{item}</Text></View>
-            ))}
+        <View style={styles.section}>
+          <SectionHeader title="My Qualities" onEdit={() => router.push('/profile/edit-qualities')} />
+          <View style={[styles.card, { backgroundColor: cardColor }]}>
+            <InfoTagsRow icon={Star} label="My Qualities" tags={profile.qualities} isLast />
           </View>
         </View>
 
-        {/* Sparks Curiosity */}
-        <View style={[styles.card, { backgroundColor: background, borderColor: border }]}>
-          <SectionHeader title="Sparks Curiosity" icon={Lightbulb} onEdit={() => router.push('/profile/edit-qualities')} />
-
-          <Text style={styles.subHeading}>INTERESTS</Text>
-          <View style={styles.tagsRow}>
-            {profile.interests?.map((item, index) => (
-              <View key={index} style={[styles.tag, { backgroundColor: primary + '33' }]}><Text style={[styles.tagText, { color: primary }]}>{item}</Text></View>
-            ))}
+        {/* My Interests */}
+        <View style={styles.section}>
+          <SectionHeader title="My Interests" onEdit={() => router.push('/profile/edit-interests')} />
+          <View style={[styles.card, { backgroundColor: cardColor }]}>
+            <InfoTagsRow icon={Compass} label="My Interests" tags={profile.interests} isLast />
           </View>
         </View>
 
+        {/* Neurodivergence */}
+        {profile.neurotype_labels && profile.neurotype_labels.length > 0 && (
+          <View style={styles.section}>
+            <SectionHeader title="Neurodivergence" onEdit={() => router.push('/profile/edit-neuro')} />
+            <View style={[styles.card, { backgroundColor: cardColor }]}>
+              <InfoTagsRow icon={Brain} label="Neurodivergence" tags={profile.neurotype_labels} isLast />
+            </View>
+          </View>
+        )}
+
+        {/* Emotional Landscape */}
+        <View style={styles.section}>
+          <SectionHeader title="Emotional Landscape" onEdit={() => router.push('/profile/edit-emotional')} />
+          <View style={[styles.card, { backgroundColor: cardColor }]}>
+            <InfoTagsRow icon={Battery} label="Recharge Methods" tags={profile.recharge_methods} />
+            <InfoTagsRow icon={Zap} label="Exhaust Triggers" tags={profile.exhaust_triggers} />
+            <InfoRow icon={Smile} label="Humor" value={profile.second_degree_humor ? 'Second-Degree' : 'Normal'} />
+            <InfoTagsRow icon={Heart} label="Soothes" tags={profile.soothe_methods} isLast />
+          </View>
+        </View>
+
+        {/* Lifestyle & Relationship */}
+        <View style={styles.section}>
+          <SectionHeader title="Lifestyle" onEdit={() => router.push('/profile/edit-lifestyle')} />
+          <View style={[styles.card, { backgroundColor: cardColor }]}>
+            <InfoRow icon={Users} label="Has Children" value={profile.has_children ? 'Yes' : 'No'} />
+            <InfoRow icon={Users} label="Wants Children" value={profile.wants_children ? 'Yes' : 'No'} />
+            <InfoRow icon={Activity} label="Smoking" value={profile.smoking ? 'Yes' : 'No'} />
+            <InfoRow icon={Wine} label="Alcohol" value={profile.alcohol ? 'Yes' : 'No'} />
+            <InfoRow icon={Smile} label="Pets" value={profile.pets ? 'Yes' : 'No'} />
+            <InfoRow icon={Activity} label="Sport" value={profile.sport || '—'} />
+            <InfoRow icon={Utensils} label="Eating Habits" value={profile.eating_habits || '—'} isLast />
+          </View>
+        </View>
+
+        {/* Extra Space */}
         <View style={{ height: 40 }} />
       </ScrollView>
     </View>
@@ -293,174 +378,143 @@ const styles = StyleSheet.create({
   },
   backBtn: {
     width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
   },
   scrollContent: {
-    padding: 16,
+    paddingBottom: 40,
   },
   overview: {
     alignItems: 'center',
-    marginBottom: 24,
+    paddingVertical: 24,
   },
   avatarContainer: {
     position: 'relative',
     marginBottom: 16,
   },
   avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 24,
+    borderRadius: 55,
   },
   avatarOverlay: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: 24,
+    borderRadius: 55,
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarEditBtn: {
     position: 'absolute',
-    bottom: -4,
-    right: -4,
+    bottom: 0,
+    right: 4,
     width: 32,
     height: 32,
     borderRadius: 16,
+    borderWidth: 3,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 3,
-    borderColor: '#FFF',
   },
   name: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  pill: {
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 20,
-    marginBottom: 8,
-  },
-  pillText: {
-    fontWeight: '600',
-    fontSize: 12,
-  },
-  location: {
-    fontSize: 12,
-    marginBottom: 20,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    gap: 16,
-    width: '100%',
-  },
-  statBox: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 16,
-    alignItems: 'center',
-    borderWidth: 1,
-  },
-  statValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 22,
+    fontWeight: '700',
     marginBottom: 4,
   },
-  statLabel: {
-    fontSize: 12,
-  },
-  completionCard: {
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
+  location: {
+    fontSize: 14,
     marginBottom: 16,
+  },
+  inlineStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  inlineStatText: {
+    fontSize: 14,
+  },
+  inlineStatDot: {
+    fontSize: 16,
+  },
+  completionSection: {
+    paddingHorizontal: 24,
+    marginBottom: 32,
   },
   completionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   completionTitle: {
-    fontWeight: 'bold',
-    fontSize: 14,
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   completionPercent: {
+    fontSize: 12,
     fontWeight: 'bold',
-    fontSize: 14,
   },
   progressBarBg: {
-    height: 6,
-    borderRadius: 3,
-    marginBottom: 12,
+    height: 4,
+    borderRadius: 2,
+    width: '100%',
   },
   progressBarFill: {
-    height: 6,
-    borderRadius: 3,
+    height: '100%',
+    borderRadius: 2,
   },
-  completionDesc: {
-    fontSize: 12,
-  },
-  card: {
-    padding: 20,
-    borderRadius: 16,
-    borderWidth: 1,
-    marginBottom: 16,
+  section: {
+    marginBottom: 32,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
-  },
-  sectionHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    paddingHorizontal: 24,
+    marginBottom: 12,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
   },
-  editBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
   editText: {
     fontSize: 14,
     fontWeight: '600',
   },
-  bio: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 20,
+  card: {
+    marginHorizontal: 16,
+    borderRadius: 16,
+    overflow: 'hidden',
   },
-  infoGrid: {
+  rowBetween: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 16,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
   },
-  infoItem: {
-    width: '45%',
+  verticalRow: {
+    padding: 16,
+  },
+  borderBottom: {
+    borderBottomWidth: 0.5,
   },
   infoLabel: {
-    fontSize: 12,
-    marginBottom: 4,
+    fontSize: 16,
   },
   infoValue: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 16,
   },
-  subHeading: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    letterSpacing: 1,
-    marginTop: 16,
-    marginBottom: 8,
-    color: '#666',
+  intentBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  intentText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   tagsRow: {
     flexDirection: 'row',
@@ -475,34 +529,5 @@ const styles = StyleSheet.create({
   tagText: {
     fontSize: 12,
     fontWeight: '600',
-  },
-  twoColRow: {
-    flexDirection: 'row',
-    marginTop: 8,
-  },
-  rowBetween: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  divider: {
-    height: 1,
-    marginVertical: 4,
-  },
-  habitGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    rowGap: 16,
-    columnGap: 8,
-  },
-  habitItem: {
-    width: '48%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  habitText: {
-    fontSize: 14,
   },
 });

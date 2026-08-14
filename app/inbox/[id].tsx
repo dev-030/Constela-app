@@ -14,7 +14,6 @@ import {
   Alert,
   TextInput,
   FlatList,
-  KeyboardAvoidingView,
   Platform,
   Keyboard,
   Animated,
@@ -22,6 +21,7 @@ import {
   TouchableWithoutFeedback,
 } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, router } from "expo-router";
 import {
@@ -46,7 +46,9 @@ import { useProfileStore } from "@/store/profileStore";
 import { useChatSocket } from "@/api/ChatSocketProvider";
 import { apiClient } from "@/api/client";
 import { useBlockUserMutation, useUnmatchMutation, useUnfriendMutation } from "@/api/matching";
+import { useReportUserMutation } from "@/api/settings";
 import type { DirectMessage } from "@/api/messages";
+import { useAndroidBack } from "@/hooks/useAndroidBack";
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
@@ -386,6 +388,7 @@ export default function ChatScreen() {
   const recipientId = typeof id === "string" ? id : (Array.isArray(id) ? id[0] : "");
 
   const insets = useSafeAreaInsets();
+  useAndroidBack();
   const background = useColor("background");
   const primary = useColor("primary");
   const textColor = useColor("text");
@@ -426,6 +429,7 @@ export default function ChatScreen() {
   const { mutate: blockUser } = useBlockUserMutation();
   const { mutate: unmatchUser } = useUnmatchMutation();
   const { mutate: unfriendUser } = useUnfriendMutation();
+  const { mutate: reportUser } = useReportUserMutation();
 
   const openActionMenu = useCallback(() => {
     const options: any[] = [];
@@ -461,6 +465,19 @@ export default function ChatScreen() {
     }
 
     options.push({
+      text: "Report User",
+      style: "destructive",
+      onPress: () => {
+        Alert.alert("Report User", "Please select a reason", [
+          { text: "Fake Profile", onPress: () => reportUser({ reported_user: recipientId, reason: "fake_profile" }, { onSuccess: () => Alert.alert("Reported", "Thank you for keeping the community safe.") }) },
+          { text: "Offensive Language", onPress: () => reportUser({ reported_user: recipientId, reason: "offensive_language" }, { onSuccess: () => Alert.alert("Reported", "Thank you for keeping the community safe.") }) },
+          { text: "Harassment", onPress: () => reportUser({ reported_user: recipientId, reason: "harassment" }, { onSuccess: () => Alert.alert("Reported", "Thank you for keeping the community safe.") }) },
+          { text: "Cancel", style: "cancel" },
+        ]);
+      },
+    });
+
+    options.push({
       text: "Block User",
       style: "destructive",
       onPress: () => {
@@ -481,7 +498,7 @@ export default function ChatScreen() {
     options.push({ text: "Cancel", style: "cancel" });
 
     Alert.alert("Chat Options", "Choose an action", options);
-  }, [recipientId, type, blockUser, unmatchUser, unfriendUser]);
+  }, [recipientId, type, blockUser, unmatchUser, unfriendUser, reportUser]);
 
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isTypingSent = useRef(false);
@@ -537,7 +554,9 @@ export default function ChatScreen() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      quality: 0.8,
+      quality: 0.7,
+      maxWidth: 1440,
+      maxHeight: 1440,
     });
     if (!result.canceled && result.assets?.length) {
       const asset = result.assets[0];
@@ -647,7 +666,7 @@ export default function ChatScreen() {
       {/* ── Message list ── */}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior="padding"
         keyboardVerticalOffset={0}
       >
         {isLoading ? (

@@ -9,11 +9,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState, useEffect } from 'react';
 import { useProfileStore } from '@/store/profileStore';
 import { useLogout } from '@/api/auth';
+import { useAndroidBack } from '@/hooks/useAndroidBack';
 
 const { width, height } = Dimensions.get('window');
 
 export default function DrawerScreen() {
   const insets = useSafeAreaInsets();
+  useAndroidBack();
   const background = useColor('background');
   const secondary = useColor('secondary');
   const muted = useColor('textMuted');
@@ -85,10 +87,7 @@ export default function DrawerScreen() {
           {/* Profile (Active) */}
           <Pressable 
             onPress={() => {
-              router.back();
-              setTimeout(() => {
-                router.push('/profile');
-              }, 100);
+              router.push('/profile');
             }}
             style={{ 
             flexDirection: 'row', 
@@ -103,34 +102,43 @@ export default function DrawerScreen() {
           </Pressable>
 
           {/* Likes */}
-          <Pressable style={{ 
-            flexDirection: 'row', 
-            alignItems: 'center', 
-            gap: 16, 
-            padding: 16 
-          }}>
+          <Pressable 
+            onPress={() => router.push('/settings/likes')}
+            style={{ 
+              flexDirection: 'row', 
+              alignItems: 'center', 
+              gap: 16, 
+              padding: 16 
+            }}
+          >
             <Icon name={Heart} size={20} color={text} />
             <Text style={{ color: text, fontSize: 16 }}>Likes</Text>
           </Pressable>
 
           {/* Subscription */}
-          <Pressable style={{ 
-            flexDirection: 'row', 
-            alignItems: 'center', 
-            gap: 16, 
-            padding: 16 
-          }}>
+          <Pressable 
+            onPress={() => router.push('/settings/subscription')}
+            style={{ 
+              flexDirection: 'row', 
+              alignItems: 'center', 
+              gap: 16, 
+              padding: 16 
+            }}
+          >
             <Icon name={CreditCard} size={20} color={text} />
             <Text style={{ color: text, fontSize: 16 }}>Subscription</Text>
           </Pressable>
 
           {/* Settings */}
-          <Pressable style={{ 
-            flexDirection: 'row', 
-            alignItems: 'center', 
-            gap: 16, 
-            padding: 16 
-          }}>
+          <Pressable 
+            onPress={() => router.push('/settings')}
+            style={{ 
+              flexDirection: 'row', 
+              alignItems: 'center', 
+              gap: 16, 
+              padding: 16 
+            }}
+          >
             <Icon name={Settings} size={20} color={text} />
             <Text style={{ color: text, fontSize: 16 }}>Settings</Text>
           </Pressable>

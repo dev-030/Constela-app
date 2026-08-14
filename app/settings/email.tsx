@@ -5,18 +5,23 @@ import { Text } from '@/components/ui/text';
 import { useColor } from '@/hooks/useColor';
 import { router } from 'expo-router';
 import { AtSign, ChevronLeft, Info, Lock } from 'lucide-react-native';
-import { useMemo } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Pressable, StyleSheet, View, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useProfileStore } from '@/store/profileStore';
+import { apiClient } from '@/api/client';
+import { useAndroidBack } from '@/hooks/useAndroidBack';
 
 export default function ChangeEmailScreen() {
+  useAndroidBack();
   const insets = useSafeAreaInsets();
+  const { profile, fetchProfile } = useProfileStore();
 
   const background = useColor('background');
   const text = useColor('text');
   const muted = useColor('textMuted');
   const border = useColor('border');
-  const secondary = useColor('secondary');
+  const primary = useColor('primary');
 
   const styles = useMemo(() => StyleSheet.create({
     container: {
@@ -28,14 +33,22 @@ export default function ChangeEmailScreen() {
       alignItems: 'center',
       paddingHorizontal: 16,
       paddingBottom: 16,
-      borderBottomWidth: 1,
-      borderBottomColor: border,
+    },
+    headerLeft: {
+      flex: 1,
+      alignItems: 'flex-start',
+    },
+    headerCenter: {
+      flex: 2,
+      alignItems: 'center',
+    },
+    headerRight: {
+      flex: 1,
     },
     headerTitle: {
       fontSize: 18,
       fontWeight: '600',
       color: text,
-      marginLeft: 8,
     },
     content: {
       flex: 1,
@@ -84,25 +97,47 @@ export default function ChangeEmailScreen() {
       padding: 24,
       gap: 16,
     },
-    discardBtn: {
-      flex: 1,
-      borderRadius: 24,
-    },
     updateBtn: {
       flex: 1,
-      backgroundColor: secondary,
+      backgroundColor: primary,
       borderRadius: 24,
     }
-  }), [background, text, muted, border, secondary]);
+  }), [background, text, muted, border, primary]);
+
+  const [newEmail, setNewEmail] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail);
+
+  const handleRequestOTP = async () => {
+    if (!isValidEmail) return;
+    
+    setIsLoading(true);
+    try {
+      await apiClient.post('/api/settings/request-email-change/', { new_email: newEmail });
+      const submittedEmail = newEmail;
+      setNewEmail("");
+      router.push({ pathname: "/(tabs)/../settings/verify-email", params: { newEmail: submittedEmail } });
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.error || "An error occurred while requesting verification.";
+      Alert.alert("Request Failed", errorMsg);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <Pressable onPress={() => router.back()} hitSlop={10}>
-          <Icon name={ChevronLeft} size={24} color={text} />
-        </Pressable>
-        <Text style={styles.headerTitle}>Change Email</Text>
+        <View style={styles.headerLeft}>
+          <Pressable onPress={() => router.back()} hitSlop={10}>
+            <Icon name={ChevronLeft} size={24} color={text} />
+          </Pressable>
+        </View>
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle} numberOfLines={1}>Change Email</Text>
+        </View>
+        <View style={styles.headerRight} />
       </View>
 
       <View style={styles.content}>
@@ -113,15 +148,10 @@ export default function ChangeEmailScreen() {
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Current Email</Text>
           <Input
-            value="alex.nd@example.com"
+            value={profile?.user?.email || ""}
             disabled
             icon={AtSign}
-            rightComponent={
-              <View style={styles.readOnlyBadge}>
-                <Icon name={Lock} size={10} color="#555" />
-                <Text style={styles.readOnlyText}>Read Only</Text>
-              </View>
-            }
+            editable={false}
           />
         </View>
 
@@ -129,22 +159,30 @@ export default function ChangeEmailScreen() {
           <Text style={styles.label}>New Email</Text>
           <Input
             placeholder="Enter your new email address"
+            value={newEmail}
+            onChangeText={setNewEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            containerStyle={{ borderWidth: 1, borderColor: border, borderRadius: 12, overflow: 'hidden' }}
           />
         </View>
 
         <View style={styles.infoContainer}>
           <Icon name={Info} size={14} color={muted} />
-          <Text style={styles.infoText}>We'll send a confirmation link to this address.</Text>
+          <Text style={styles.infoText}>We'll send a verification code to this address.</Text>
         </View>
       </View>
 
       {/* Footer */}
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 24) }]}>
-        <Button variant="outline" style={styles.discardBtn} onPress={() => router.back()}>
-          Discard
-        </Button>
-        <Button style={styles.updateBtn}>
-          Update Email
+        <Button 
+          style={styles.updateBtn} 
+          disabled={!isValidEmail || isLoading}
+          loading={isLoading}
+          onPress={handleRequestOTP}
+        >
+          Send Verification Code
         </Button>
       </View>
     </View>

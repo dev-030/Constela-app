@@ -46,8 +46,10 @@ export default function OnboardingStep1() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
+      aspect: [4, 5],
+      quality: 0.7,
+      maxWidth: 1080,
+      maxHeight: 1350,
     });
     if (!result.canceled && result.assets[0]) {
       const next = [...data.photos];
@@ -171,7 +173,6 @@ export default function OnboardingStep1() {
       showBack={false}
       onContinue={validateAndContinue}
       continueDisabled={!isFormValid}
-      onSkip={() => router.push("/onboarding/basics")}
     >
       <ScrollView
         contentContainerStyle={{ paddingBottom: 24 }}
@@ -225,7 +226,9 @@ export default function OnboardingStep1() {
         >
           <TextInput
             value={data.username}
-            onChangeText={(v) => update("username", v)}
+            onChangeText={(v) => update("username", v.replace(/[^a-zA-Z0-9_]/g, ''))}
+            autoCapitalize="none"
+            autoCorrect={false}
             placeholder="e.g. SamiWander"
             placeholderTextColor={muted}
             style={{ color: text, fontSize: 15, padding: 0, flex: 1 }}

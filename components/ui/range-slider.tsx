@@ -32,6 +32,9 @@ export function RangeSlider({ min, max, low = min, high = max, onValueChanged, s
 
   const lowX = useSharedValue(0);
   const highX = useSharedValue(0);
+  
+  const lowStartX = useSharedValue(0);
+  const highStartX = useSharedValue(0);
 
   // Initialize positions based on values when layout is known
   const onLayout = (e: LayoutChangeEvent) => {
@@ -54,32 +57,40 @@ export function RangeSlider({ min, max, low = min, high = max, onValueChanged, s
   };
 
   const lowPan = Gesture.Pan()
+    .activeOffsetX([-10, 10])
+    .onBegin(() => {
+      lowStartX.value = lowX.value;
+    })
     .onUpdate((e) => {
       if (width === 0) return;
       const newX = clamp(
-        lowX.value + e.translationX,
+        lowStartX.value + e.translationX,
         0,
         single ? width : highX.value - THUMB_SIZE
       );
       lowX.value = newX;
       lowValue.value = min + (newX / width) * (max - min);
-      e.translationX = 0; // reset for continuous update
+      runOnJS(updateValues)(true, newX);
     })
     .onEnd(() => {
       runOnJS(updateValues)(true, lowX.value);
     });
 
   const highPan = Gesture.Pan()
+    .activeOffsetX([-10, 10])
+    .onBegin(() => {
+      highStartX.value = highX.value;
+    })
     .onUpdate((e) => {
       if (width === 0 || single) return;
       const newX = clamp(
-        highX.value + e.translationX,
+        highStartX.value + e.translationX,
         lowX.value + THUMB_SIZE,
         width
       );
       highX.value = newX;
       highValue.value = min + (newX / width) * (max - min);
-      e.translationX = 0;
+      runOnJS(updateValues)(false, newX);
     })
     .onEnd(() => {
       runOnJS(updateValues)(false, highX.value);
@@ -116,13 +127,13 @@ export function RangeSlider({ min, max, low = min, high = max, onValueChanged, s
 
       {/* Low Thumb */}
       <GestureDetector gesture={lowPan}>
-        <Animated.View style={[styles.thumb, { backgroundColor: primary }, lowAnimatedStyle]} />
+        <Animated.View hitSlop={20} style={[styles.thumb, { backgroundColor: primary }, lowAnimatedStyle]} />
       </GestureDetector>
 
       {/* High Thumb */}
       {!single && (
         <GestureDetector gesture={highPan}>
-          <Animated.View style={[styles.thumb, { backgroundColor: primary }, highAnimatedStyle]} />
+          <Animated.View hitSlop={20} style={[styles.thumb, { backgroundColor: primary }, highAnimatedStyle]} />
         </GestureDetector>
       )}
     </View>
@@ -149,6 +160,8 @@ const styles = StyleSheet.create({
   },
   thumb: {
     position: 'absolute',
+    left: 0,
+    top: 0,
     width: THUMB_SIZE,
     height: THUMB_SIZE,
     borderRadius: THUMB_SIZE / 2,

@@ -7,8 +7,10 @@ export interface UserProfile {
     id: string;
     email: string;
     role: string;
+    first_name?: string;
   };
   username: string;
+  name: string;
   age: number;
   height_cm: number;
   weight_kg: number;
@@ -42,10 +44,14 @@ export interface UserProfile {
   has_match_analysis: boolean;
   has_advanced_filters: boolean;
   has_all_chat_rooms: boolean;
+  connection_status?: 'none' | 'match' | 'friend' | 'self';
   is_verified: boolean;
   is_deactivated: boolean;
   profile_completion_pct: number;
+  likes_push: boolean;
+  messages_push: boolean;
   face_verification_status: string;
+  must_verify_face: boolean;
   onboarding_part1_completed: boolean;
   photos: {
     id: string;

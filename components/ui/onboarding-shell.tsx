@@ -44,7 +44,7 @@ export function OnboardingShell({
   return (
     <SafeAreaView
       style={{ flex: 1, backgroundColor: background }}
-      edges={["top"]}
+      edges={["top", "bottom"]}
     >
       <KeyboardAvoidingView
         style={{ flex: 1 }}

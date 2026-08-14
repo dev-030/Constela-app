@@ -3,7 +3,7 @@ import { Icon } from "@/components/ui/icon";
 import { Text } from "@/components/ui/text";
 import { useColor } from "@/hooks/useColor";
 import { router } from "expo-router";
-import { ArrowLeft, Receipt, RefreshCw } from "lucide-react-native";
+import { ChevronLeft, Receipt, RefreshCw } from "lucide-react-native";
 import { useMemo } from "react";
 import {
   ActivityIndicator,
@@ -18,6 +18,7 @@ import {
   SubscriptionTransaction,
   useTransactionHistoryQuery,
 } from "@/api/settings";
+import { useAndroidBack } from '@/hooks/useAndroidBack';
 
 function formatDate(iso: string): string {
   if (!iso) return "";
@@ -26,12 +27,21 @@ function formatDate(iso: string): string {
     year: "numeric",
     month: "short",
     day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
   });
 }
 
 function formatAmount(amount: string | number): string {
   const value = typeof amount === "number" ? amount.toFixed(2) : amount;
   return `$${value}`;
+}
+
+function formatPlanName(rawName: string): string {
+  if (!rawName) return "Subscription";
+  let name = rawName.replace(/RevenueCat:\s*/i, "");
+  name = name.replace(/_/g, " ");
+  return name.replace(/\b\w/g, c => c.toUpperCase());
 }
 
 function statusColor(
@@ -49,6 +59,7 @@ function statusColor(
 }
 
 export default function PaymentHistoryScreen() {
+  useAndroidBack();
   const insets = useSafeAreaInsets();
 
   const background = useColor("background");
@@ -71,11 +82,18 @@ export default function PaymentHistoryScreen() {
           flexDirection: "row",
           alignItems: "center",
           paddingHorizontal: 16,
-          paddingVertical: 12,
-          gap: 10,
+          paddingBottom: 24,
         },
-        backBtn: {
-          padding: 4,
+        headerLeft: {
+          flex: 1,
+          alignItems: "flex-start",
+        },
+        headerCenter: {
+          flex: 2,
+          alignItems: "center",
+        },
+        headerRight: {
+          flex: 1,
         },
         headerTitle: {
           fontSize: 18,
@@ -208,12 +226,17 @@ export default function PaymentHistoryScreen() {
   return (
     <View style={styles.container}>
       <View
-        style={[styles.header, { paddingTop: insets.top + 12 }]}
+        style={[styles.header, { paddingTop: insets.top + 16 }]}
       >
-        <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
-          <ArrowLeft size={22} color={text} />
-        </Pressable>
-        <Text style={styles.headerTitle}>Payment History</Text>
+        <View style={styles.headerLeft}>
+          <Pressable onPress={() => router.back()} hitSlop={12}>
+            <ChevronLeft size={24} color={text} />
+          </Pressable>
+        </View>
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle} numberOfLines={1}>Payment History</Text>
+        </View>
+        <View style={styles.headerRight} />
       </View>
 
       <ScrollView
@@ -274,12 +297,9 @@ export default function PaymentHistoryScreen() {
                   <Icon name={Receipt} size={18} color={primary} />
                 </View>
                 <View style={styles.rowBody}>
-                  <Text style={styles.rowPlan}>{tx.plan_name}</Text>
+                  <Text style={styles.rowPlan}>{formatPlanName(tx.plan_name)}</Text>
                   <Text style={styles.rowMeta} numberOfLines={1}>
                     {formatDate(tx.created_at)}
-                    {tx.stripe_charge_id
-                      ? ` • ${tx.stripe_charge_id.slice(0, 10)}…`
-                      : ""}
                   </Text>
                 </View>
                 <View style={styles.rowAmount}>

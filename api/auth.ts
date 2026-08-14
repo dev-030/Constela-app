@@ -40,7 +40,25 @@ interface VerifyOtpResponse {
   role: string;
 }
 
-// 1. Sign Up
+interface GoogleAuthRequest {
+  id_token?: string;
+  access_token?: string;
+}
+
+export const useGoogleAuthMutation = () => {
+  const setAuth = useAuthStore((state) => state.setAuth);
+
+  return useMutation({
+    mutationFn: async (data: GoogleAuthRequest) => {
+      const response = await apiClient.post('/api/auth/google/', data);
+      const { access, refresh } = response.data;
+      if (access && refresh) {
+        await setAuth(access, refresh);
+      }
+      return response.data;
+    },
+  });
+};
 export const useSignUpMutation = () => {
   return useMutation({
     mutationFn: async (data: SignUpRequest) => {
@@ -63,6 +81,15 @@ export const useVerifyOtpMutation = () => {
       if (data.access && data.refresh) {
         await setAuth(data.access, data.refresh, data.role);
       }
+    },
+  });
+};
+
+export const useResendOtpMutation = () => {
+  return useMutation({
+    mutationFn: async (data: { email: string }) => {
+      const response = await apiClient.post('/api/auth/resend-otp/', data);
+      return response.data;
     },
   });
 };

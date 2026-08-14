@@ -10,10 +10,14 @@ import {
   ActivityIndicator,
   Alert,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
 import VerificationOverlay from "@/components/VerificationOverlay";
-import { Search, SlidersHorizontal } from "lucide-react-native";
+import { Search } from "lucide-react-native";
+import Animated, { FadeIn, FadeOut, Layout } from "react-native-reanimated";
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 import { Text } from "@/components/ui/text";
 import { Icon } from "@/components/ui/icon";
@@ -168,27 +172,25 @@ export default function FriendsScreen() {
                 returnKeyType="search"
               />
             </View>
-            <Pressable
-              onPress={() => router.push("/filters")}
-              style={[
-                styles.filterBtn,
-                { borderColor: border, backgroundColor: cardColor },
-              ]}
-            >
-              <Icon name={SlidersHorizontal} size={20} color={primary} />
-            </Pressable>
           </View>
 
           {/* Friend Requests */}
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Friend Requests</Text>
-            {requests.length > 0 && (
-              <View style={[styles.badge, { backgroundColor: primary }]}>
-                <Text style={styles.badgeText}>
-                  {requests.length} New
-                </Text>
-              </View>
-            )}
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+              <Text style={styles.sectionTitle}>Friend Requests</Text>
+              {requests.length > 0 && (
+                <View style={[styles.badge, { backgroundColor: primary }]}>
+                  <Text style={styles.badgeText}>
+                    {requests.length} New
+                  </Text>
+                </View>
+              )}
+            </View>
+            <Pressable onPress={() => router.push("/sent-requests")}>
+              <Text style={{ color: primary, fontWeight: "600", fontSize: 14 }}>
+                Sent Requests
+              </Text>
+            </Pressable>
           </View>
 
           {requestsQuery.isError ? (
@@ -207,12 +209,16 @@ export default function FriendsScreen() {
               const isPending =
                 acceptMutation.isPending || declineMutation.isPending;
               return (
-                <View
+                <AnimatedPressable
                   key={req.id}
+                  layout={Layout.springify()}
+                  entering={FadeIn}
+                  exiting={FadeOut.duration(300)}
                   style={[
                     styles.requestCard,
                     { borderColor: border, backgroundColor: cardColor },
                   ]}
+                  onPress={() => router.push({ pathname: `/profile/${req.sender_id}`, params: { name: req.name, photo: req.photo } } as any)}
                 >
                   <View style={styles.requestInfo}>
                     <Image
@@ -220,7 +226,7 @@ export default function FriendsScreen() {
                       style={styles.requestAvatar}
                     />
                     <View style={styles.requestTextCol}>
-                      <Text style={styles.requestName}>{req.username}</Text>
+                      <Text style={styles.requestName}>{req.name}</Text>
                       <Text style={[styles.requestSubtitle, { color: muted }]}>
                         {req.subtitle}
                       </Text>
@@ -261,7 +267,7 @@ export default function FriendsScreen() {
                       </Text>
                     </Pressable>
                   </View>
-                </View>
+                </AnimatedPressable>
               );
             })
           )}
@@ -286,43 +292,42 @@ export default function FriendsScreen() {
                 const isSending =
                   sendMutation.isPending && sendMutation.variables === person.id;
                 return (
-                  <Pressable
+                  <AnimatedPressable
                     key={person.id}
-                    style={[
-                      styles.personCard,
-                      { borderColor: border, backgroundColor: cardColor },
-                    ]}
-                    onPress={() => router.push("/friend-profile")}
+                    layout={Layout.springify()}
+                    entering={FadeIn}
+                    exiting={FadeOut.duration(300)}
+                    style={styles.personCard}
+                    onPress={() => router.push({ pathname: `/profile/${person.id}`, params: { name: person.name, photo: person.photo } } as any)}
                   >
+                    {/* Photo */}
                     <View style={styles.personImageContainer}>
                       <Image
                         source={{ uri: person.photo }}
                         style={styles.personImage}
                       />
-                      <View style={styles.personImageOverlay} />
+                      <LinearGradient
+                        colors={["transparent", "rgba(0,0,0,0.18)", "rgba(0,0,0,0.72)"]}
+                        locations={[0.4, 0.7, 1]}
+                        style={StyleSheet.absoluteFill}
+                      />
                       <View style={styles.personNameContainer}>
                         <Text style={styles.personNameAge}>
-                          {person.username}, {person.age}
+                          {person.name}, {person.age}
                         </Text>
                       </View>
                     </View>
 
+                    {/* Content below photo */}
                     <View style={styles.personContent}>
+                      {/* Tags */}
                       <View style={styles.personTags}>
-                        {person.tags.map((tag) => (
+                        {person.tags.slice(0, 2).map((tag) => (
                           <View
                             key={tag}
-                            style={[
-                              styles.smallPill,
-                              { backgroundColor: primary + "15" },
-                            ]}
+                            style={[styles.smallPill, { backgroundColor: primary + "18" }]}
                           >
-                            <Text
-                              style={[
-                                styles.smallPillText,
-                                { color: "#2B4A4A" },
-                              ]}
-                            >
+                            <Text style={[styles.smallPillText, { color: primary }]}>
                               {tag}
                             </Text>
                           </View>
@@ -339,20 +344,17 @@ export default function FriendsScreen() {
                       <Pressable
                         style={[
                           styles.addFriendBtn,
-                          {
-                            backgroundColor: primary,
-                            opacity: isSending ? 0.6 : 1,
-                          },
+                          { backgroundColor: primary, opacity: isSending ? 0.6 : 1 },
                         ]}
                         disabled={isSending}
                         onPress={() => handleAddFriend(person.id)}
                       >
-                        <Text style={[styles.addFriendText, { color: "#FFF" }]}>
+                        <Text style={styles.addFriendText}>
                           {isSending ? "Sending…" : "Add Friend"}
                         </Text>
                       </Pressable>
                     </View>
-                  </Pressable>
+                  </AnimatedPressable>
                 );
               })}
             </View>
@@ -486,15 +488,23 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 16,
+    gap: 14,
     justifyContent: "space-between",
   },
   personCard: {
     width: "47%",
-    borderWidth: 1,
-    borderRadius: 16,
+    borderRadius: 20,
     overflow: "hidden",
-    marginBottom: 16,
+    marginBottom: 4,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.07)",
+    // Soft floating shadow
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.10,
+    shadowRadius: 12,
+    elevation: 5,
   },
   personImageContainer: {
     width: "100%",
@@ -511,45 +521,54 @@ const styles = StyleSheet.create({
   },
   personNameContainer: {
     position: "absolute",
-    bottom: 12,
-    left: 12,
+    bottom: 10,
+    left: 10,
+    right: 10,
   },
   personNameAge: {
     color: "#FFF",
-    fontSize: 16,
-    fontWeight: "bold",
+    fontSize: 15,
+    fontWeight: "800",
+    letterSpacing: 0.2,
+    textShadowColor: "rgba(0,0,0,0.5)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
   personContent: {
-    padding: 12,
+    padding: 10,
+    paddingTop: 10,
+    gap: 6,
   },
   personTags: {
     flexDirection: "row",
-    gap: 6,
-    marginBottom: 8,
+    gap: 5,
     flexWrap: "wrap",
   },
   smallPill: {
     paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
+    paddingVertical: 3,
+    borderRadius: 20,
   },
   smallPillText: {
     fontSize: 10,
-    fontWeight: "600",
+    fontWeight: "700",
+    letterSpacing: 0.1,
   },
   personBio: {
-    fontSize: 12,
+    fontSize: 11.5,
     lineHeight: 16,
-    marginBottom: 16,
   },
   addFriendBtn: {
-    paddingVertical: 10,
+    paddingVertical: 9,
     borderRadius: 20,
     alignItems: "center",
+    marginTop: 2,
   },
   addFriendText: {
+    color: "#FFF",
     fontSize: 12,
-    fontWeight: "bold",
+    fontWeight: "700",
+    letterSpacing: 0.3,
   },
   inlineMessage: {
     flexDirection: "row",

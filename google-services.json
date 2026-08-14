@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "504633031372",
+    "project_id": "constela-d48f5",
+    "storage_bucket": "constela-d48f5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:504633031372:android:4d46d9ff00942f6050e069",
+        "android_client_info": {
+          "package_name": "com.constela.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "504633031372-iv1s6845f2lcraht9a891nn5dof19bo5.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.constela.app",
+            "certificate_hash": "020ab4407732a4a6b2a46b41cae52c5f60aded9e"
+          }
+        },
+        {
+          "client_id": "504633031372-14dbhe821adkj85sarl3g1otq3gu10um.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCRFLjZDcwqgbfn2s5z92Ut25CpffEhT2w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "504633031372-14dbhe821adkj85sarl3g1otq3gu10um.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

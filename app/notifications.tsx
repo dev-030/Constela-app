@@ -2,10 +2,11 @@ import { Icon } from "@/components/ui/icon";
 import { Text } from "@/components/ui/text";
 import { useColor } from "@/hooks/useColor";
 import { router } from "expo-router";
-import { Heart, MessageCircle, Star, Users, X } from "lucide-react-native";
+import { Heart, MessageCircle, Star, Users, ChevronLeft } from "lucide-react-native";
 import React from "react";
 import { Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useAndroidBack } from "@/hooks/useAndroidBack";
 
 const NOTIFICATIONS = [
   {
@@ -78,6 +79,7 @@ const NOTIFICATIONS = [
 ];
 
 export default function NotificationsScreen() {
+  useAndroidBack();
   const background = useColor("background");
   const card = useColor("card");
   const text = useColor("text");
@@ -89,10 +91,11 @@ export default function NotificationsScreen() {
     <SafeAreaView style={[styles.root, { backgroundColor: background }]}>
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: border }]}>
-        <Text style={[styles.headerTitle, { color: text }]}>Notifications</Text>
-        <Pressable onPress={() => router.back()} hitSlop={12} style={styles.closeBtn}>
-          <Icon name={X} size={24} color={text} />
+        <Pressable onPress={() => router.back()} style={styles.backButton}>
+          <ChevronLeft size={28} color={text} />
         </Pressable>
+        <Text style={[styles.headerTitle, { color: text }]}>Notifications</Text>
+        <View style={styles.headerRight} />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -153,17 +156,22 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
   },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "800",
+  backButton: {
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "flex-start",
   },
-  closeBtn: {
-    padding: 4,
-    borderRadius: 20,
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  headerRight: {
+    width: 40,
   },
   scrollContent: {
     paddingTop: 16,

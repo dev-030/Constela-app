@@ -14,11 +14,11 @@ import {
   Alert,
   TextInput,
   FlatList,
-  KeyboardAvoidingView,
   Platform,
   Text as RNText,
 } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, router } from "expo-router";
 import {
@@ -37,6 +37,7 @@ import { useProfileStore } from "@/store/profileStore";
 import { useChatSocket } from "@/api/ChatSocketProvider";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ChatMessage } from "@/api/chat";
+import { useAndroidBack } from "@/hooks/useAndroidBack";
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
@@ -206,6 +207,7 @@ const bubbleStyles = StyleSheet.create({
 
 export default function CommunityChatScreen() {
   const { title, roomId } = useLocalSearchParams<{ title: string; roomId: string }>();
+  useAndroidBack();
 
   const insets = useSafeAreaInsets();
   const background = useColor("background");
@@ -227,17 +229,19 @@ export default function CommunityChatScreen() {
 
   const isJoined = roomQuery.data?.is_joined ?? false;
 
-  const { sendRoomMessage, joinRoom, leaveRoom } = useChatSocket();
+  const { sendRoomMessage, joinRoom, leaveRoom, isConnected } = useChatSocket();
   const queryClient = useQueryClient();
 
-  // Subscribe to the WS room group when screen is open
+  // Subscribe to the WS room group when screen is open.
+  // Also re-fires when isConnected flips to true (socket reconnected after a drop),
+  // ensuring we always have a live room subscription.
   useEffect(() => {
-    if (!roomId) return;
+    if (!roomId || !isConnected) return;
     joinRoom(roomId);
     return () => {
       leaveRoom(roomId);
     };
-  }, [roomId, joinRoom, leaveRoom]);
+  }, [roomId, joinRoom, leaveRoom, isConnected]);
 
   const [text, setText] = useState("");
   const inputRef = useRef<TextInput>(null);
@@ -275,29 +279,9 @@ export default function CommunityChatScreen() {
   const handleSend = useCallback(() => {
     const trimmed = text.trim();
     if (!trimmed || !roomId) return;
-
-    // Optimistic insert for sender — backend will echo it back via WS with a real id
-    const tempId = `temp-${Date.now()}`;
-    const optimisticMsg: ChatMessage = {
-      id: tempId,
-      room: roomId,
-      sender: String(currentUserId),
-      sender_name: profile?.username ?? "You",
-      sender_photo: profile?.photos?.find((p: any) => p.is_main)?.image ?? profile?.photos?.[0]?.image ?? "",
-      content: trimmed,
-      timestamp: new Date().toISOString(),
-    };
-    queryClient.setQueryData(
-      ['roomMessages', roomId],
-      (oldData: ChatMessage[] | undefined) => {
-        if (!oldData) return [optimisticMsg];
-        return [optimisticMsg, ...oldData];
-      }
-    );
-
     sendRoomMessage(roomId, trimmed);
     setText("");
-  }, [text, roomId, currentUserId, profile, queryClient, sendRoomMessage]);
+  }, [text, roomId, sendRoomMessage]);
 
   const handleJoin = useCallback(() => {
     if (!roomId) return;
@@ -392,7 +376,7 @@ export default function CommunityChatScreen() {
       {/* ── Message list ── */}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior="padding"
         keyboardVerticalOffset={0}
       >
         {isLoading ? (

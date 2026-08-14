@@ -12,8 +12,8 @@ export default function Header() {
   const insets = useSafeAreaInsets();
   const background = useColor("background");
   const primary = useColor("primary");
-  const muted = useColor("textMuted");
-  const border = useColor("border");
+  const text = useColor("text");
+  const accent = useColor("accent");
   const router = useRouter();
   const { profile } = useProfileStore();
 
@@ -25,22 +25,22 @@ export default function Header() {
         styles.header,
         {
           paddingTop: insets.top + 0,
-          borderBottomColor: border,
         },
       ]}
     >
       <Image
-        source={require("@/assets/images/icon.png")}
+        source={require("@/assets/images/icon_transparent.png")}
         style={styles.headerLogo}
         resizeMode="contain"
       />
       <View style={styles.headerRight}>
-        <Pressable onPress={() => router.push("/notifications")} hitSlop={12}>
-          <Icon name={Bell} size={24} />
+        <Pressable onPress={() => router.push("/notifications")} style={[styles.notificationBtn, { backgroundColor: accent }]} hitSlop={12}>
+          <Icon name={Bell} size={22} color={text} />
+          {/* Optional: unread dot */}
+          <View style={[styles.notificationBadge, { borderColor: background }]} />
         </Pressable>
-        <Pressable onPress={() => router.push("/settings")}>
-          <Avatar uri={userPhotoUri} size={36} />
-          <View style={[styles.statusIndicator, { borderColor: background }]} />
+        <Pressable onPress={() => router.push("/settings")} style={[styles.avatarBtn, { borderColor: primary }]}>
+          <Avatar uri={userPhotoUri} size={36} rounded />
         </Pressable>
       </View>
     </View>
@@ -53,16 +53,39 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 16,
     paddingBottom: 8,
-    borderBottomWidth: 1,
   },
   headerLogo: {
-    width: 60,
-    height: 40,
+    width: 80,
+    height: 50,
   },
   headerRight: {
     flexDirection: "row",
     alignItems: "center",
     gap: 16,
+  },
+  notificationBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+  notificationBadge: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#EF4444", // red dot for notifications
+    borderWidth: 1.5,
+  },
+  avatarBtn: {
+    padding: 2,
+    borderRadius: 22,
+    borderWidth: 2,
+    position: "relative",
   },
   avatarContainer: {
     width: 36,
@@ -73,15 +96,5 @@ const styles = StyleSheet.create({
   fullSize: {
     width: "100%",
     height: "100%",
-  },
-  statusIndicator: {
-    position: "absolute",
-    bottom: 0,
-    right: 0,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: "#34C759",
-    borderWidth: 2,
   },
 });

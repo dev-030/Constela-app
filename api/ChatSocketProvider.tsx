@@ -77,6 +77,9 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
   // Registry of typing callbacks subscribed by screens
   const typingCallbacks = useRef<Set<TypingCallback>>(new Set());
 
+  // Track which community rooms the user is currently viewing so we can re-join on reconnect
+  const activeRoomsRef = useRef<Set<string>>(new Set());
+
   const sendMarkRead = useCallback((partnerId: string) => {
     if (ws.current?.readyState !== WebSocket.OPEN) return;
     console.log(`[ChatSocket] sendMarkRead to partner=${partnerId}`);
@@ -284,6 +287,10 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
       console.log('[ChatSocket] Connected ✅');
       setIsConnected(true);
       reconnectDelay.current = 1000;
+      // Re-subscribe to any community rooms that were active before reconnect
+      activeRoomsRef.current.forEach((roomId) => {
+        socket.send(JSON.stringify({ type: 'enter_room', room_id: roomId }));
+      });
     };
 
     socket.onmessage = (e) => {
@@ -297,7 +304,7 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
     };
 
     socket.onerror = (e) => {
-      console.error('[ChatSocket] Error', e);
+      console.warn('[ChatSocket] Error', e);
     };
 
     socket.onclose = (e) => {
@@ -366,11 +373,13 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
   }, []);
 
   const joinRoom = useCallback((roomId: string) => {
+    activeRoomsRef.current.add(roomId);
     if (ws.current?.readyState !== WebSocket.OPEN) return;
     ws.current.send(JSON.stringify({ type: 'enter_room', room_id: roomId }));
   }, []);
 
   const leaveRoom = useCallback((roomId: string) => {
+    activeRoomsRef.current.delete(roomId);
     if (ws.current?.readyState !== WebSocket.OPEN) return;
     ws.current.send(JSON.stringify({ type: 'leave_room', room_id: roomId }));
   }, []);

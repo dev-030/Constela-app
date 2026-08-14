@@ -7,7 +7,7 @@ import {
 import { apiClient } from './client';
 export interface MatchProfile {
   id: string;
-  username: string;
+  name: string;
   age: number;
   gender: string;
   city: string;
@@ -17,6 +17,8 @@ export interface MatchProfile {
   photo: string;
   compatibility_score: number;
   distance: number | null;
+  has_superliked_me?: boolean;
+  is_verified?: boolean;
 }
 
 export interface PerfectMatchFilters {
@@ -60,6 +62,7 @@ export interface PerfectMatchResponse {
   next: string | null;
   previous: string | null;
   results: MatchProfile[];
+  limit_reached: boolean;
 }
 
 
@@ -124,7 +127,7 @@ export const useSwipeActionMutation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ targetId, action }: { targetId: string; action: 'liked' | 'disliked' }) => {
+    mutationFn: async ({ targetId, action }: { targetId: string; action: 'liked' | 'disliked' | 'superliked' }) => {
       const response = await apiClient.post<SwipeActionResponse>(
         `/api/matching/${targetId}/action/`,
         { action }
@@ -135,6 +138,7 @@ export const useSwipeActionMutation = () => {
       queryClient.invalidateQueries({ queryKey: ['perfectMatch'] });
       queryClient.invalidateQueries({ queryKey: ['mutualMatches'] });
       queryClient.invalidateQueries({ queryKey: ['likesSent'] });
+      queryClient.invalidateQueries({ queryKey: ['matchAnalysis'] });
     },
   });
 };
@@ -192,7 +196,7 @@ export const useSavedMatchesQuery = () => {
 
 export interface MutualMatchProfile {
   id: string;
-  username: string;
+  name: string;
   age: number;
   gender: string;
   city: string;

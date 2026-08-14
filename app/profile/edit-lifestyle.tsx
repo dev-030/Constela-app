@@ -11,8 +11,10 @@ import { FilterPill } from '@/components/ui/filter-pill';
 import { useColor } from '@/hooks/useColor';
 import { useProfileStore } from '@/store/profileStore';
 import { updateMyProfile } from '@/api/profile';
+import { useAndroidBack } from '@/hooks/useAndroidBack';
 
 export default function EditLifestyleScreen() {
+  useAndroidBack();
   const insets = useSafeAreaInsets();
   const background = useColor('background');
   const text = useColor('text');
@@ -34,6 +36,15 @@ export default function EditLifestyleScreen() {
   
   const [isSaving, setIsSaving] = useState(false);
 
+  const hasChanged = 
+    hasChildren !== (profile?.has_children ? 'Yes' : 'No') ||
+    wantsChildren !== (profile?.wants_children ? 'Yes' : 'No') ||
+    smoking !== (profile?.smoking ? 'Yes' : 'No') ||
+    alcohol !== (profile?.alcohol ? 'Yes' : 'No') ||
+    pets !== (profile?.pets ? 'Yes' : 'No') ||
+    sport !== (profile?.sport || '') ||
+    eatingHabits !== (profile?.eating_habits || '');
+
   const handleSave = async () => {
     setIsSaving(true);
     try {
@@ -51,7 +62,16 @@ export default function EditLifestyleScreen() {
       router.back();
     } catch (error) {
       console.error(error);
-      Alert.alert("Error", "Failed to save profile");
+            let errMsg = "Failed to save profile";
+      if (error?.response?.data && typeof error.response.data === "object") {
+        const firstKey = Object.keys(error.response.data)[0];
+        if (Array.isArray(error.response.data[firstKey])) {
+          errMsg = error.response.data[firstKey][0];
+        } else if (typeof error.response.data[firstKey] === "string") {
+          errMsg = error.response.data[firstKey];
+        }
+      }
+      Alert.alert("Error", errMsg);
     } finally {
       setIsSaving(false);
     }
@@ -84,8 +104,6 @@ export default function EditLifestyleScreen() {
         <Text style={styles.headerTitle}>Lifestyle & Relationship</Text>
         <View style={styles.backBtn} />
       </View>
-      <View style={[styles.divider, { backgroundColor: border }]} />
-
       <ScrollView contentContainerStyle={styles.scrollContent}>
         
         <Text style={styles.sectionTitle}>CHILDREN</Text>
@@ -103,8 +121,8 @@ export default function EditLifestyleScreen() {
         <View style={{ height: 40 }} />
       </ScrollView>
 
-      <View style={[styles.footer, { paddingBottom: insets.bottom || 24, backgroundColor: background, borderTopColor: border }]}>
-        <Button onPress={handleSave} style={styles.saveBtn} disabled={isSaving}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom || 24, backgroundColor: background }]}>
+        <Button onPress={handleSave} style={[styles.saveBtn, !hasChanged && { opacity: 0.5 }]} disabled={isSaving || !hasChanged}>
           {isSaving ? <ActivityIndicator color="#FFF" /> : "Save Changes"}
         </Button>
       </View>
@@ -123,6 +141,6 @@ const styles = StyleSheet.create({
   formGroup: { marginBottom: 24 },
   inputLabel: { fontSize: 14, fontWeight: '600', marginBottom: 12 },
   pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  footer: { paddingHorizontal: 20, paddingTop: 16, borderTopWidth: 1 },
+  footer: { paddingHorizontal: 20, paddingTop: 16, borderTopWidth: 0 },
   saveBtn: { borderRadius: 24 },
 });

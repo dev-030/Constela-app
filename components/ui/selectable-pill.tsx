@@ -36,8 +36,8 @@ export function SelectablePill({
         {
           borderRadius: 24,
           borderWidth: 1,
-          borderColor: selected ? primary : border,
-          backgroundColor: selected ? primary : "transparent",
+          borderColor: selected ? primary + "30" : border,
+          backgroundColor: selected ? primary + "15" : "transparent",
           alignItems: "center",
           justifyContent: "center",
         },
@@ -49,7 +49,7 @@ export function SelectablePill({
         style={{
           fontSize: 14,
           fontWeight: selected ? "600" : "500",
-          color: selected ? "#FFFFFF" : text,
+          color: selected ? primary : text,
         }}
       >
         {label}

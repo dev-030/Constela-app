@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, TextInput, Alert, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, TextInput, Alert, ActivityIndicator, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ChevronLeft, Camera, X } from 'lucide-react-native';
@@ -12,10 +12,42 @@ import { Button } from '@/components/ui/button';
 import { FilterPill } from '@/components/ui/filter-pill';
 import { useColor } from '@/hooks/useColor';
 import { useProfileStore } from '@/store/profileStore';
-import { updateMyProfile } from '@/api/profile';
+import { updateMyProfile, checkUsernameAvailability, uploadProfilePhoto, deleteProfilePhoto } from '@/api/profile';
+import { useCheckUsernameQuery } from '@/api/auth';
+import { useAuthStore } from '@/store/authStore';
+import { useAndroidBack } from '@/hooks/useAndroidBack';
+
+const reverseGenderMap: Record<string, string> = {
+  woman: "Woman",
+  man: "Man",
+  non_binary: "Non-Binary",
+  other: "Other"
+};
+
+const genderMap: Record<string, string> = {
+  "Woman": "woman",
+  "Man": "man",
+  "Non-Binary": "non_binary",
+  "Other": "other"
+};
+
+const reverseLookingForMap: Record<string, string> = {
+  friendship: "Friendship",
+  serious: "Serious Relationship",
+  undecided: "We'll See",
+  casual: "Going Out"
+};
+
+const lookingForMap: Record<string, string> = {
+  "Friendship": "friendship",
+  "Serious Relationship": "serious",
+  "We'll See": "undecided",
+  "Going Out": "casual"
+};
 
 export default function EditBasicScreen() {
   const insets = useSafeAreaInsets();
+  useAndroidBack();
   const background = useColor('background');
   const cardColor = useColor('card');
   const text = useColor('text');
@@ -29,29 +61,96 @@ export default function EditBasicScreen() {
     if (!profile) fetchProfile();
   }, []);
 
-  const [username, setUsername] = useState(profile?.username || '');
-  const [age, setAge] = useState(profile?.age?.toString() || '');
-  const [height, setHeight] = useState(profile?.height_cm?.toString() || '');
-  const [weight, setWeight] = useState(profile?.weight_kg?.toString() || '');
-  const [city, setCity] = useState(profile?.city || '');
-  const [country, setCountry] = useState(profile?.country || '');
-  const [gender, setGender] = useState(profile?.gender || '');
-  const [lookingFor, setLookingFor] = useState(profile?.looking_for || '');
-  const [maritalStatus, setMaritalStatus] = useState(profile?.marital_status || '');
-  const [educationLevel, setEducationLevel] = useState(profile?.education_level || '');
-  const [spokenLanguages, setSpokenLanguages] = useState(profile?.spoken_languages?.join(', ') || '');
+  const [firstName, setFirstName] = useState('');
+  const [username, setUsername] = useState('');
+  const [debouncedUsername, setDebouncedUsername] = useState('');
+  const [age, setAge] = useState('');
+  const [height, setHeight] = useState('');
+  const [weight, setWeight] = useState('');
+  const [city, setCity] = useState('');
+  const [country, setCountry] = useState('');
+  const [gender, setGender] = useState('');
+  const [lookingFor, setLookingFor] = useState('');
+  const [maritalStatus, setMaritalStatus] = useState('');
+  const [educationLevel, setEducationLevel] = useState('');
+  const [spokenLanguages, setSpokenLanguages] = useState('');
+
+  useEffect(() => {
+    if (profile) {
+      setFirstName(profile.user?.first_name || '');
+      setUsername(profile.username || '');
+      setDebouncedUsername(profile.username || '');
+      setAge(profile.age?.toString() || '');
+      setHeight(profile.height_cm?.toString() || '');
+      setWeight(profile.weight_kg?.toString() || '');
+      setCity(profile.city || '');
+      setCountry(profile.country || '');
+      setMaritalStatus(profile.marital_status || '');
+      setEducationLevel(profile.education_level || '');
+      setSpokenLanguages(profile.spoken_languages?.join(', ') || '');
+
+      setGender(reverseGenderMap[profile.gender || ''] || profile.gender || '');
+      setLookingFor(reverseLookingForMap[profile.looking_for || ''] || profile.looking_for || '');
+    }
+  }, [profile]);
   
   const [localPhotos, setLocalPhotos] = useState<{uri?: string, id?: string, image?: string, is_main?: boolean}[]>([]);
+  const [deletedPhotos, setDeletedPhotos] = useState<string[]>([]);
   useEffect(() => {
     if (profile?.photos) {
       setLocalPhotos(profile.photos.map(p => ({ id: p.id, image: p.image, is_main: p.is_main })));
+      setDeletedPhotos([]);
     }
   }, [profile]);
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedUsername(username);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [username]);
+
+  const { data: usernameCheck, isFetching: isCheckingUsername } = useCheckUsernameQuery(debouncedUsername);
+
+  const isOwnUsername = profile ? username.toLowerCase() === profile.username?.toLowerCase() : false;
+  const isChecking = isCheckingUsername || (username !== debouncedUsername && username.length >= 3);
+  
+  let usernameError = "";
+  let usernameSuccess = "";
+  if (!username.trim()) {
+    usernameError = "Username is required";
+  } else if (username.length < 3) {
+    usernameError = "Username must be at least 3 characters";
+  } else if (isChecking && !isOwnUsername) {
+    usernameSuccess = "Checking availability...";
+  } else if (usernameCheck && !usernameCheck.available && !isOwnUsername) {
+    usernameError = "Username is already taken";
+  } else if (usernameCheck && usernameCheck.available && !isOwnUsername && username.length >= 3) {
+    usernameSuccess = "Available";
+  }
+
+  const hasChanged = 
+    JSON.stringify(localPhotos.map(p => p.id || p.uri)) !== JSON.stringify(profile?.photos?.map(p => p.id) || []) ||
+    deletedPhotos.length > 0 ||
+    firstName !== (profile?.user?.first_name || '') ||
+    username !== (profile?.username || '') ||
+    age !== (profile?.age?.toString() || '') ||
+    height !== (profile?.height_cm?.toString() || '') ||
+    weight !== (profile?.weight_kg?.toString() || '') ||
+    city !== (profile?.city || '') ||
+    country !== (profile?.country || '') ||
+    gender !== (reverseGenderMap[profile?.gender || ''] || profile?.gender || '') ||
+    lookingFor !== (reverseLookingForMap[profile?.looking_for || ''] || profile?.looking_for || '') ||
+    maritalStatus !== (profile?.marital_status || '') ||
+    educationLevel !== (profile?.education_level || '') ||
+    spokenLanguages !== (profile?.spoken_languages?.join(', ') || '');
+
+  const canSave = !usernameError && hasChanged;
+
   const [isSaving, setIsSaving] = useState(false);
 
-  const pickImage = async () => {
-    if (localPhotos.length >= 3) {
+  const pickImage = async (indexToReplace?: number) => {
+    if (indexToReplace === undefined && localPhotos.length >= 3) {
       Alert.alert('Limit Reached', 'You can upload up to 3 photos.');
       return;
     }
@@ -59,18 +158,28 @@ export default function EditBasicScreen() {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [4, 5],
-      quality: 0.8,
+      quality: 0.7,
+      maxWidth: 1080,
+      maxHeight: 1350,
     });
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      setLocalPhotos([...localPhotos, { uri: result.assets[0].uri }]);
+      if (indexToReplace !== undefined) {
+        const existingPhoto = localPhotos[indexToReplace];
+        if (existingPhoto?.id) {
+          setDeletedPhotos(prev => [...prev, existingPhoto.id!]);
+        }
+        const newPhotos = [...localPhotos];
+        newPhotos[indexToReplace] = { uri: result.assets[0].uri };
+        setLocalPhotos(newPhotos);
+      } else {
+        setLocalPhotos([...localPhotos, { uri: result.assets[0].uri }]);
+      }
     }
   };
 
   const removeImage = async (index: number, photoId?: string) => {
     if (photoId) {
-      // In a real app we'd call an API to delete the photo here. 
-      // For now we just remove it locally and when we hit save, the new ones will be appended.
-      // E.g. await deleteMyPhoto(photoId);
+      setDeletedPhotos(prev => [...prev, photoId]);
     }
     const newPhotos = [...localPhotos];
     newPhotos.splice(index, 1);
@@ -78,22 +187,45 @@ export default function EditBasicScreen() {
   };
 
   const handleSave = async () => {
+    if (!canSave) return;
+    if (localPhotos.length === 0) {
+      Alert.alert('Cannot Save', 'You must have at least one profile photo.');
+      return;
+    }
     setIsSaving(true);
     try {
       const formData = new FormData();
+      formData.append('first_name', firstName);
       formData.append('username', username);
       if (age) formData.append('age', age);
       if (height) formData.append('height_cm', height);
       if (weight) formData.append('weight_kg', weight);
       formData.append('city', city);
       formData.append('country', country);
-      formData.append('gender', gender);
-      formData.append('looking_for', lookingFor);
+      if (gender) formData.append('gender', genderMap[gender] || gender);
+      if (lookingFor) formData.append('looking_for', lookingForMap[lookingFor] || lookingFor);
       formData.append('marital_status', maritalStatus);
       formData.append('education_level', educationLevel);
       
       const languagesArray = spokenLanguages.split(',').map(l => l.trim()).filter(Boolean);
-      languagesArray.forEach(l => formData.append('spoken_languages', l));
+      formData.append('spoken_languages', JSON.stringify(languagesArray));
+
+      if (deletedPhotos.length > 0) {
+        const { accessToken } = useAuthStore.getState();
+        const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
+        const baseUrl = API_URL.includes('localhost') && Platform.OS === 'android' 
+          ? API_URL.replace('localhost', '10.0.2.2')
+          : API_URL;
+          
+        await Promise.all(deletedPhotos.map(photoId => 
+          fetch(`${baseUrl}/api/photos/${photoId}/`, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+            },
+          }).catch(e => console.warn("Failed to delete photo", e))
+        ));
+      }
 
       localPhotos.forEach((photo, index) => {
         if (photo.uri && !photo.id) {
@@ -113,7 +245,16 @@ export default function EditBasicScreen() {
       router.back();
     } catch (error) {
       console.error(error);
-      Alert.alert("Error", "Failed to save profile");
+            let errMsg = "Failed to save profile";
+      if (error?.response?.data && typeof error.response.data === "object") {
+        const firstKey = Object.keys(error.response.data)[0];
+        if (Array.isArray(error.response.data[firstKey])) {
+          errMsg = error.response.data[firstKey][0];
+        } else if (typeof error.response.data[firstKey] === "string") {
+          errMsg = error.response.data[firstKey];
+        }
+      }
+      Alert.alert("Error", errMsg);
     } finally {
       setIsSaving(false);
     }
@@ -129,38 +270,76 @@ export default function EditBasicScreen() {
         <Text style={styles.headerTitle}>Basic Information</Text>
         <View style={styles.backBtn} />
       </View>
-      <View style={[styles.divider, { backgroundColor: border }]} />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Profile Photos */}
         <Text style={styles.sectionTitle}>PROFILE PHOTOS (UP TO 3)</Text>
         <View style={styles.photoGrid}>
-          {localPhotos.map((photo, index) => (
-            <View key={index} style={styles.avatarContainer}>
-              <Avatar uri={photo.uri || photo.image} size={100} style={{ borderRadius: 12, height: 120, width: 100 }} />
-              <Pressable 
-                style={[styles.removeIconContainer, { backgroundColor: '#FF3B30' }]} 
-                onPress={() => removeImage(index, photo.id)}
-              >
-                <Icon name={X} size={14} color="#FFF" />
+          {[0, 1, 2].map((slot) => {
+            const photo = localPhotos[slot];
+            if (photo) {
+              return (
+                <View key={slot} style={styles.avatarContainer}>
+                  <Pressable onPress={() => pickImage(slot)}>
+                    <Avatar 
+                      uri={photo.uri || photo.image} 
+                      size={110} 
+                      style={{ borderRadius: 12, height: 140, width: 110, backgroundColor: 'transparent' }} 
+                      imageStyle={{ borderRadius: 12, height: 140, width: 110 }}
+                    />
+                  </Pressable>
+                  <Pressable  
+                    style={[styles.removeIconContainer, { backgroundColor: '#FF3B30' }]} 
+                    onPress={() => removeImage(slot, photo.id)}
+                  >
+                    <Icon name={X} size={14} color="#FFF" />
+                  </Pressable>
+                </View>
+              );
+            }
+            return (
+              <Pressable key={slot} style={[styles.addPhotoBox, { borderColor: border, backgroundColor: cardColor }]} onPress={() => pickImage()}>
+                <Icon name={Camera} size={20} color={muted} />
+                <Text style={[styles.addPhotoText, { color: muted }]}>{slot === 0 ? 'Main Photo' : 'Add Photo'}</Text>
               </Pressable>
-            </View>
-          ))}
-          {localPhotos.length < 3 && (
-            <Pressable style={[styles.addPhotoBox, { borderColor: border, backgroundColor: cardColor }]} onPress={pickImage}>
-              <Icon name={Camera} size={20} color={muted} />
-              <Text style={[styles.addPhotoText, { color: muted }]}>Add Photo</Text>
-            </Pressable>
-          )}
+            );
+          })}
         </View>
 
         <Text style={styles.sectionTitle}>PERSONAL DETAILS</Text>
 
         <View style={styles.formGroup}>
-          <Text style={styles.inputLabel}>Username *</Text>
+          <Text style={styles.inputLabel}>Name</Text>
           <View style={[styles.inputContainer, { borderColor: border, backgroundColor: cardColor }]}>
-            <TextInput style={[styles.inputValue, { color: text }]} value={username} onChangeText={setUsername} placeholderTextColor={muted} />
+            <TextInput style={[styles.inputValue, { color: text }]} value={firstName} onChangeText={setFirstName} placeholderTextColor={muted} />
           </View>
+        </View>
+
+        <View style={styles.formGroup}>
+          <Text style={styles.inputLabel}>Username *</Text>
+          <View style={[styles.inputContainer, { borderColor: usernameError ? '#FF3B30' : usernameSuccess && !isOwnUsername && !isChecking ? '#22C55E' : border, backgroundColor: cardColor, flexDirection: 'row', alignItems: 'center' }]}>
+            <TextInput 
+              style={[styles.inputValue, { color: text, flex: 1 }]} 
+              value={username} 
+              onChangeText={(text) => setUsername(text.replace(/[^a-zA-Z0-9_]/g, ''))} 
+              placeholderTextColor={muted} 
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            {usernameSuccess ? (
+              <Text style={{ color: isChecking ? muted : '#22C55E', fontSize: 12, fontWeight: '600' }}>
+                {usernameSuccess}
+              </Text>
+            ) : null}
+            {usernameError && username.length >= 3 && !isChecking ? (
+              <Text style={{ color: '#FF3B30', fontSize: 12, fontWeight: '600' }}>
+                Taken
+              </Text>
+            ) : null}
+          </View>
+          {usernameError && username.length < 3 ? (
+            <Text style={{ color: '#FF3B30', fontSize: 12, marginTop: 4 }}>{usernameError}</Text>
+          ) : null}
         </View>
 
         <View style={{ flexDirection: 'row', gap: 12 }}>
@@ -241,8 +420,8 @@ export default function EditBasicScreen() {
         <View style={{ height: 40 }} />
       </ScrollView>
 
-      <View style={[styles.footer, { paddingBottom: insets.bottom || 24, backgroundColor: background, borderTopColor: border }]}>
-        <Button onPress={handleSave} style={styles.saveBtn} disabled={isSaving}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom || 24, backgroundColor: background }]}>
+        <Button onPress={handleSave} style={[styles.saveBtn, !canSave && { opacity: 0.5 }]} disabled={isSaving || !canSave}>
           {isSaving ? <ActivityIndicator color="#FFF" /> : "Save Changes"}
         </Button>
       </View>
@@ -263,11 +442,11 @@ const styles = StyleSheet.create({
   inputContainer: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12 },
   inputValue: { fontSize: 16, padding: 0 },
   pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  footer: { paddingHorizontal: 20, paddingTop: 16, borderTopWidth: 1 },
+  footer: { paddingHorizontal: 20, paddingTop: 16 },
   saveBtn: { borderRadius: 24 },
   photoGrid: { flexDirection: 'row', gap: 12, flexWrap: 'wrap' },
-  avatarContainer: { width: 100, height: 120, borderRadius: 12, position: 'relative', justifyContent: 'center', alignItems: 'center' },
+  avatarContainer: { width: 110, height: 140, borderRadius: 12, position: 'relative', justifyContent: 'center', alignItems: 'center' },
   removeIconContainer: { position: 'absolute', top: -6, right: -6, width: 24, height: 24, borderRadius: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#FFF' },
-  addPhotoBox: { width: 100, height: 120, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center', gap: 8 },
+  addPhotoBox: { width: 110, height: 140, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center', gap: 8 },
   addPhotoText: { fontSize: 12 },
 });

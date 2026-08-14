@@ -6,9 +6,14 @@ import { useColor } from "@/hooks/useColor";
 import { router } from "expo-router";
 import { Eye, EyeOff } from "lucide-react-native";
 import { useState } from "react";
-import { Image, Pressable, ScrollView, View } from "react-native";
-import { useSignUpMutation } from "@/api/auth";
+import { Image, Pressable, View, Platform } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
+import { useSignUpMutation, useGoogleAuthMutation } from "@/api/auth";
 import { toast } from "sonner-native";
+import { FontAwesome } from "@expo/vector-icons";
+import { GoogleIcon } from "@/components/ui/GoogleIcon";
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
 export default function SignupScreen() {
   const [showPassword, setShowPassword] = useState(false);
@@ -18,11 +23,53 @@ export default function SignupScreen() {
   const [confirmPassword, setConfirmPassword] = useState("");
 
   const signup = useSignUpMutation();
+  const googleAuth = useGoogleAuthMutation();
 
   const orange = useColor("orange");
   const muted = useColor("textMuted");
   const background = useColor("background");
   const border = useColor("border");
+
+  const handleGoogleSignIn = async () => {
+    try {
+      await GoogleSignin.hasPlayServices();
+      const userInfo = await GoogleSignin.signIn();
+      const idToken = userInfo.data?.idToken;
+
+      if (!idToken) {
+        toast.error("Google Sign-In failed: No ID Token returned");
+        return;
+      }
+
+      toast.info("Verifying Google Sign-In...");
+      googleAuth.mutate(
+        { id_token: idToken },
+        {
+          onSuccess: () => {
+            toast.success("Signed in with Google");
+            router.replace("/");
+          },
+          onError: (err: any) => {
+            const errMsg = err?.response?.data?.error || err?.message || "Google Sign-In failed";
+            toast.error(errMsg);
+          },
+        }
+      );
+    } catch (error: any) {
+      if (error.code === 'SIGN_IN_CANCELLED') {
+        // user cancelled the login flow
+      } else if (error.code === 'IN_PROGRESS') {
+        // operation (e.g. sign in) is in progress already
+        toast.error("Sign-in in progress");
+      } else if (error.code === 'PLAY_SERVICES_NOT_AVAILABLE') {
+        // play services not available or outdated
+        toast.error("Play services not available");
+      } else {
+        // some other error happened
+        toast.error(error.message || "Unknown error during Google Sign-In");
+      }
+    }
+  };
 
   const handleSignup = () => {
     if (!name || !email || !password) {
@@ -54,23 +101,25 @@ export default function SignupScreen() {
   };
 
   return (
-    <ScrollView
-      contentContainerStyle={{ flexGrow: 1, backgroundColor: background }}
-    >
-      <View style={{ flex: 1, padding: 24, paddingTop: 50 }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: background }} edges={["top", "bottom"]}>
+      <KeyboardAwareScrollView
+        contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingBottom: 24, paddingTop: 10 }}
+        keyboardShouldPersistTaps="handled"
+        bottomOffset={60}
+      >
         {/* Header - Globe Icon */}
 
         {/* Logo */}
-        <View style={{ alignItems: "center", marginTop: 10, marginBottom: 20 }}>
+        <View style={{ alignItems: "center", marginBottom: 12 }}>
           <Image
             source={require("@/assets/images/logo.png")}
-            style={{ width: 140, height: 140 }}
+            style={{ width: 280, height: 140 }}
             resizeMode="contain"
           />
         </View>
 
         {/* Title */}
-        <View style={{ alignItems: "center", marginBottom: 16 }}>
+        <View style={{ alignItems: "center", marginBottom: 12 }}>
           <Text
             variant="title"
             style={{ fontSize: 28, fontWeight: "bold", marginBottom: 8 }}
@@ -83,7 +132,7 @@ export default function SignupScreen() {
         </View>
 
         {/* Form */}
-        <View style={{ gap: 12 }}>
+        <View style={{ gap: 10 }}>
           <View style={{ gap: 8 }}>
             <Text style={{ fontWeight: "600", fontSize: 14 }}>Name</Text>
             <Input
@@ -151,16 +200,17 @@ export default function SignupScreen() {
           </View>
 
           <Button
-            style={{ marginTop: 8 }}
+            style={{ marginTop: 24 }}
             onPress={handleSignup}
             disabled={signup.isPending}
+            loading={signup.isPending}
           >
-            Signup
+            Sign Up
           </Button>
         </View>
 
         {/* Footer */}
-        <View style={{ alignItems: "center", marginTop: 16 }}>
+        <View style={{ alignItems: "center", marginTop: 12 }}>
           <Text>
             Have an account?{" "}
             <Text
@@ -173,7 +223,7 @@ export default function SignupScreen() {
         </View>
 
         {/* Social Login */}
-        <View style={{ marginTop: 20, alignItems: "center" }}>
+        <View style={{ marginTop: 16, alignItems: "center" }}>
           <View
             style={{
               flexDirection: "row",
@@ -189,15 +239,19 @@ export default function SignupScreen() {
           </View>
 
           <View style={{ flexDirection: "row", gap: 16, width: "100%" }}>
-            <Button variant="outline" style={{ flex: 1 }}>
-              Google
+            <Button variant="outline" style={{ flex: 1, height: 50, gap: 10 }} onPress={handleGoogleSignIn} disabled={googleAuth.isPending} loading={googleAuth.isPending}>
+              <GoogleIcon width={20} height={20} />
+              <Text style={{ fontWeight: "600" }}>Continue with Google</Text>
             </Button>
-            <Button variant="outline" style={{ flex: 1 }}>
-              Apple
-            </Button>
+            {Platform.OS === "ios" && (
+              <Button variant="outline" style={{ flex: 1, height: 50, gap: 10 }}>
+                <FontAwesome name="apple" size={22} color={muted} />
+                <Text style={{ fontWeight: "600" }}>Apple</Text>
+              </Button>
+            )}
           </View>
         </View>
-      </View>
-    </ScrollView>
+        </KeyboardAwareScrollView>
+    </SafeAreaView>
   );
 }

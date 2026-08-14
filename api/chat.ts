@@ -36,6 +36,10 @@ export const useChatRoomsQuery = (search: string = '') => {
       const response = await apiClient.get<ChatRoom[]>(url);
       return response.data;
     },
+    retry: (failureCount, error: any) => {
+      if (error?.response?.status === 403) return false;
+      return failureCount < 3;
+    },
   });
 };
 

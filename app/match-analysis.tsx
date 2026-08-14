@@ -1,24 +1,80 @@
 import React from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Image } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Image, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { ArrowLeft, Sparkles, MapPin } from "lucide-react-native";
+import { ArrowLeft, Sparkles, MapPin, CheckCircle2 } from "lucide-react-native";
 import { useMatchAnalysisQuery } from "@/api/matching";
 import { useColor } from "@/hooks/useColor";
 import { LinearGradient } from "expo-linear-gradient";
+import { useProfileStore } from "@/store/profileStore";
+import { useAndroidBack } from "@/hooks/useAndroidBack";
 
 const GOLD = "#FFD700";
 const GOLD_TEXT = "#B8860B";
 
 export default function MatchAnalysisScreen() {
   const router = useRouter();
-  const { data: matches, isLoading, error } = useMatchAnalysisQuery();
+  useAndroidBack();
+  const { data: matches, isLoading, error, refetch, isRefetching } = useMatchAnalysisQuery();
+  const { profile } = useProfileStore();
   
   const background = useColor("background");
   const text = useColor("text");
   const muted = useColor("muted");
   const card = useColor("card");
   const border = useColor("border");
+
+  // Handle Face Verification Lock
+  if (profile && profile.must_verify_face) {
+    return (
+      <SafeAreaView style={[styles.root, { backgroundColor: background }]} edges={["top"]}>
+        <View style={styles.header}>
+          <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
+            <ArrowLeft size={22} color={text} />
+          </Pressable>
+        </View>
+        <View style={styles.centerContent}>
+          <Sparkles size={48} color="#EF4444" style={{ marginBottom: 16 }} />
+          <Text style={[styles.title, { color: text, textAlign: 'center' }]}>Action Required</Text>
+          <Text style={[styles.subtitle, { color: text, opacity: 0.6, textAlign: 'center', marginHorizontal: 32 }]}>
+            Your account has received multiple reports. You must verify your face to unlock Premium Match Analysis and card swiping.
+          </Text>
+          <Pressable 
+            style={[styles.upgradeBtn, { backgroundColor: "#EF4444" }]}
+            onPress={() => router.push("/onboarding/face-verification" as any)}
+          >
+            <Text style={styles.upgradeBtnText}>Verify Face Now</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Handle Profile Incomplete Lock
+  if (profile && profile.profile_completion_pct < 80) {
+    return (
+      <SafeAreaView style={[styles.root, { backgroundColor: background }]} edges={["top"]}>
+        <View style={styles.header}>
+          <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
+            <ArrowLeft size={22} color={text} />
+          </Pressable>
+        </View>
+        <View style={styles.centerContent}>
+          <Sparkles size={48} color={GOLD_TEXT} style={{ marginBottom: 16 }} />
+          <Text style={[styles.title, { color: text, textAlign: 'center' }]}>Profile Incomplete</Text>
+          <Text style={[styles.subtitle, { color: text, opacity: 0.6, textAlign: 'center', marginHorizontal: 32 }]}>
+            You must complete at least 80% of your profile to unlock Perfect Match Analysis. This ensures our AI can find your truly compatible matches!
+          </Text>
+          <Pressable 
+            style={[styles.upgradeBtn, { backgroundColor: GOLD_TEXT }]}
+            onPress={() => router.push("/profile" as any)}
+          >
+            <Text style={styles.upgradeBtnText}>Complete Profile Now</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   // Handle 403 / No Access
   if (error) {
@@ -32,8 +88,8 @@ export default function MatchAnalysisScreen() {
         <View style={styles.centerContent}>
           <Sparkles size={48} color={GOLD_TEXT} style={{ marginBottom: 16 }} />
           <Text style={[styles.title, { color: text, textAlign: 'center' }]}>Premium Feature</Text>
-          <Text style={[styles.subtitle, { color: muted, textAlign: 'center', marginHorizontal: 32 }]}>
-            Upgrade to Premium Plus or purchase the Perfect Match Analysis add-on to unlock your top 5 compatible profiles!
+          <Text style={[styles.subtitle, { color: text, opacity: 0.6, textAlign: 'center', marginHorizontal: 32 }]}>
+            Purchase the Perfect Match Analysis add-on to unlock your top 5 compatible profiles!
           </Text>
           <Pressable 
             style={[styles.upgradeBtn, { backgroundColor: GOLD_TEXT }]}
@@ -65,12 +121,20 @@ export default function MatchAnalysisScreen() {
         <ScrollView 
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={refetch}
+              tintColor={GOLD_TEXT}
+              colors={[GOLD_TEXT]}
+            />
+          }
         >
           <View style={styles.heroSection}>
             <Sparkles size={32} color={GOLD_TEXT} />
             <Text style={[styles.heroTitle, { color: text }]}>Your Top 5 Matches</Text>
             <Text style={[styles.heroSubtitle, { color: text, opacity: 0.8 }]}>
-              We analyzed thousands of data points across personality, lifestyle, and sensory needs to find these highly compatible profiles just for you.
+              Based on your profile gender ({profile?.gender || 'not set'}), we are showing highly compatible {profile?.gender?.toLowerCase() === 'man' ? 'women' : profile?.gender?.toLowerCase() === 'woman' ? 'men' : 'matches'}. We analyzed thousands of data points across personality, lifestyle, and sensory needs to find these profiles just for you.
             </Text>
           </View>
 
@@ -105,9 +169,12 @@ export default function MatchAnalysisScreen() {
               />
 
               <View style={styles.cardInfo}>
-                <Text style={styles.nameText}>
-                  {match.username}, {match.age}
-                </Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                  <Text style={[styles.nameText, { marginBottom: 0 }]}>
+                    {match.name}, {match.age}
+                  </Text>
+                  {match.is_verified && <CheckCircle2 size={18} color="#3B82F6" />}
+                </View>
                 
                 <View style={styles.metaRow}>
                   <MapPin size={14} color="#ddd" />

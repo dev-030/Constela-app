@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet, Text, ViewStyle, StyleProp } from 'react-native';
 import { useColor } from '@/hooks/useColor';
 import { BORDER_RADIUS } from '@/theme/globals';
 
@@ -8,13 +8,13 @@ type FilterPillProps = {
   selected?: boolean;
   onPress?: () => void;
   icon?: React.ReactNode;
+  style?: StyleProp<ViewStyle>;
 };
 
-export function FilterPill({ label, selected, onPress, icon }: FilterPillProps) {
+export function FilterPill({ label, selected, onPress, icon, style }: FilterPillProps) {
   const primary = useColor('primary');
   const text = useColor('text');
   const border = useColor('border');
-  const background = useColor('background');
 
   return (
     <Pressable
@@ -22,20 +22,14 @@ export function FilterPill({ label, selected, onPress, icon }: FilterPillProps) 
       style={[
         styles.container,
         {
-          backgroundColor: selected ? primary : 'transparent',
-          borderColor: selected ? primary : border,
+          backgroundColor: selected ? primary + '15' : 'transparent',
+          borderColor: selected ? primary + '30' : border,
         },
+        style,
       ]}
     >
       {icon}
-      <Text
-        style={[
-          styles.label,
-          {
-            color: selected ? '#FFF' : text,
-          },
-        ]}
-      >
+      <Text style={[styles.label, { color: selected ? primary : text }]}>
         {label}
       </Text>
     </Pressable>

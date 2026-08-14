@@ -1,12 +1,14 @@
 import { OnboardingShell } from "@/components/ui/onboarding-shell";
 import { SelectablePill } from "@/components/ui/selectable-pill";
 import { Text } from "@/components/ui/text";
+import { Icon } from "@/components/ui/icon";
 import { useColor } from "@/hooks/useColor";
 import { useOnboarding } from "@/providers/onboarding-context";
 import { useRouter } from "expo-router";
-import { ScrollView, View } from "react-native";
+import { ScrollView, View, Pressable } from "react-native";
+import { X } from "lucide-react-native";
 
-const MAX = 3;
+// Removed MAX constant since unlimited selections are allowed
 
 const QUALITIES = [
   "Authenticity",
@@ -49,40 +51,63 @@ export default function OnboardingQualitiesScreen() {
     const current = data.qualities;
     if (current.includes(q)) {
       update("qualities", current.filter((v) => v !== q));
-    } else if (current.length < MAX) {
+    } else {
       update("qualities", [...current, q]);
     }
   };
 
   return (
     <OnboardingShell
-      title={`Choose ${MAX} Qualities That Best Describe You`}
-      subtitle={`${MAX} selections required`}
+      title="Choose Qualities That Best Describe You"
+      subtitle="Select as many as you want"
       onBack={() => router.back()}
       onContinue={() => router.push("/onboarding/interests")}
       onSkip={() => router.push("/onboarding/interests")}
-      continueDisabled={data.qualities.length < MAX}
+      continueDisabled={data.qualities.length === 0}
     >
-      {/* Selection counter */}
+      {/* Selection container */}
       <View
         style={{
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
           borderWidth: 1,
           borderColor: muted + "44",
           borderRadius: 10,
           paddingHorizontal: 14,
           paddingVertical: 10,
           marginBottom: 20,
+          minHeight: 56,
         }}
       >
-        <Text style={{ fontSize: 12, fontWeight: "600", color: muted, letterSpacing: 0.5 }}>
-          YOUR SELECTION
-        </Text>
-        <Text style={{ fontSize: 12, fontWeight: "700", color: primary }}>
-          Selected ({data.qualities.length})
-        </Text>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: data.qualities.length > 0 ? 12 : 0 }}>
+          <Text style={{ fontSize: 12, fontWeight: "600", color: muted, letterSpacing: 0.5 }}>
+            YOUR SELECTION
+          </Text>
+          <Text style={{ fontSize: 12, fontWeight: "700", color: primary }}>
+            Selected ({data.qualities.length})
+          </Text>
+        </View>
+
+        {data.qualities.length > 0 && (
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+            {data.qualities.map((q) => (
+              <Pressable
+                key={q}
+                onPress={() => toggle(q)}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  backgroundColor: primary,
+                  paddingHorizontal: 10,
+                  paddingVertical: 6,
+                  borderRadius: 16,
+                  gap: 4
+                }}
+              >
+                <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>{q}</Text>
+                <Icon name={X} size={14} color="#fff" />
+              </Pressable>
+            ))}
+          </View>
+        )}
       </View>
 
       <ScrollView

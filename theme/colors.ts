@@ -32,7 +32,7 @@ export const lightColors = {
   foreground: '#000000',
 
   // Card colors
-  card: '#F2F2F7',
+  card: '#FAFAFA',
   cardForeground: '#000000',
 
   // Popover colors
@@ -104,7 +104,7 @@ export const lightColors = {
 
 export const darkColors = {
   // Base colors
-  background: '#000000',
+  background: '#121212',
   foreground: '#FFFFFF',
 
   // Card colors

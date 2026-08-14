@@ -16,28 +16,20 @@ export default function VerificationOverlay({ children }: { children: React.Reac
 
   if (!profile) return <>{children}</>;
 
-  const isFaceApproved = profile.face_verification_status === "approved";
-  const isProfileComplete = profile.profile_completion_pct === 100;
-  
-  if (isFaceApproved && isProfileComplete) {
+  if (!profile.must_verify_face) {
     return <>{children}</>;
   }
 
-  let message = "Your profile is pending verification or completion. Please finish setting up your profile and wait for admin approval to unlock this feature.";
-  if (!isProfileComplete && isFaceApproved) {
-    message = "Your profile is incomplete. Please finish setting up your profile to unlock this feature.";
-  } else if (isProfileComplete && !isFaceApproved) {
-    message = "Your face verification is pending admin approval. Please wait for an admin to verify your account.";
-  }
+  const message = "Your account has received multiple reports from different users. To protect our community, you must verify your face to continue using the app.";
 
   return (
     <View style={[styles.container, { backgroundColor: background }]}>
       <View style={styles.iconContainer}>
-        <Icon name={!isFaceApproved ? ShieldAlert : Lock} size={48} color={primary} />
+        <Icon name={ShieldAlert} size={48} color={primary} />
       </View>
       
       <Text variant="title" style={styles.title}>
-        Feature Locked
+        Action Required
       </Text>
       
       <Text style={[styles.message, { color: muted }]}>
@@ -45,27 +37,14 @@ export default function VerificationOverlay({ children }: { children: React.Reac
       </Text>
 
       <View style={styles.actions}>
-        {!isProfileComplete && (
-          <Button
-            variant="default"
-            size="lg"
-            onPress={() => router.push("/profile")}
-            style={styles.button}
-          >
-            Complete Profile
-          </Button>
-        )}
-        
-        {!isFaceApproved && profile.face_verification_status !== "pending" && (
-          <Button
-            variant="outline"
-            size="lg"
-            onPress={() => router.push("/onboarding/face-verification")}
-            style={styles.button}
-          >
-            Verify Face
-          </Button>
-        )}
+        <Button
+          variant="default"
+          size="lg"
+          onPress={() => router.push("/onboarding/face-verification")}
+          style={styles.button}
+        >
+          Verify Face Now
+        </Button>
       </View>
     </View>
   );

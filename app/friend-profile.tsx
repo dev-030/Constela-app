@@ -23,9 +23,11 @@ import { BottomSheet, useBottomSheet } from "@/components/ui/bottom-sheet";
 import ManageProfileScreen from "./manage-profile";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
+import { useAndroidBack } from "@/hooks/useAndroidBack";
 
 export default function FriendProfileScreen() {
   const insets = useSafeAreaInsets();
+  useAndroidBack();
   const background = useColor("background");
   const text = useColor("text");
   const muted = useColor("textMuted");

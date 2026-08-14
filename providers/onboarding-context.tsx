@@ -27,7 +27,7 @@ export interface OnboardingData {
 
   // Step 2
   maritalStatus: string;
-  spokenLanguages: string;
+  spokenLanguages: string[];
   city: string;
   country: string;
   weight: string;
@@ -62,7 +62,7 @@ const initialData: OnboardingData = {
   height: "",
   gender: null,
   maritalStatus: "",
-  spokenLanguages: "",
+  spokenLanguages: [],
   city: "",
   country: "",
   weight: "",

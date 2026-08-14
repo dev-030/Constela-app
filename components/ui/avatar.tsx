@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
-import { View, Image, StyleSheet, StyleProp, ViewStyle, ImageStyle } from 'react-native';
+import { View, StyleSheet, StyleProp, ViewStyle, ImageStyle } from 'react-native';
+import { Image } from 'expo-image';
 import { User } from 'lucide-react-native';
 import { useColor } from '@/hooks/useColor';
 
 interface AvatarProps {
   uri?: string | null;
   size?: number;
+  rounded?: boolean;
   style?: StyleProp<ViewStyle>;
   imageStyle?: StyleProp<ImageStyle>;
 }
 
-export function Avatar({ uri, size = 100, style, imageStyle }: AvatarProps) {
+export function Avatar({ uri, size = 100, rounded = false, style, imageStyle }: AvatarProps) {
   const [hasError, setHasError] = useState(false);
   const border = useColor('border');
   const muted = useColor('textMuted');
@@ -24,7 +26,7 @@ export function Avatar({ uri, size = 100, style, imageStyle }: AvatarProps) {
         {
           width: size,
           height: size,
-          borderRadius: size / 4,
+          borderRadius: rounded ? size / 2 : size / 4,
           backgroundColor: border,
         },
         style,
@@ -37,9 +39,12 @@ export function Avatar({ uri, size = 100, style, imageStyle }: AvatarProps) {
           source={{ uri }}
           style={[
             styles.image,
-            { width: size, height: size, borderRadius: size / 4 },
-            imageStyle,
+            { width: size, height: size, borderRadius: rounded ? size / 2 : size / 4 },
+            imageStyle as any,
           ]}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={0}
           onError={() => setHasError(true)}
         />
       )}
@@ -54,6 +59,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   image: {
-    resizeMode: 'cover',
+    width: '100%',
+    height: '100%',
   },
 });

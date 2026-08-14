@@ -1,4 +1,6 @@
+import './i18n';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { ChatSocketProvider } from '@/api/ChatSocketProvider';
 import { Toaster } from 'sonner-native';
 import { useAuthStore } from '@/store/authStore';
@@ -13,11 +15,18 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { setBackgroundColorAsync } from 'expo-system-ui';
 import React, { useEffect } from 'react';
-import { LogBox, Platform } from 'react-native';
+import { BackHandler, LogBox, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
 LogBox.ignoreAllLogs();
+
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+
+GoogleSignin.configure({
+  webClientId: '504633031372-14dbhe821adkj85sarl3g1otq3gu10um.apps.googleusercontent.com',
+  offlineAccess: true,
+});
 
 SplashScreen.setOptions({
   duration: 200,
@@ -48,7 +57,10 @@ function RootLayoutContent() {
     <ThemeProvider>
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} animated />
 
-        <Stack screenOptions={{ headerShown: false }}>
+        <Stack screenOptions={{ 
+          headerShown: false,
+          contentStyle: { backgroundColor: colorScheme === 'dark' ? Colors.dark.background : Colors.light.background } 
+        }}>
           <Stack.Screen name='(tabs)' options={{ headerShown: false }} />
 
           <Stack.Screen
@@ -94,9 +106,10 @@ function RootLayoutContent() {
           <Stack.Screen
             name='filters'
             options={{
-              presentation: 'modal',
+              presentation: 'transparentModal',
+              animation: 'fade',
               headerShown: false,
-              animation: 'slide_from_bottom',
+              contentStyle: { backgroundColor: 'transparent' },
             }}
           />
           <Stack.Screen
@@ -125,8 +138,11 @@ function RootLayoutContent() {
 
 const queryClient = new QueryClient();
 
+import { useProfileStore } from '@/store/profileStore';
+
 export default function RootLayout() {
   const { restoreAuth, isAuthenticated, isRestoring } = useAuthStore();
+  const { profile } = useProfileStore();
   const segments = useSegments();
   const router = useRouter();
 
@@ -138,22 +154,26 @@ export default function RootLayout() {
     if (isRestoring) return;
 
     const inAuthGroup = segments[0] === '(auth)';
+    const inOnboarding = segments[0] === 'onboarding';
 
     if (!isAuthenticated && !inAuthGroup) {
       router.replace('/(auth)/login');
+      return;
     }
   }, [isAuthenticated, isRestoring, segments]);
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <QueryClientProvider client={queryClient}>
-        <ChatSocketProvider>
-          <ThemeContextProvider>
-            <RootLayoutContent />
-            <Toaster />
-          </ThemeContextProvider>
-        </ChatSocketProvider>
-      </QueryClientProvider>
-    </GestureHandlerRootView>
+    <KeyboardProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <QueryClientProvider client={queryClient}>
+          <ChatSocketProvider>
+            <ThemeContextProvider>
+              <RootLayoutContent />
+              <Toaster />
+            </ThemeContextProvider>
+          </ChatSocketProvider>
+        </QueryClientProvider>
+      </GestureHandlerRootView>
+    </KeyboardProvider>
   );
 }

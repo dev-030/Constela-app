@@ -72,3 +72,31 @@ export const useTransactionHistoryQuery = () => {
     },
   });
 };
+
+export const useReportUserMutation = () => {
+  return useMutation({
+    mutationFn: async (data: { reported_user: string; reason: string; description?: string }) => {
+      const response = await apiClient.post('/api/reports/create/', data);
+      return response.data;
+    },
+  });
+};
+
+export const useSubmitSupportTicketMutation = () => {
+  return useMutation({
+    mutationFn: async (data: { subject: string; description: string; email?: string }) => {
+      const response = await apiClient.post('/api/support/create/', data);
+      return response.data;
+    },
+  });
+};
+
+export const useMySupportTicketsQuery = () => {
+  return useQuery({
+    queryKey: ['mySupportTickets'],
+    queryFn: async () => {
+      const response = await apiClient.get<any[]>('/api/support/my-tickets/');
+      return response.data;
+    },
+  });
+};

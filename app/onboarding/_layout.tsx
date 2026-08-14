@@ -12,6 +12,7 @@ export default function OnboardingLayout() {
         <Stack.Screen name="qualities" options={{ headerShown: false }} />
         <Stack.Screen name="interests" options={{ headerShown: false }} />
         <Stack.Screen name="emotional" options={{ headerShown: false }} />
+        <Stack.Screen name="verification-prompt" options={{ headerShown: false }} />
         <Stack.Screen name="face-verification" options={{ headerShown: false }} />
       </Stack>
     </OnboardingProvider>

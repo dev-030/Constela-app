@@ -6,6 +6,7 @@ import {
   useSwipeActionMutation,
 } from "@/api/matching";
 import { useProfileStore } from "@/store/profileStore";
+import { useFilterStore } from "@/store/filterStore";
 import { SwipeDirection, SwipeHandle } from "@/components/swipe";
 
 const LOW_STACK_THRESHOLD = 3;
@@ -22,6 +23,7 @@ const LOW_STACK_THRESHOLD = 3;
  */
 export function useMatchesFeed() {
   const { profile } = useProfileStore();
+  const filters = useFilterStore((state) => state.filters);
 
   const {
     data: pages,
@@ -33,7 +35,7 @@ export function useMatchesFeed() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useInfinitePerfectMatchQuery({ page_size: 10 });
+  } = useInfinitePerfectMatchQuery({ ...filters, page_size: 10 });
 
   const swipeAction = useSwipeActionMutation();
 
@@ -46,33 +48,31 @@ export function useMatchesFeed() {
   }, [isLoading, isPending, isFetching]);
 
   const swipeRef = useRef<SwipeHandle>(null);
+  const lastAutoRefetch = useRef(0);
+  const [feedKey, setFeedKey] = useState(0);
   const [canUndo, setCanUndo] = useState(false);
+  const [isLocked, setIsLocked] = useState(false);
 
   const matches: MatchProfile[] = useMemo(
     () => pages?.pages.flatMap((p) => p.results) ?? [],
     [pages]
   );
 
-  // Keep the deck topped up as the user swipes through results.
+  // Check if backend reported limit reached on initial load or any page load
   useEffect(() => {
-    if (
-      hasNextPage &&
-      !isFetchingNextPage &&
-      matches.length > 0 &&
-      matches.length <= LOW_STACK_THRESHOLD
-    ) {
-      fetchNextPage();
+    const limitReached = pages?.pages.some((p) => p.limit_reached) ?? false;
+    if (limitReached !== isLocked) {
+      setIsLocked(limitReached);
     }
-  }, [matches.length, hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [pages?.pages, isLocked]);
+
+  // The active remaining cards count is checked inside handleActiveIndexChange
 
   const recordSwipe = (
     target: MatchProfile,
     direction: SwipeDirection
   ) => {
-    // "super" is currently treated as a like — the API doesn't define a
-    // separate super-like verb, so premium users still send "liked".
-    const action: "liked" | "disliked" =
-      direction === "left" ? "disliked" : "liked";
+    const action = direction === "left" ? "disliked" : direction === "super" ? "superliked" : "liked";
 
     swipeAction.mutate(
       { targetId: target.id, action },
@@ -81,7 +81,7 @@ export function useMatchesFeed() {
           if (res.is_mutual_match) {
             Alert.alert(
               "It\u2019s a Match! \uD83C\uDF89",
-              `You and ${target.username} liked each other!`
+              `You and ${target.name} liked each other!`
             );
           }
         },
@@ -93,7 +93,13 @@ export function useMatchesFeed() {
             "Something went wrong. Please try again.";
 
           if (status === 403) {
-            Alert.alert("Limit Reached", message);
+            // Revert the swipe instantly so the user doesn't lose the card
+            swipeRef.current?.undo();
+            setIsLocked(true);
+            
+            Alert.alert("Limit Reached", message, [
+              { text: "OK" }
+            ]);
           } else if (status === 404) {
             Alert.alert(
               "Already decided",
@@ -122,16 +128,39 @@ export function useMatchesFeed() {
   };
 
   const handleUndo = () => {
-    swipeRef.current?.undo();
+    if (tier === "freemium") {
+       Alert.alert("Premium Feature", "Upgrade to Premium to rewind your swipes.");
+       return;
+    }
+    const profile = swipeRef.current?.undo();
+    if (profile) {
+      swipeAction.mutate({ targetId: profile.id, action: "undo" as any });
+    }
   };
 
   const handleActiveIndexChange = () => {
     setCanUndo(
       (swipeRef.current?.canUndo ?? false) && matches.length > 0
     );
+
+    // Auto-fetch more cards when we are running low!
+    const remaining = swipeRef.current?.remaining ?? matches.length;
+    if (remaining <= LOW_STACK_THRESHOLD && !isFetchingNextPage && !isFetching) {
+      if (hasNextPage) {
+        fetchNextPage();
+      } else {
+        // If we ran out of pages, refetch from page 1 to trigger recycling or get new signups.
+        // Throttle this to prevent infinite loops if the backend truly has 0 results.
+        const now = Date.now();
+        if (now - lastAutoRefetch.current > 5000) {
+          lastAutoRefetch.current = now;
+          refetch().then(() => setFeedKey(k => k + 1));
+        }
+      }
+    }
   };
 
-  const displayName = profile?.username ?? "there";
+  const displayName = profile?.name ?? "there";
   const tier = profile?.subscription_tier;
 
   const tierLabel = (() => {
@@ -149,6 +178,7 @@ export function useMatchesFeed() {
   return {
     // data
     matches,
+    feedKey,
     isLoading: showLoading,
     isError,
     isFetchingNextPage,
@@ -156,6 +186,7 @@ export function useMatchesFeed() {
     // swipe
     swipeRef,
     canUndo,
+    isLocked,
     handleActiveIndexChange,
     handleSwipe,
     handleActionPress,

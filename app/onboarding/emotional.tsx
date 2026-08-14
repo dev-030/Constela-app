@@ -76,8 +76,8 @@ export default function OnboardingEmotionalScreen() {
       if (data.maritalStatus)
         formData.append("marital_status", data.maritalStatus);
       if (data.education) formData.append("education_level", data.education);
-      if (data.spokenLanguages && data.spokenLanguages.trim())
-        formData.append("spoken_languages", data.spokenLanguages);
+      if (data.spokenLanguages && data.spokenLanguages.length > 0)
+        formData.append("spoken_languages", JSON.stringify(data.spokenLanguages));
       if (data.city && data.city.trim()) formData.append("city", data.city);
       if (data.country && data.country.trim()) formData.append("country", data.country);
 
@@ -154,7 +154,7 @@ export default function OnboardingEmotionalScreen() {
 
       await updateMyProfile(formData);
       await fetchProfile();
-      router.push("/onboarding/face-verification");
+      router.push("/onboarding/verification-prompt");
     } catch (err) {
       console.log("Failed to save onboarding data:", err);
     } finally {

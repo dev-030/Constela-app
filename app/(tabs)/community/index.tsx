@@ -13,7 +13,8 @@ import {
 } from "react-native";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { useEffect, useState } from "react";
-import { Search, Zap, Lock } from "lucide-react-native";
+import { Search, Zap, Lock, Users } from "lucide-react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import Header from "../../../components/header";
 import VerificationOverlay from "@/components/VerificationOverlay";
 import { router } from "expo-router";
@@ -217,13 +218,16 @@ function GroupCard({
 }
 
 function PremiumUpsell() {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+
   return (
-    <View style={styles.upsell}>
+    <View style={[styles.upsell, isDark && { backgroundColor: "#1C1C1E", borderColor: "#38383A" }]}>
       <View style={styles.upsellBadge}>
         <Lock size={22} color="#FFFFFF" />
       </View>
-      <Text style={styles.upsellTitle}>Premium Community</Text>
-      <Text style={styles.upsellBody}>
+      <Text style={[styles.upsellTitle, isDark && { color: "#FFFFFF" }]}>Premium Community</Text>
+      <Text style={[styles.upsellBody, isDark && { color: "#A1A1AA" }]}>
         Upgrade to Premium to access community chat rooms and connect with
         people who share your neurotype.
       </Text>
@@ -302,25 +306,37 @@ export default function CommunityScreen() {
           />
         }
       >
-        <View style={[styles.hero, colorScheme === "dark" && styles.heroDark]}>
-          <Text
-            style={[
-              styles.heroTitle,
-              colorScheme === "dark" && { color: "#8591A0" },
-            ]}
-          >
-            Find your community
-          </Text>
-          <Text
-            style={[
-              styles.heroBody,
-              colorScheme === "dark" && { color: "#2E735F" },
-            ]}
-          >
-            A low-pressure space to connect with people who share your neurotype
-            and sensory preferences.
-          </Text>
-        </View>
+        <LinearGradient
+          colors={colorScheme === "dark" ? ["#1C382F", "#0B1813"] : ["#E9F9F3", "#D1F4E4"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.hero, colorScheme === "dark" && styles.heroDark]}
+        >
+          <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 12 }}>
+            <View style={{ flex: 1 }}>
+              <Text
+                style={[
+                  styles.heroTitle,
+                  colorScheme === "dark" && { color: "#F8FAFC" },
+                ]}
+              >
+                Find your community
+              </Text>
+              <Text
+                style={[
+                  styles.heroBody,
+                  colorScheme === "dark" && { color: "#A7F3D0" },
+                ]}
+              >
+                A low-pressure space to connect with people who share your neurotype
+                and sensory preferences.
+              </Text>
+            </View>
+            <View style={[styles.heroIconContainer, colorScheme === "dark" && { backgroundColor: "rgba(74, 222, 128, 0.15)" }]}>
+              <Users size={28} color={colorScheme === "dark" ? "#4ADE80" : "#3E6F63"} />
+            </View>
+          </View>
+        </LinearGradient>
 
         <Text
           style={[
@@ -398,13 +414,22 @@ const styles = StyleSheet.create({
   },
   heroTitle: {
     color: "#9A3B00",
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "800",
-    marginBottom: 12,
+    marginBottom: 8,
   },
   heroBody: {
     color: "#604F47",
-    fontSize: 16,
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  heroIconContainer: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "rgba(62, 111, 99, 0.1)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   sectionHeader: {
     flexDirection: "row",

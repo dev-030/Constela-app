@@ -12,8 +12,10 @@ import { FilterListItem } from '@/components/ui/filter-list-item';
 import { useColor } from '@/hooks/useColor';
 import { useProfileStore } from '@/store/profileStore';
 import { updateMyProfile } from '@/api/profile';
+import { useAndroidBack } from '@/hooks/useAndroidBack';
 
 export default function EditEmotionalScreen() {
+  useAndroidBack();
   const insets = useSafeAreaInsets();
   const background = useColor('background');
   const text = useColor('text');
@@ -35,6 +37,13 @@ export default function EditEmotionalScreen() {
   
   const [isSaving, setIsSaving] = useState(false);
 
+  const hasChanged = 
+    JSON.stringify(recharge) !== JSON.stringify(profile?.recharge_methods || []) ||
+    JSON.stringify(exhausts) !== JSON.stringify(profile?.exhaust_triggers || []) ||
+    JSON.stringify(needs) !== JSON.stringify(profile?.emotional_needs || []) ||
+    humor !== (profile?.second_degree_humor ? 'Yes' : 'No') ||
+    JSON.stringify(soothes) !== JSON.stringify(profile?.soothe_methods || []);
+
   const toggleArrayItem = (arr: string[], setArr: (val: string[]) => void, item: string) => {
     if (arr.includes(item)) {
       setArr(arr.filter((i) => i !== item));
@@ -47,28 +56,36 @@ export default function EditEmotionalScreen() {
     setIsSaving(true);
     try {
       const formData = new FormData();
-      
-      recharge.forEach(r => formData.append('recharge_methods', r));
-      exhausts.forEach(e => formData.append('exhaust_triggers', e));
-      needs.forEach(n => formData.append('emotional_needs', n));
+      formData.append('recharge_methods', JSON.stringify(recharge));
+      formData.append('exhaust_triggers', JSON.stringify(exhausts));
+      formData.append('emotional_needs', JSON.stringify(needs));
       formData.append('second_degree_humor', humor === 'Yes' ? 'true' : 'false');
-      soothes.forEach(s => formData.append('soothe_methods', s));
+      formData.append('soothe_methods', JSON.stringify(soothes));
 
       await updateMyProfile(formData);
       await fetchProfile();
       router.back();
     } catch (error) {
       console.error(error);
-      Alert.alert("Error", "Failed to save profile");
+            let errMsg = "Failed to save profile";
+      if (error?.response?.data && typeof error.response.data === "object") {
+        const firstKey = Object.keys(error.response.data)[0];
+        if (Array.isArray(error.response.data[firstKey])) {
+          errMsg = error.response.data[firstKey][0];
+        } else if (typeof error.response.data[firstKey] === "string") {
+          errMsg = error.response.data[firstKey];
+        }
+      }
+      Alert.alert("Error", errMsg);
     } finally {
       setIsSaving(false);
     }
   };
 
-  const SectionHeader = ({ title, icon, color = '#555' }: { title: string; icon: any; color?: string }) => (
+  const SectionHeader = ({ title, icon }: { title: string; icon: any }) => (
     <View style={styles.sectionHeader}>
-      <Icon name={icon} size={16} color={color} />
-      <Text style={[styles.sectionTitle, { color }]}>{title}</Text>
+      <Icon name={icon} size={16} color={muted} />
+      <Text style={[styles.sectionTitle, { color: muted }]}>{title}</Text>
     </View>
   );
 
@@ -82,7 +99,6 @@ export default function EditEmotionalScreen() {
         <Text style={styles.headerTitle}>Emotional Landscape</Text>
         <View style={styles.backBtn} />
       </View>
-      <View style={[styles.divider, { backgroundColor: border }]} />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         
@@ -106,7 +122,7 @@ export default function EditEmotionalScreen() {
 
         <View style={styles.spacing} />
 
-        <SectionHeader title="WHAT EXHAUSTS ME" icon={BatteryWarning} color="#C62828" />
+        <SectionHeader title="WHAT EXHAUSTS ME" icon={BatteryWarning} />
         {['Absorbs other people\'s moods', 'Feels everything deeply', 'Loud or unpredictable noises', 'Bright lights', 'Fast movements around me', 'Strong smells', 'Unpleasant textures'].map(item => (
           <FilterListItem 
             key={item} title={item} 
@@ -116,7 +132,7 @@ export default function EditEmotionalScreen() {
 
         <View style={styles.spacing} />
 
-        <SectionHeader title="MY EMOTIONAL NEEDS" icon={Heart} color="#795548" />
+        <SectionHeader title="MY EMOTIONAL NEEDS" icon={Heart} />
         {['Predictability', 'Consistency in behavior', 'Absence of judgement', 'Clear communication', 'Deep talk', 'Need to be alone sometimes'].map(item => (
           <FilterListItem 
             key={item} title={item} 
@@ -126,7 +142,7 @@ export default function EditEmotionalScreen() {
 
         <View style={styles.spacing} />
 
-        <SectionHeader title="SECOND-DEGREE HUMOR" icon={Smile} color="#2E7D32" />
+        <SectionHeader title="SECOND-DEGREE HUMOR" icon={Smile} />
         {['Yes', 'No'].map(item => (
           <FilterListItem 
             key={item} title={item} 
@@ -136,7 +152,7 @@ export default function EditEmotionalScreen() {
 
         <View style={styles.spacing} />
 
-        <SectionHeader title="WHAT SOOTHES ME" icon={Leaf} color="#00695C" />
+        <SectionHeader title="WHAT SOOTHES ME" icon={Leaf} />
         <View style={styles.pillRow}>
           {['Silence or soft sounds', 'Dim light', 'Massage', 'Sensory objects', 'Chosen solitude', 'Comforting routines', 'Predictability', 'Clear Communication', 'Hyperfocus on an interest'].map(item => (
             <FilterPill 
@@ -154,8 +170,8 @@ export default function EditEmotionalScreen() {
       <View style={[styles.footer, { paddingBottom: insets.bottom || 24, backgroundColor: background }]}>
         <Button 
           onPress={handleSave} 
-          style={styles.saveBtn} 
-          disabled={isSaving}
+          style={[styles.saveBtn, !hasChanged && { opacity: 0.5 }]} 
+          disabled={isSaving || !hasChanged}
         >
           {isSaving ? <ActivityIndicator color="#FFF" /> : "Save Changes"}
         </Button>
@@ -215,8 +231,7 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: 20,
     paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.05)',
+    borderTopWidth: 0,
   },
   saveBtn: {
     borderRadius: 24,

@@ -2,21 +2,28 @@ import { Text } from "@/components/ui/text";
 import { useColor } from "@/hooks/useColor";
 import {
   ActivityIndicator,
-  Image,
   Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
+  TouchableOpacity,
   View,
 } from "react-native";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Header from "../../../components/header";
 import VerificationOverlay from "@/components/VerificationOverlay";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { MessageThread, ThreadType, useThreadsQuery } from "@/api/messages";
 import { Avatar } from "@/components/ui/avatar";
 import { useChatSocket } from "@/api/ChatSocketProvider";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  Easing,
+} from "react-native-reanimated";
+import { useColorScheme } from "@/hooks/useColorScheme";
 
 // Format a UTC timestamp as "10:45 AM", "Yesterday", or "N days ago".
 function formatThreadTime(iso: string): string {
@@ -51,6 +58,125 @@ function formatThreadTime(iso: string): string {
   });
 }
 
+// ── Segmented pill control ──────────────────────────────────────────────────
+const TABS: { value: ThreadType; label: string }[] = [
+  { value: "dating", label: "Dating" },
+  { value: "friends", label: "Friends" },
+];
+
+function SegmentedControl({
+  activeTab,
+  onChange,
+}: {
+  activeTab: ThreadType;
+  onChange: (value: ThreadType) => void;
+}) {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+
+  const [pillWidth, setPillWidth] = useState(0);
+  const activeIndex = TABS.findIndex((t) => t.value === activeTab);
+  const translateX = useSharedValue(0);
+
+  useEffect(() => {
+    if (pillWidth > 0) {
+      translateX.value = withTiming(activeIndex * pillWidth, {
+        duration: 220,
+        easing: Easing.out(Easing.quad),
+      });
+    }
+  }, [activeIndex, pillWidth]);
+
+  const pillStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+
+  const containerBg = isDark ? "#2C2C2E" : "#EFEFEF";
+  const pillBg = isDark ? "#3A3A3C" : "#FFFFFF";
+  const activeTextColor = isDark ? "#FFFFFF" : "#1C1C1C";
+  const inactiveTextColor = isDark ? "#8E8E93" : "#8E8E93";
+
+  return (
+    <View
+      style={[segStyles.wrapper, { backgroundColor: containerBg }]}
+      onLayout={(e) => {
+        const w = e.nativeEvent.layout.width;
+        setPillWidth((w - 6) / TABS.length);
+      }}
+    >
+      {/* Sliding pill */}
+      {pillWidth > 0 && (
+        <Animated.View
+          style={[
+            segStyles.pill,
+            { width: pillWidth, backgroundColor: pillBg },
+            pillStyle,
+          ]}
+        />
+      )}
+      {/* Labels */}
+      {TABS.map((tab) => (
+        <TouchableOpacity
+          key={tab.value}
+          onPress={() => onChange(tab.value)}
+          activeOpacity={0.75}
+          style={[segStyles.tab, pillWidth > 0 && { width: pillWidth }]}
+        >
+          <Text
+            style={[
+              segStyles.tabText,
+              {
+                color:
+                  activeTab === tab.value
+                    ? activeTextColor
+                    : inactiveTextColor,
+                fontWeight: activeTab === tab.value ? "700" : "500",
+              },
+            ]}
+          >
+            {tab.label}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+}
+
+const segStyles = StyleSheet.create({
+  wrapper: {
+    flexDirection: "row",
+    borderRadius: 30,
+    padding: 3,
+    marginHorizontal: 16,
+    marginTop: 10,
+    marginBottom: 6,
+    position: "relative",
+  },
+  pill: {
+    position: "absolute",
+    top: 3,
+    left: 3,
+    bottom: 3,
+    borderRadius: 30,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  tab: {
+    paddingVertical: 9,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1,
+  },
+  tabText: {
+    fontSize: 14,
+    letterSpacing: 0.1,
+  },
+});
+
+// ── Conversation list ────────────────────────────────────────────────────────
 function ConversationList({
   threads,
   isLoading,
@@ -157,7 +283,7 @@ function ConversationList({
 
               <View style={styles.conversationBody}>
                 <View style={styles.conversationTop}>
-                  <Text style={styles.name}>{thread.profile.username}</Text>
+                  <Text style={styles.name}>{thread.profile.name}</Text>
                   <Text style={styles.time}>
                     {formatThreadTime(thread.last_message_time)}
                   </Text>
@@ -214,46 +340,37 @@ export default function MessagesScreen() {
     <VerificationOverlay>
       <View style={[styles.container, { backgroundColor: background }]}>
         <Header />
-      <Tabs
-        value={tab}
-        onValueChange={(v) => setTab(v as ThreadType)}
-        enableSwipe
-      >
-        <TabsList style={styles.tabsList}>
-          <TabsTrigger value="dating" textStyle={styles.triggerText}>
-            Dating
-          </TabsTrigger>
-          <TabsTrigger value="friends" textStyle={styles.triggerText}>
-            Friends
-          </TabsTrigger>
-        </TabsList>
 
-        <TabsContent value="dating" style={{ paddingTop: 0 }}>
-          <ConversationList
-            threads={datingQuery.data ?? []}
-            isLoading={datingQuery.isLoading}
-            isError={!!datingQuery.isError}
-            onRefresh={handleDatingRefresh}
-            isRefreshing={refreshingDating}
-            type="dating"
-            emptyText={
-              tab === "dating"
-                ? "No matches yet. Start liking profiles to begin a thread."
-                : "No conversations."
-            }
-          />
-        </TabsContent>
+        <SegmentedControl activeTab={tab} onChange={setTab} />
 
-        <TabsContent value="friends" style={{ paddingTop: 0 }}>
-          <ConversationList
-            threads={friendsQuery.data ?? []}
-            isLoading={friendsQuery.isLoading}
-            isError={!!friendsQuery.isError}
-            onRefresh={handleFriendsRefresh}
-            isRefreshing={refreshingFriends}
-            type="friends"
-            emptyText="No friends to chat with yet."
-          />
+        <Tabs
+          value={tab}
+          onValueChange={(v) => setTab(v as ThreadType)}
+          enableSwipe={false}
+          style={{ flex: 1 }}
+        >
+          <TabsContent value="dating" style={{ paddingTop: 0, flex: 1 }}>
+            <ConversationList
+              threads={datingQuery.data ?? []}
+              isLoading={datingQuery.isLoading}
+              isError={!!datingQuery.isError}
+              onRefresh={handleDatingRefresh}
+              isRefreshing={refreshingDating}
+              type="dating"
+              emptyText="No matches yet. Start liking profiles to begin a thread."
+            />
+          </TabsContent>
+
+          <TabsContent value="friends" style={{ paddingTop: 0, flex: 1 }}>
+            <ConversationList
+              threads={friendsQuery.data ?? []}
+              isLoading={friendsQuery.isLoading}
+              isError={!!friendsQuery.isError}
+              onRefresh={handleFriendsRefresh}
+              isRefreshing={refreshingFriends}
+              type="friends"
+              emptyText="No friends to chat with yet."
+            />
           </TabsContent>
         </Tabs>
       </View>
@@ -264,14 +381,6 @@ export default function MessagesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  tabsList: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  triggerText: {
-    fontSize: 15,
-    fontWeight: "800",
   },
   messageList: {
     paddingTop: 20,

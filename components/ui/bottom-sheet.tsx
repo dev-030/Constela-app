@@ -7,7 +7,6 @@ import React, { useEffect } from 'react';
 import {
   Dimensions,
   Modal,
-  ScrollView,
   TouchableWithoutFeedback,
   ViewStyle,
 } from 'react-native';
@@ -15,6 +14,7 @@ import {
   Gesture,
   GestureDetector,
   GestureHandlerRootView,
+  ScrollView,
 } from 'react-native-gesture-handler';
 import Animated, {
   runOnJS,
@@ -23,6 +23,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const MAX_TRANSLATE_Y = -SCREEN_HEIGHT + 50;
@@ -30,11 +31,13 @@ const MAX_TRANSLATE_Y = -SCREEN_HEIGHT + 50;
 type BottomSheetContentProps = {
   children: React.ReactNode;
   title?: string;
+  headerComponent?: React.ReactNode;
   style?: ViewStyle;
   rBottomSheetStyle: any;
   cardColor: string;
   mutedColor: string;
   onHandlePress?: () => void;
+  gesture?: any;
 };
 
 // Component for the bottom sheet content
@@ -42,28 +45,18 @@ type BottomSheetContentProps = {
 const BottomSheetContent = ({
   children,
   title,
+  headerComponent,
   style,
   rBottomSheetStyle,
   cardColor,
   mutedColor,
   onHandlePress,
+  gesture,
 }: BottomSheetContentProps) => {
-  return (
-    <Animated.View
-      style={[
-        {
-          height: SCREEN_HEIGHT,
-          width: '100%',
-          position: 'absolute',
-          top: SCREEN_HEIGHT,
-          backgroundColor: cardColor,
-          borderTopLeftRadius: BORDER_RADIUS,
-          borderTopRightRadius: BORDER_RADIUS,
-        },
-        rBottomSheetStyle,
-        style,
-      ]}
-    >
+  const insets = useSafeAreaInsets();
+  
+  const TopContent = (
+    <View style={{ backgroundColor: 'transparent' }}>
       {/* Handle */}
       <TouchableWithoutFeedback onPress={onHandlePress}>
         <View
@@ -98,11 +91,39 @@ const BottomSheetContent = ({
           </Text>
         </View>
       )}
+      
+      {headerComponent}
+    </View>
+  );
+
+  return (
+    <Animated.View
+      style={[
+        {
+          height: SCREEN_HEIGHT,
+          width: '100%',
+          position: 'absolute',
+          top: SCREEN_HEIGHT,
+          backgroundColor: cardColor,
+          borderTopLeftRadius: BORDER_RADIUS,
+          borderTopRightRadius: BORDER_RADIUS,
+        },
+        rBottomSheetStyle,
+        style,
+      ]}
+    >
+      {gesture ? (
+        <GestureDetector gesture={gesture}>
+          {TopContent}
+        </GestureDetector>
+      ) : (
+        TopContent
+      )}
 
       {/* Content now wrapped in a ScrollView */}
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: Math.max(insets.bottom, 40) }}
         keyboardShouldPersistTaps='handled'
         showsVerticalScrollIndicator={false}
       >
@@ -119,6 +140,7 @@ type BottomSheetProps = {
   snapPoints?: number[];
   enableBackdropDismiss?: boolean;
   title?: string;
+  headerComponent?: React.ReactNode;
   style?: ViewStyle;
   disablePanGesture?: boolean;
 };
@@ -130,6 +152,7 @@ export function BottomSheet({
   snapPoints = [0.3, 0.6, 0.9],
   enableBackdropDismiss = true,
   title,
+  headerComponent,
   style,
   disablePanGesture = false,
 }: BottomSheetProps) {
@@ -302,6 +325,7 @@ export function BottomSheet({
             <BottomSheetContent
               children={children}
               title={title}
+              headerComponent={headerComponent}
               style={style}
               rBottomSheetStyle={rBottomSheetStyle}
               cardColor={cardColor}
@@ -309,17 +333,17 @@ export function BottomSheet({
               onHandlePress={() => runOnJS(handlePress)()}
             />
           ) : (
-            <GestureDetector gesture={gesture}>
-              <BottomSheetContent
-                children={children}
-                title={title}
-                style={style}
-                rBottomSheetStyle={rBottomSheetStyle}
-                cardColor={cardColor}
-                mutedColor={mutedColor}
-                onHandlePress={() => runOnJS(handlePress)()}
-              />
-            </GestureDetector>
+            <BottomSheetContent
+              children={children}
+              title={title}
+              headerComponent={headerComponent}
+              style={style}
+              rBottomSheetStyle={rBottomSheetStyle}
+              cardColor={cardColor}
+              mutedColor={mutedColor}
+              onHandlePress={() => runOnJS(handlePress)()}
+              gesture={gesture}
+            />
           )}
         </Animated.View>
       </GestureHandlerRootView>

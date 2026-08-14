@@ -2,8 +2,8 @@ import { Icon } from "@/components/ui/icon";
 import { Text } from "@/components/ui/text";
 import { useColor } from "@/hooks/useColor";
 import { router } from "expo-router";
-import { ArrowLeft, Heart } from "lucide-react-native";
-import { useState } from "react";
+import { ChevronLeft, Heart } from "lucide-react-native";
+import { useState, useEffect } from "react";
 import {
   Image,
   Pressable,
@@ -11,62 +11,135 @@ import {
   StyleSheet,
   View,
   ActivityIndicator,
+  TouchableOpacity,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withTiming,
+  Easing,
 } from "react-native-reanimated";
 import { useLikesSentQuery, useLikesReceivedQuery, MutualMatchProfile } from "@/api/matching";
+import { useColorScheme } from "@/hooks/useColorScheme";
+import { useAndroidBack } from '@/hooks/useAndroidBack';
 
 // ─── Underline tab bar ────────────────────────────────────────────────────────
 
-function UnderlineTabs({
-  tabs,
-  active,
+// ─── Segmented pill control ────────────────────────────────────────────────────────
+
+const TABS = ["Liked", "Likes You"];
+
+function SegmentedControl({
+  activeTab,
   onChange,
-  primary,
-  text,
-  muted,
-  border,
 }: {
-  tabs: string[];
-  active: string;
-  onChange: (t: string) => void;
-  primary: string;
-  text: string;
-  muted: string;
-  border: string;
+  activeTab: string;
+  onChange: (value: string) => void;
 }) {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+
+  const [pillWidth, setPillWidth] = useState(0);
+  const activeIndex = TABS.indexOf(activeTab);
+  const translateX = useSharedValue(0);
+
+  useEffect(() => {
+    if (pillWidth > 0) {
+      translateX.value = withTiming(activeIndex * pillWidth, {
+        duration: 220,
+        easing: Easing.out(Easing.quad),
+      });
+    }
+  }, [activeIndex, pillWidth]);
+
+  const pillStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+
+  const containerBg = isDark ? "#2C2C2E" : "#EFEFEF";
+  const pillBg = isDark ? "#3A3A3C" : "#FFFFFF";
+  const activeTextColor = isDark ? "#FFFFFF" : "#1C1C1C";
+  const inactiveTextColor = isDark ? "#8E8E93" : "#8E8E93";
+
   return (
-    <View style={[styles.tabBar, { borderBottomColor: border }]}>
-      {tabs.map((tab) => {
-        const isActive = tab === active;
-        return (
-          <Pressable
-            key={tab}
-            onPress={() => onChange(tab)}
-            style={styles.tabItem}
+    <View
+      style={[segStyles.wrapper, { backgroundColor: containerBg }]}
+      onLayout={(e) => {
+        const w = e.nativeEvent.layout.width;
+        setPillWidth((w - 6) / TABS.length);
+      }}
+    >
+      {/* Sliding pill */}
+      {pillWidth > 0 && (
+        <Animated.View
+          style={[
+            segStyles.pill,
+            { width: pillWidth, backgroundColor: pillBg },
+            pillStyle,
+          ]}
+        />
+      )}
+      {/* Labels */}
+      {TABS.map((tab) => (
+        <TouchableOpacity
+          key={tab}
+          onPress={() => onChange(tab)}
+          activeOpacity={0.75}
+          style={[segStyles.tab, pillWidth > 0 && { width: pillWidth }]}
+        >
+          <Text
+            style={[
+              segStyles.tabText,
+              {
+                color:
+                  activeTab === tab
+                    ? activeTextColor
+                    : inactiveTextColor,
+                fontWeight: activeTab === tab ? "700" : "500",
+              },
+            ]}
           >
-            <Text
-              style={{
-                fontSize: 16,
-                fontWeight: isActive ? "700" : "400",
-                color: isActive ? text : muted,
-              }}
-            >
-              {tab}
-            </Text>
-            {isActive && (
-              <View style={[styles.tabUnderline, { backgroundColor: primary }]} />
-            )}
-          </Pressable>
-        );
-      })}
+            {tab}
+          </Text>
+        </TouchableOpacity>
+      ))}
     </View>
   );
 }
+
+const segStyles = StyleSheet.create({
+  wrapper: {
+    flexDirection: "row",
+    borderRadius: 30,
+    padding: 3,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    position: "relative",
+  },
+  pill: {
+    position: "absolute",
+    top: 3,
+    left: 3,
+    bottom: 3,
+    borderRadius: 30,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  tab: {
+    paddingVertical: 9,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1,
+  },
+  tabText: {
+    fontSize: 14,
+    letterSpacing: 0.1,
+  },
+});
 
 // ─── Profile card ─────────────────────────────────────────────────────────────
 
@@ -127,8 +200,7 @@ function ProfileCard({
         <Pressable
           style={[styles.viewBtn, { borderColor: border }]}
           onPressIn={() => { scale.value = withTiming(0.97, { duration: 100 }); }}
-          onPressOut={() => { scale.value = withTiming(1, { duration: 150 }); }}
-          onPress={() => router.push(`/sheet?id=${profile.id}`)}
+          onPress={() => router.push({ pathname: `/profile/${profile.id}`, params: { name: profile.username, age: profile.age, photo: photoUri } } as any)}
         >
           <Text style={{ fontSize: 13, fontWeight: "600", color: text }}>View Profile</Text>
         </Pressable>
@@ -139,9 +211,10 @@ function ProfileCard({
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
-const TABS = ["Liked", "Likes You"];
+
 
 export default function LikesScreen() {
+  useAndroidBack();
   const background = useColor("background");
   const text = useColor("text");
   const muted = useColor("textMuted");
@@ -173,25 +246,24 @@ export default function LikesScreen() {
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: background }]} edges={["top"]}>
-      {/* Header */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Icon name={ArrowLeft} size={22} color={text} />
-        </Pressable>
-        <Text style={{ fontSize: 18, fontWeight: "700", color: text, marginLeft: 8 }}>
-          Back
-        </Text>
+        <View style={styles.headerLeft}>
+          <Pressable onPress={() => router.back()} hitSlop={12}>
+            <Icon name={ChevronLeft} size={24} color={text} />
+          </Pressable>
+        </View>
+        <View style={styles.headerCenter}>
+          <Text style={[styles.headerTitle, { color: text }]} numberOfLines={1}>
+            Likes
+          </Text>
+        </View>
+        <View style={styles.headerRight} />
       </View>
 
       {/* Tabs */}
-      <UnderlineTabs
-        tabs={TABS}
-        active={activeTab}
+      <SegmentedControl
+        activeTab={activeTab}
         onChange={setActiveTab}
-        primary={primary}
-        text={text}
-        muted={muted}
-        border={border}
       />
 
       {/* Grid */}
@@ -267,26 +339,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 12,
+    marginBottom: 8,
   },
-  tabBar: {
-    flexDirection: "row",
-    borderBottomWidth: 1,
-    paddingHorizontal: 20,
+  headerLeft: {
+    flex: 1,
+    alignItems: "flex-start",
   },
-  tabItem: {
-    marginRight: 28,
-    paddingBottom: 12,
-    paddingTop: 4,
-    position: "relative",
+  headerCenter: {
+    flex: 2,
+    alignItems: "center",
   },
-  tabUnderline: {
-    position: "absolute",
-    bottom: -1,
-    left: 0,
-    right: 0,
-    height: 2.5,
-    borderRadius: 2,
+  headerRight: {
+    flex: 1,
   },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+  },
+
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",

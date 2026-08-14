@@ -12,8 +12,10 @@ export interface Suggestion {
 
 export interface FriendRequest {
   id: string;
-  sender_id: string;
-  username: string;
+  sender_id?: string;
+  receiver_id?: string;
+  username?: string;
+  name?: string;
   photo: string;
   subtitle: string;
   mutual_friends_count: number;
@@ -50,6 +52,16 @@ export const usePendingFriendRequestsQuery = () => {
     queryKey: ['pendingFriendRequests'],
     queryFn: async () => {
       const response = await apiClient.get<FriendRequest[]>('/api/friends/requests/');
+      return response.data;
+    },
+  });
+};
+
+export const useSentFriendRequestsQuery = () => {
+  return useQuery({
+    queryKey: ['sentFriendRequests'],
+    queryFn: async () => {
+      const response = await apiClient.get<FriendRequest[]>('/api/friends/sent_requests/');
       return response.data;
     },
   });
@@ -98,6 +110,21 @@ export const useDeclineFriendRequestMutation = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pendingFriendRequests'] });
+    },
+  });
+};
+
+export const useCancelFriendRequestMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (friendshipId: string) => {
+      const response = await apiClient.delete(`/api/friends/${friendshipId}/`);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sentFriendRequests'] });
+      queryClient.invalidateQueries({ queryKey: ['friendSuggestions'] });
     },
   });
 };

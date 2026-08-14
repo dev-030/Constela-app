@@ -22,7 +22,7 @@ export function FilterListItem({ title, subtitle, selected, onPress }: FilterLis
       style={[
         styles.container,
         {
-          borderColor: selected ? primary : border,
+          borderColor: selected ? primary + '30' : border,
           backgroundColor: selected ? `${primary}15` : 'transparent',
         },
       ]}
