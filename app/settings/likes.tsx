@@ -175,7 +175,7 @@ function ProfileCard({
       {/* Photo */}
       <View style={styles.photoWrapper}>
         <Image
-          source={photoUri ? { uri: photoUri } : require("@/assets/profiles/mia.png")}
+          source={photoUri ? { uri: photoUri } : require("@/assets/profiles/mia.jpg")}
           style={styles.photo}
           resizeMode="cover"
         />

@@ -30,7 +30,7 @@ export default function ProfileSheet() {
       >
         {/* Photo */}
         <Image
-          source={require("@/assets/profiles/liam.png")} // using one of the generated images
+          source={require("@/assets/profiles/liam.jpg")} // using one of the generated images
           style={styles.photo}
           resizeMode="cover"
         />

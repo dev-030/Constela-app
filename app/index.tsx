@@ -13,6 +13,7 @@ export default function IndexScreen() {
   const background = useColor("background");
   const text = useColor("text");
   const primary = useColor("primary");
+  const textMuted = useColor("textMuted");
 
   useEffect(() => {
     if (isAuthenticated && !profile && !isProfileLoading && !error) {
@@ -57,7 +58,7 @@ export default function IndexScreen() {
           {isNetworkError ? "Connection Error" : "Oops, something went wrong"}
         </Text>
         
-        <Text style={{ color: useColor("textMuted"), fontSize: 15, textAlign: "center", marginBottom: 32, lineHeight: 22 }}>
+        <Text style={{ color: textMuted, fontSize: 15, textAlign: "center", marginBottom: 32, lineHeight: 22 }}>
           {isNetworkError 
             ? "We couldn't reach the server. Please check your internet connection."
             : error}
