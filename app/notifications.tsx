@@ -8,75 +8,17 @@ import { Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
 
-const NOTIFICATIONS = [
-  {
-    title: "New",
-    data: [
-      {
-        id: "1",
-        type: "match",
-        title: "You matched with Sam!",
-        description: "Don't keep them waiting, say hi!",
-        time: "10m ago",
-        unread: true,
-        avatar: require("@/assets/profiles/liam.jpg"),
-        icon: Heart,
-        iconColor: "#DE4177",
-      },
-      {
-        id: "2",
-        type: "message",
-        title: "Mia sent you a message",
-        description: "\"Hey! I saw you also like quiet spaces...\"",
-        time: "1h ago",
-        unread: true,
-        avatar: require("@/assets/profiles/mia.jpg"),
-        icon: MessageCircle,
-        iconColor: "#007AFF",
-      },
-      {
-        id: "3",
-        type: "community",
-        title: "ADHD Hub",
-        description: "Nico Alexis mentioned you in a message.",
-        time: "3h ago",
-        unread: false,
-        avatar: null,
-        initials: "AH",
-        icon: Users,
-        iconColor: "#2E735F",
-      },
-    ],
-  },
-  {
-    title: "Earlier",
-    data: [
-      {
-        id: "4",
-        type: "superlike",
-        title: "Someone Super Liked you!",
-        description: "Upgrade to Premium Plus to see who it is.",
-        time: "Yesterday",
-        unread: false,
-        avatar: null,
-        initials: "✨",
-        icon: Star,
-        iconColor: "#FF9500",
-      },
-      {
-        id: "5",
-        type: "match",
-        title: "You matched with Jordan!",
-        description: "Start a conversation now.",
-        time: "2 days ago",
-        unread: false,
-        avatar: require("@/assets/profiles/jordan.jpg"),
-        icon: Heart,
-        iconColor: "#DE4177",
-      },
-    ],
-  },
-];
+import { useNotifications, Notification } from "@/api/notifications";
+import { ActivityIndicator, FlatList, RefreshControl } from "react-native";
+
+const getIconForType = (type: string) => {
+  switch (type) {
+    case 'match': return { icon: Heart, color: '#DE4177' };
+    case 'message': return { icon: MessageCircle, color: '#007AFF' };
+    case 'super_like': return { icon: Star, color: '#FF9500' };
+    default: return { icon: Users, color: '#2E735F' };
+  }
+};
 
 export default function NotificationsScreen() {
   useAndroidBack();
@@ -86,6 +28,47 @@ export default function NotificationsScreen() {
   const muted = useColor("textMuted");
   const primary = useColor("primary");
   const border = useColor("border");
+
+  const { data: notifications, isLoading, refetch, isRefetching } = useNotifications();
+
+  const renderItem = ({ item }: { item: Notification }) => {
+    const { icon, color } = getIconForType(item.type);
+    const date = new Date(item.created_at);
+    const timeString = date.toLocaleDateString() + " " + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    return (
+      <Pressable
+        style={({ pressed }) => [
+          styles.notificationItem,
+          { backgroundColor: pressed ? card : "transparent" },
+        ]}
+      >
+        {/* Avatar / Icon wrapper */}
+        <View style={styles.avatarWrapper}>
+          <View style={[styles.avatar, styles.initialsAvatar, { backgroundColor: color + "20" }]}>
+            <Text style={[styles.initialsText, { color: color }]}>{item.type.charAt(0).toUpperCase()}</Text>
+          </View>
+          <View style={[styles.typeIconBadge, { backgroundColor: color, borderColor: background }]}>
+            <Icon name={icon} size={10} color="#FFF" />
+          </View>
+        </View>
+
+        {/* Content */}
+        <View style={styles.content}>
+          <Text style={[styles.title, { color: text, fontWeight: !item.is_read ? "800" : "600" }]} numberOfLines={1}>
+            {item.title}
+          </Text>
+          <Text style={[styles.description, { color: !item.is_read ? text : muted }]} numberOfLines={2}>
+            {item.body}
+          </Text>
+          <Text style={[styles.time, { color: muted }]}>{timeString}</Text>
+        </View>
+
+        {/* Unread Dot */}
+        {!item.is_read && <View style={[styles.unreadDot, { backgroundColor: primary }]} />}
+      </Pressable>
+    );
+  };
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: background }]}>
@@ -98,52 +81,27 @@ export default function NotificationsScreen() {
         <View style={styles.headerRight} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        {NOTIFICATIONS.map((section) => (
-          <View key={section.title} style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: muted }]}>{section.title}</Text>
-
-            {section.data.map((item) => (
-              <Pressable
-                key={item.id}
-                style={({ pressed }) => [
-                  styles.notificationItem,
-                  { backgroundColor: pressed ? card : "transparent" },
-                ]}
-              >
-                {/* Avatar / Icon wrapper */}
-                <View style={styles.avatarWrapper}>
-                  {item.avatar ? (
-                    <Image source={item.avatar} style={styles.avatar} />
-                  ) : (
-                    <View style={[styles.avatar, styles.initialsAvatar, { backgroundColor: item.iconColor + "20" }]}>
-                      <Text style={[styles.initialsText, { color: item.iconColor }]}>{item.initials}</Text>
-                    </View>
-                  )}
-                  {/* Small Type Icon */}
-                  <View style={[styles.typeIconBadge, { backgroundColor: item.iconColor, borderColor: background }]}>
-                    <Icon name={item.icon} size={10} color="#FFF" />
-                  </View>
-                </View>
-
-                {/* Content */}
-                <View style={styles.content}>
-                  <Text style={[styles.title, { color: text, fontWeight: item.unread ? "800" : "600" }]} numberOfLines={1}>
-                    {item.title}
-                  </Text>
-                  <Text style={[styles.description, { color: item.unread ? text : muted }]} numberOfLines={2}>
-                    {item.description}
-                  </Text>
-                  <Text style={[styles.time, { color: muted }]}>{item.time}</Text>
-                </View>
-
-                {/* Unread Dot */}
-                {item.unread && <View style={[styles.unreadDot, { backgroundColor: primary }]} />}
-              </Pressable>
-            ))}
-          </View>
-        ))}
-      </ScrollView>
+      {isLoading ? (
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+          <ActivityIndicator color={primary} size="large" />
+        </View>
+      ) : (
+        <FlatList
+          data={notifications}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={{ padding: 20, alignItems: "center", marginTop: 40 }}>
+              <Text style={{ color: muted }}>You have no notifications yet.</Text>
+            </View>
+          }
+          refreshControl={
+            <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={primary} />
+          }
+        />
+      )}
     </SafeAreaView>
   );
 }
