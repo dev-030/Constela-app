@@ -315,13 +315,6 @@ export default function MessagesScreen() {
   const datingQuery = useThreadsQuery("dating");
   const friendsQuery = useThreadsQuery("friends");
 
-  useFocusEffect(
-    useCallback(() => {
-      datingQuery.refetch();
-      friendsQuery.refetch();
-    }, [datingQuery.refetch, friendsQuery.refetch])
-  );
-
   const [refreshingDating, setRefreshingDating] = useState(false);
   const handleDatingRefresh = async () => {
     setRefreshingDating(true);

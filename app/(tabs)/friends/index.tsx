@@ -57,13 +57,6 @@ export default function FriendsScreen() {
   });
   const requestsQuery = usePendingFriendRequestsQuery();
 
-  useFocusEffect(
-    useCallback(() => {
-      suggestionsQuery.refetch();
-      requestsQuery.refetch();
-    }, [suggestionsQuery.refetch, requestsQuery.refetch])
-  );
-
   const sendMutation = useSendFriendRequestMutation();
   const acceptMutation = useAcceptFriendRequestMutation();
   const declineMutation = useDeclineFriendRequestMutation();
