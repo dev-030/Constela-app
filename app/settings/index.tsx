@@ -29,10 +29,11 @@ import {
   ScrollView,
   Switch,
   Platform,
+  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Avatar } from "@/components/ui/avatar";
-import { useLogout } from "@/api/auth";
+import { useLogout, useDeleteAccountMutation } from "@/api/auth";
 import { useTranslation } from "react-i18next";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
 
@@ -40,6 +41,7 @@ export default function SettingsIndexScreen() {
   const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
   const logout = useLogout();
+  const deleteAccount = useDeleteAccountMutation();
   useAndroidBack();
 
   const background = useColor("background");
@@ -162,6 +164,16 @@ export default function SettingsIndexScreen() {
         logoutBtn: {
           marginTop: 16,
           borderRadius: 16,
+        },
+        deleteBtn: {
+          marginTop: 12,
+          borderRadius: 16,
+          backgroundColor: 'transparent',
+          borderWidth: 1,
+          borderColor: '#ef4444',
+        },
+        deleteBtnText: {
+          color: '#ef4444',
         }
       }),
     [background, cardColor, text, muted, border, secondary, primary, colorScheme],
@@ -297,6 +309,37 @@ export default function SettingsIndexScreen() {
           }}
         >
           {t('settings.logout')}
+        </Button>
+
+        <Button
+          variant="outline"
+          style={styles.deleteBtn}
+          textStyle={styles.deleteBtnText}
+          loading={deleteAccount.isPending}
+          disabled={deleteAccount.isPending}
+          onPress={() => {
+            Alert.alert(
+              "Delete Account",
+              "Are you sure you want to delete your account? This action is permanent and will delete all your data.",
+              [
+                { text: "Cancel", style: "cancel" },
+                { 
+                  text: "Delete", 
+                  style: "destructive", 
+                  onPress: () => {
+                    deleteAccount.mutate(undefined, {
+                      onSuccess: async () => {
+                        await logout();
+                        router.replace("/login");
+                      }
+                    });
+                  }
+                }
+              ]
+            );
+          }}
+        >
+          Delete Account
         </Button>
       </ScrollView>
     </View>

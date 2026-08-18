@@ -4,9 +4,9 @@ import { Input } from "@/components/ui/input";
 import { Text } from "@/components/ui/text";
 import { useColor } from "@/hooks/useColor";
 import { router } from "expo-router";
-import { Eye, EyeOff } from "lucide-react-native";
+import { Eye, EyeOff, Square, CheckSquare } from "lucide-react-native";
 import { useState } from "react";
-import { Image, Pressable, View, Platform } from "react-native";
+import { Image, Pressable, View, Platform, Modal, TouchableOpacity, Keyboard } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSignUpMutation, useGoogleAuthMutation } from "@/api/auth";
@@ -14,6 +14,28 @@ import { toast } from "sonner-native";
 import { FontAwesome } from "@expo/vector-icons";
 import { GoogleIcon } from "@/components/ui/GoogleIcon";
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { BottomSheet, useBottomSheet } from "@/components/ui/bottom-sheet";
+import { WebView } from 'react-native-webview';
+
+const SNAP_POINTS = [0.55, 0.9];
+
+const CheckboxRow = ({ value, onValueChange, children }: any) => {
+  const orange = useColor("orange");
+  const muted = useColor("textMuted");
+  return (
+    <Pressable
+      onPress={() => onValueChange(!value)}
+      style={{ flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 16 }}
+    >
+      <View style={{ paddingTop: 2 }}>
+        <Icon name={value ? CheckSquare : Square} size={20} color={value ? orange : muted} />
+      </View>
+      <View style={{ flex: 1 }}>
+        {children}
+      </View>
+    </Pressable>
+  );
+};
 
 export default function SignupScreen() {
   const [showPassword, setShowPassword] = useState(false);
@@ -21,6 +43,13 @@ export default function SignupScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [agreeTerms, setAgreeTerms] = useState(false);
+  const [agreeNeuro, setAgreeNeuro] = useState(false);
+  const [agreeBiometric, setAgreeBiometric] = useState(false);
+  const [pendingAction, setPendingAction] = useState<"signup" | "google" | null>(null);
+  const [webViewUrl, setWebViewUrl] = useState<string | null>(null);
+  
+  const bottomSheet = useBottomSheet();
 
   const signup = useSignUpMutation();
   const googleAuth = useGoogleAuthMutation();
@@ -31,9 +60,21 @@ export default function SignupScreen() {
   const border = useColor("border");
 
   const handleGoogleSignIn = async () => {
+    Keyboard.dismiss();
+    if (!agreeTerms || !agreeNeuro || !agreeBiometric) {
+      setPendingAction("google");
+      bottomSheet.open();
+      return;
+    }
+
     try {
       await GoogleSignin.hasPlayServices();
-      const userInfo = await GoogleSignin.signIn();
+      const userInfo = await GoogleSignin.signIn() as any;
+
+      if (userInfo.type === 'cancelled') {
+        return;
+      }
+      
       const idToken = userInfo.data?.idToken;
 
       if (!idToken) {
@@ -72,12 +113,19 @@ export default function SignupScreen() {
   };
 
   const handleSignup = () => {
-    if (!name || !email || !password) {
+    Keyboard.dismiss();
+    if (!name || !email || !password || !confirmPassword) {
       toast.error("Please fill in all fields");
       return;
     }
     if (password !== confirmPassword) {
       toast.error("Passwords do not match");
+      return;
+    }
+
+    if (!agreeTerms || !agreeNeuro || !agreeBiometric) {
+      setPendingAction("signup");
+      bottomSheet.open();
       return;
     }
 
@@ -98,6 +146,22 @@ export default function SignupScreen() {
         },
       }
     );
+  };
+
+  const processPendingAction = () => {
+    if (!agreeTerms || !agreeNeuro || !agreeBiometric) {
+      toast.error("Please agree to all mandatory consents to proceed");
+      return;
+    }
+    bottomSheet.close();
+    
+    setTimeout(() => {
+      if (pendingAction === "google") {
+        handleGoogleSignIn();
+      } else if (pendingAction === "signup") {
+        handleSignup();
+      }
+    }, 300);
   };
 
   return (
@@ -199,8 +263,9 @@ export default function SignupScreen() {
             />
           </View>
 
+
           <Button
-            style={{ marginTop: 24 }}
+            style={{ marginTop: 8 }}
             onPress={handleSignup}
             disabled={signup.isPending}
             loading={signup.isPending}
@@ -251,7 +316,48 @@ export default function SignupScreen() {
             )}
           </View>
         </View>
-        </KeyboardAwareScrollView>
+      </KeyboardAwareScrollView>
+
+      <BottomSheet isVisible={bottomSheet.isVisible} onClose={bottomSheet.close} snapPoints={SNAP_POINTS}>
+        <View style={{ gap: 16, marginTop: 8 }}>
+          <CheckboxRow value={agreeTerms} onValueChange={setAgreeTerms}>
+            <Text style={{ fontSize: 13, lineHeight: 18, color: muted }}>
+              I am 18 years or older and I agree to the <Text style={{ color: orange, fontWeight: "bold" }} onPress={() => setWebViewUrl('https://constela-dating.com/privacy')}>Terms of Service and Privacy Policy</Text>.
+            </Text>
+          </CheckboxRow>
+
+          <CheckboxRow value={agreeNeuro} onValueChange={setAgreeNeuro}>
+            <Text style={{ fontSize: 13, lineHeight: 18, color: muted }}>
+              I explicitly consent to Constela processing my neurodivergent traits, sensory preferences, and emotional profile to provide tailored matching suggestions. (You can update these traits or withdraw your consent at any time in your profile settings).
+            </Text>
+          </CheckboxRow>
+
+          <CheckboxRow value={agreeBiometric} onValueChange={setAgreeBiometric}>
+            <Text style={{ fontSize: 13, lineHeight: 18, color: muted }}>
+              I consent to the biometric processing of my face images solely to verify the authenticity of my account. I understand that these verification frames are permanently deleted immediately after the check is complete.
+            </Text>
+          </CheckboxRow>
+
+          <Button 
+            onPress={processPendingAction} 
+            disabled={!agreeTerms || !agreeNeuro || !agreeBiometric}
+            style={{ marginTop: 12, marginBottom: 24 }}
+          >
+            Accept & Continue
+          </Button>
+        </View>
+      </BottomSheet>
+
+      <Modal visible={!!webViewUrl} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setWebViewUrl(null)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', padding: 16, borderBottomWidth: 1, borderBottomColor: '#eee' }}>
+            <TouchableOpacity onPress={() => setWebViewUrl(null)}>
+              <Text style={{ color: orange, fontWeight: 'bold', fontSize: 16 }}>Done</Text>
+            </TouchableOpacity>
+          </View>
+          {webViewUrl && <WebView source={{ uri: webViewUrl }} style={{ flex: 1 }} />}
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }

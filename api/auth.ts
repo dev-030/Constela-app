@@ -43,6 +43,7 @@ interface VerifyOtpResponse {
 interface GoogleAuthRequest {
   id_token?: string;
   access_token?: string;
+  is_login?: boolean;
 }
 
 export const useGoogleAuthMutation = () => {
@@ -163,6 +164,15 @@ export const useFaceDetectMutation = () => {
         },
       });
       return response.data as { face_detected: boolean; error?: string; faces_count?: number };
+    },
+  });
+};
+
+export const useDeleteAccountMutation = () => {
+  return useMutation({
+    mutationFn: async () => {
+      const response = await apiClient.post('/api/settings/delete-account/');
+      return response.data;
     },
   });
 };

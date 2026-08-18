@@ -34,7 +34,12 @@ export default function LoginScreen() {
   const handleGoogleSignIn = async () => {
     try {
       await GoogleSignin.hasPlayServices();
-      const userInfo = await GoogleSignin.signIn();
+      const userInfo = await GoogleSignin.signIn() as any;
+
+      if (userInfo.type === 'cancelled') {
+        return;
+      }
+      
       const idToken = userInfo.data?.idToken;
 
       if (!idToken) {
@@ -44,7 +49,7 @@ export default function LoginScreen() {
 
       toast.info("Verifying Google Sign-In...");
       googleAuth.mutate(
-        { id_token: idToken },
+        { id_token: idToken, is_login: true },
         {
           onSuccess: () => {
             toast.success("Signed in with Google");
