@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { apiClient } from './client';
 
 export interface Notification {
@@ -11,12 +11,25 @@ export interface Notification {
   created_at: string;
 }
 
-export const useNotifications = () => {
-  return useQuery({
+export interface NotificationsResponse {
+  results: Notification[];
+  next: boolean;
+  total: number;
+}
+
+export const useInfiniteNotificationsQuery = (limit = 20) => {
+  return useInfiniteQuery({
     queryKey: ['notifications'],
-    queryFn: async (): Promise<Notification[]> => {
-      const response = await apiClient.get('/api/notifications/');
+    queryFn: async ({ pageParam = 0 }): Promise<NotificationsResponse> => {
+      const response = await apiClient.get<NotificationsResponse>(`/api/notifications/?limit=${limit}&offset=${pageParam}`);
       return response.data;
+    },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+      if (lastPage.next) {
+        return allPages.length * limit;
+      }
+      return undefined;
     },
   });
 };

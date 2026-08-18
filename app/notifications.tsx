@@ -8,7 +8,7 @@ import { Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
 
-import { useNotifications, Notification, useMarkNotificationsReadMutation } from "@/api/notifications";
+import { useInfiniteNotificationsQuery, Notification, useMarkNotificationsReadMutation } from "@/api/notifications";
 import { ActivityIndicator, FlatList, RefreshControl } from "react-native";
 import { useEffect } from "react";
 
@@ -30,8 +30,10 @@ export default function NotificationsScreen() {
   const primary = useColor("primary");
   const border = useColor("border");
 
-  const { data: notifications, isLoading, refetch, isRefetching } = useNotifications();
+  const query = useInfiniteNotificationsQuery();
   const markReadMutation = useMarkNotificationsReadMutation();
+
+  const notifications = query.data?.pages.flatMap(page => page.results) ?? [];
 
   useEffect(() => {
     // When the screen opens, mark all notifications as read on the backend
@@ -88,7 +90,7 @@ export default function NotificationsScreen() {
         <View style={styles.headerRight} />
       </View>
 
-      {isLoading ? (
+      {query.isLoading ? (
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
           <ActivityIndicator color={primary} size="large" />
         </View>
@@ -105,7 +107,18 @@ export default function NotificationsScreen() {
             </View>
           }
           refreshControl={
-            <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={primary} />
+            <RefreshControl refreshing={query.isRefetching || false} onRefresh={query.refetch} tintColor={primary} />
+          }
+          onEndReached={() => {
+            if (query.hasNextPage && !query.isFetchingNextPage) {
+              query.fetchNextPage();
+            }
+          }}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={
+            query.isFetchingNextPage ? (
+              <ActivityIndicator color={primary} style={{ marginVertical: 20 }} />
+            ) : null
           }
         />
       )}
