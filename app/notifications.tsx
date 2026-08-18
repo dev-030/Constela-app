@@ -8,8 +8,9 @@ import { Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
 
-import { useNotifications, Notification } from "@/api/notifications";
+import { useNotifications, Notification, useMarkNotificationsReadMutation } from "@/api/notifications";
 import { ActivityIndicator, FlatList, RefreshControl } from "react-native";
+import { useEffect } from "react";
 
 const getIconForType = (type: string) => {
   switch (type) {
@@ -30,6 +31,12 @@ export default function NotificationsScreen() {
   const border = useColor("border");
 
   const { data: notifications, isLoading, refetch, isRefetching } = useNotifications();
+  const markReadMutation = useMarkNotificationsReadMutation();
+
+  useEffect(() => {
+    // When the screen opens, mark all notifications as read on the backend
+    markReadMutation.mutate();
+  }, []);
 
   const renderItem = ({ item }: { item: Notification }) => {
     const { icon, color } = getIconForType(item.type);
@@ -116,7 +123,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 1,
   },
   backButton: {
     width: 40,

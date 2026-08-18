@@ -20,3 +20,30 @@ export const useNotifications = () => {
     },
   });
 };
+
+export const useUnreadNotificationCount = () => {
+  return useQuery({
+    queryKey: ['notifications', 'unreadCount'],
+    queryFn: async (): Promise<number> => {
+      const response = await apiClient.get('/api/notifications/unread-count/');
+      return response.data?.count || 0;
+    },
+    // Poll every 30 seconds to keep the badge up to date
+    refetchInterval: 30000,
+  });
+};
+
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+
+export const useMarkNotificationsReadMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const response = await apiClient.post('/api/notifications/read-all/');
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    },
+  });
+};
