@@ -4,14 +4,20 @@
     "appVersionSource": "remote"
   },
   "build": {
+
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "credentialsSource": "remote"
     },
     "preview": {
       "distribution": "internal"
     },
     "production": {
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "credentialsSource": "local",
       "autoIncrement": true
     }
   },

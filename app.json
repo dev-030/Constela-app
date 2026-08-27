@@ -22,7 +22,11 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.constela.app",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "output": "static",
@@ -58,7 +62,8 @@
           "android": {
             "minSdkVersion": 26,
             "enableProguardInReleaseBuilds": true,
-            "enableShrinkResourcesInReleaseBuilds": true
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "enableMinifyInReleaseBuilds": true
           },
           "ios": {
             "deploymentTarget": "17.0"
@@ -73,8 +78,10 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "475c6792-64fd-4a2f-8d27-49a54a0c4429"
+        "owner": "chahiras-team",
+        "projectId": "8f1fa995-62f4-455f-8e62-0751c2ea1a6a"
       }
-    }
+    },
+    "owner": "chahiras-team"
   }
 }
