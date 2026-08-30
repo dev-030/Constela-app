@@ -7,8 +7,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Avatar } from "@/components/ui/avatar";
 import { useProfileStore } from "@/store/profileStore";
+import { useUnreadNotificationCount } from "@/api/notifications";
 
-export default function Header() {
+export default function Header({ title }: { title?: string }) {
   const insets = useSafeAreaInsets();
   const background = useColor("background");
   const primary = useColor("primary");
@@ -16,6 +17,7 @@ export default function Header() {
   const accent = useColor("accent");
   const router = useRouter();
   const { profile } = useProfileStore();
+  const { data: unreadCount = 0 } = useUnreadNotificationCount();
 
   const userPhotoUri = profile?.photos && profile.photos.length > 0 ? profile.photos[0].image : null;
 
@@ -36,8 +38,9 @@ export default function Header() {
       <View style={styles.headerRight}>
         <Pressable onPress={() => router.push("/notifications")} style={[styles.notificationBtn, { backgroundColor: accent }]} hitSlop={12}>
           <Icon name={Bell} size={22} color={text} />
-          {/* Optional: unread dot */}
-          <View style={[styles.notificationBadge, { borderColor: background }]} />
+          {unreadCount > 0 && (
+            <View style={[styles.notificationBadge, { borderColor: background }]} />
+          )}
         </Pressable>
         <Pressable onPress={() => router.push("/settings")} style={[styles.avatarBtn, { borderColor: primary }]}>
           <Avatar uri={userPhotoUri} size={36} rounded />

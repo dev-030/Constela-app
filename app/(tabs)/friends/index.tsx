@@ -9,6 +9,7 @@ import {
   RefreshControl,
   ActivityIndicator,
   Alert,
+  FlatList,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -24,11 +25,11 @@ import { Icon } from "@/components/ui/icon";
 import { useColor } from "@/hooks/useColor";
 import Header from "../../../components/header";
 import {
-  useAcceptFriendRequestMutation,
-  useDeclineFriendRequestMutation,
-  useFriendSuggestionsQuery,
+  useInfiniteFriendSuggestionsQuery,
   usePendingFriendRequestsQuery,
   useSendFriendRequestMutation,
+  useAcceptFriendRequestMutation,
+  useDeclineFriendRequestMutation,
 } from "@/api/friends";
 
 const SEARCH_DEBOUNCE_MS = 300;
@@ -52,23 +53,16 @@ export default function FriendsScreen() {
     return () => clearTimeout(handle);
   }, [search]);
 
-  const suggestionsQuery = useFriendSuggestionsQuery({
+  const suggestionsQuery = useInfiniteFriendSuggestionsQuery({
     search: debouncedSearch || undefined,
   });
   const requestsQuery = usePendingFriendRequestsQuery();
-
-  useFocusEffect(
-    useCallback(() => {
-      suggestionsQuery.refetch();
-      requestsQuery.refetch();
-    }, [suggestionsQuery.refetch, requestsQuery.refetch])
-  );
 
   const sendMutation = useSendFriendRequestMutation();
   const acceptMutation = useAcceptFriendRequestMutation();
   const declineMutation = useDeclineFriendRequestMutation();
 
-  const suggestions = suggestionsQuery.data ?? [];
+  const suggestions = suggestionsQuery.data?.pages.flatMap((page) => page.results) ?? [];
   const requests = requestsQuery.data ?? [];
 
   const isRefreshing =
@@ -137,14 +131,168 @@ export default function FriendsScreen() {
     );
   }
 
+  const renderHeader = () => (
+    <>
+      {/* Search Bar */}
+      <View style={styles.searchRow}>
+        <View
+          style={[
+            styles.searchContainer,
+            { borderColor: border, backgroundColor: cardColor },
+          ]}
+        >
+          <Icon name={Search} size={20} color={muted} />
+          <TextInput
+            style={[styles.searchInput, { color: text }]}
+            placeholder="Find people..."
+            placeholderTextColor={muted}
+            value={search}
+            onChangeText={setSearch}
+            returnKeyType="search"
+          />
+        </View>
+      </View>
+
+      {/* Friend Requests */}
+      <View style={styles.sectionHeader}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+          <Text style={styles.sectionTitle}>Friend Requests</Text>
+          {requests.length > 0 && (
+            <View style={[styles.badge, { backgroundColor: primary }]}>
+              <Text style={styles.badgeText}>
+                {requests.length} New
+              </Text>
+            </View>
+          )}
+        </View>
+        <Pressable onPress={() => router.push("/sent-requests")}>
+          <Text style={{ color: primary, fontWeight: "600", fontSize: 14 }}>
+            Sent Requests
+          </Text>
+        </Pressable>
+      </View>
+
+      {requestsQuery.isError ? (
+        <View style={styles.inlineMessage}>
+          <Text style={{ color: muted }}>Couldn&apos;t load friend requests.</Text>
+          <Pressable onPress={() => requestsQuery.refetch()}>
+            <Text style={{ color: primary, fontWeight: "600" }}>Retry</Text>
+          </Pressable>
+        </View>
+      ) : requests.length === 0 ? (
+        <Text style={[styles.emptyText, { color: muted }]}>
+          No pending requests right now.
+        </Text>
+      ) : (
+        requests.map((req) => {
+          const isPending =
+            acceptMutation.isPending || declineMutation.isPending;
+          return (
+            <AnimatedPressable
+              key={req.id}
+              layout={Layout.springify()}
+              entering={FadeIn}
+              exiting={FadeOut.duration(300)}
+              style={[
+                styles.requestCard,
+                { borderColor: border, backgroundColor: cardColor },
+              ]}
+              onPress={() => router.push({ pathname: `/profile/${req.sender_id}`, params: { name: req.name, photo: req.photo } } as any)}
+            >
+              <View style={styles.requestInfo}>
+                <Image
+                  source={{ uri: req.photo }}
+                  style={styles.requestAvatar}
+                />
+                <View style={styles.requestTextCol}>
+                  <Text style={styles.requestName}>{req.name}</Text>
+                  <Text style={[styles.requestSubtitle, { color: muted }]}>
+                    {req.subtitle}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.requestActions}>
+                <Pressable
+                  style={[
+                    styles.actionBtn,
+                    { backgroundColor: primary, opacity: isPending ? 0.6 : 1 },
+                  ]}
+                  disabled={isPending}
+                  onPress={() => handleAccept(req.id)}
+                >
+                  <Text style={[styles.actionBtnText, { color: "#FFF" }]}>
+                    {acceptMutation.isPending &&
+                    acceptMutation.variables === req.id
+                      ? "Accepting…"
+                      : "Accept"}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={[
+                    styles.actionBtn,
+                    {
+                      backgroundColor: primary + "20",
+                      opacity: isPending ? 0.6 : 1,
+                    },
+                  ]}
+                  disabled={isPending}
+                  onPress={() => handleDecline(req.id)}
+                >
+                  <Text style={[styles.actionBtnText, { color: "#2B4A4A" }]}>
+                    {declineMutation.isPending &&
+                    declineMutation.variables === req.id
+                      ? "Declining…"
+                      : "Decline"}
+                  </Text>
+                </Pressable>
+              </View>
+            </AnimatedPressable>
+          );
+        })
+      )}
+
+      <View style={{ height: 24 }} />
+
+      {suggestionsQuery.isError && (
+        <View style={styles.inlineMessage}>
+          <Text style={{ color: muted }}>Couldn&apos;t load suggestions.</Text>
+          <Pressable onPress={() => suggestionsQuery.refetch()}>
+            <Text style={{ color: primary, fontWeight: "600" }}>Retry</Text>
+          </Pressable>
+        </View>
+      )}
+      {!suggestionsQuery.isError && suggestions.length === 0 && !suggestionsQuery.isLoading && (
+        <Text style={[styles.emptyText, { color: muted }]}>
+          No suggestions right now.
+        </Text>
+      )}
+    </>
+  );
+
   return (
     <VerificationOverlay>
       <View style={[styles.container, { backgroundColor: background }]}>
         <Header title="Friends" />
 
-        <ScrollView
-          showsVerticalScrollIndicator={false}
+        <FlatList
+          data={suggestions}
+          keyExtractor={(item) => item.id}
+          numColumns={2}
+          columnWrapperStyle={{ gap: 14, justifyContent: "space-between", marginBottom: 14 }}
           contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          ListHeaderComponent={renderHeader}
+          onEndReached={() => {
+            if (suggestionsQuery.hasNextPage && !suggestionsQuery.isFetchingNextPage) {
+              suggestionsQuery.fetchNextPage();
+            }
+          }}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={
+            suggestionsQuery.isFetchingNextPage ? (
+              <ActivityIndicator color={primary} style={{ marginVertical: 20 }} />
+            ) : null
+          }
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -153,215 +301,72 @@ export default function FriendsScreen() {
               colors={[primary]}
             />
           }
-        >
-          {/* Search Bar */}
-          <View style={styles.searchRow}>
-            <View
-              style={[
-                styles.searchContainer,
-                { borderColor: border, backgroundColor: cardColor },
-              ]}
-            >
-              <Icon name={Search} size={20} color={muted} />
-              <TextInput
-                style={[styles.searchInput, { color: text }]}
-                placeholder="Find people..."
-                placeholderTextColor={muted}
-                value={search}
-                onChangeText={setSearch}
-                returnKeyType="search"
-              />
-            </View>
-          </View>
-
-          {/* Friend Requests */}
-          <View style={styles.sectionHeader}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-              <Text style={styles.sectionTitle}>Friend Requests</Text>
-              {requests.length > 0 && (
-                <View style={[styles.badge, { backgroundColor: primary }]}>
-                  <Text style={styles.badgeText}>
-                    {requests.length} New
-                  </Text>
+          renderItem={({ item: person }) => {
+            const isSending = sendMutation.isPending && sendMutation.variables === person.id;
+            return (
+              <AnimatedPressable
+                key={person.id}
+                layout={Layout.springify()}
+                entering={FadeIn}
+                exiting={FadeOut.duration(300)}
+                style={styles.personCard}
+                onPress={() => router.push({ pathname: `/profile/${person.id}`, params: { name: person.name, photo: person.photo } } as any)}
+              >
+                <View style={styles.personImageContainer}>
+                  <Image
+                    source={{ uri: person.photo }}
+                    style={styles.personImage}
+                  />
+                  <LinearGradient
+                    colors={["transparent", "rgba(0,0,0,0.18)", "rgba(0,0,0,0.72)"]}
+                    locations={[0.4, 0.7, 1]}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  <View style={styles.personNameContainer}>
+                    <Text style={styles.personNameAge}>
+                      {person.name}, {person.age}
+                    </Text>
+                  </View>
                 </View>
-              )}
-            </View>
-            <Pressable onPress={() => router.push("/sent-requests")}>
-              <Text style={{ color: primary, fontWeight: "600", fontSize: 14 }}>
-                Sent Requests
-              </Text>
-            </Pressable>
-          </View>
 
-          {requestsQuery.isError ? (
-            <View style={styles.inlineMessage}>
-              <Text style={{ color: muted }}>Couldn&apos;t load friend requests.</Text>
-              <Pressable onPress={() => requestsQuery.refetch()}>
-                <Text style={{ color: primary, fontWeight: "600" }}>Retry</Text>
-              </Pressable>
-            </View>
-          ) : requests.length === 0 ? (
-            <Text style={[styles.emptyText, { color: muted }]}>
-              No pending requests right now.
-            </Text>
-          ) : (
-            requests.map((req) => {
-              const isPending =
-                acceptMutation.isPending || declineMutation.isPending;
-              return (
-                <AnimatedPressable
-                  key={req.id}
-                  layout={Layout.springify()}
-                  entering={FadeIn}
-                  exiting={FadeOut.duration(300)}
-                  style={[
-                    styles.requestCard,
-                    { borderColor: border, backgroundColor: cardColor },
-                  ]}
-                  onPress={() => router.push({ pathname: `/profile/${req.sender_id}`, params: { name: req.name, photo: req.photo } } as any)}
-                >
-                  <View style={styles.requestInfo}>
-                    <Image
-                      source={{ uri: req.photo }}
-                      style={styles.requestAvatar}
-                    />
-                    <View style={styles.requestTextCol}>
-                      <Text style={styles.requestName}>{req.name}</Text>
-                      <Text style={[styles.requestSubtitle, { color: muted }]}>
-                        {req.subtitle}
-                      </Text>
-                    </View>
+                <View style={styles.personContent}>
+                  <View style={styles.personTags}>
+                    {person.tags.slice(0, 2).map((tag) => (
+                      <View
+                        key={tag}
+                        style={[styles.smallPill, { backgroundColor: primary + "18" }]}
+                      >
+                        <Text style={[styles.smallPillText, { color: primary }]}>
+                          {tag}
+                        </Text>
+                      </View>
+                    ))}
                   </View>
-                  <View style={styles.requestActions}>
-                    <Pressable
-                      style={[
-                        styles.actionBtn,
-                        { backgroundColor: primary, opacity: isPending ? 0.6 : 1 },
-                      ]}
-                      disabled={isPending}
-                      onPress={() => handleAccept(req.id)}
-                    >
-                      <Text style={[styles.actionBtnText, { color: "#FFF" }]}>
-                        {acceptMutation.isPending &&
-                        acceptMutation.variables === req.id
-                          ? "Accepting…"
-                          : "Accept"}
-                      </Text>
-                    </Pressable>
-                    <Pressable
-                      style={[
-                        styles.actionBtn,
-                        {
-                          backgroundColor: primary + "20",
-                          opacity: isPending ? 0.6 : 1,
-                        },
-                      ]}
-                      disabled={isPending}
-                      onPress={() => handleDecline(req.id)}
-                    >
-                      <Text style={[styles.actionBtnText, { color: "#2B4A4A" }]}>
-                        {declineMutation.isPending &&
-                        declineMutation.variables === req.id
-                          ? "Declining…"
-                          : "Decline"}
-                      </Text>
-                    </Pressable>
-                  </View>
-                </AnimatedPressable>
-              );
-            })
-          )}
 
-          <View style={{ height: 24 }} />
-
-          {/* Recommendations Grid */}
-          {suggestionsQuery.isError ? (
-            <View style={styles.inlineMessage}>
-              <Text style={{ color: muted }}>Couldn&apos;t load suggestions.</Text>
-              <Pressable onPress={() => suggestionsQuery.refetch()}>
-                <Text style={{ color: primary, fontWeight: "600" }}>Retry</Text>
-              </Pressable>
-            </View>
-          ) : suggestions.length === 0 ? (
-            <Text style={[styles.emptyText, { color: muted }]}>
-              No suggestions right now.
-            </Text>
-          ) : (
-            <View style={styles.grid}>
-              {suggestions.map((person) => {
-                const isSending =
-                  sendMutation.isPending && sendMutation.variables === person.id;
-                return (
-                  <AnimatedPressable
-                    key={person.id}
-                    layout={Layout.springify()}
-                    entering={FadeIn}
-                    exiting={FadeOut.duration(300)}
-                    style={styles.personCard}
-                    onPress={() => router.push({ pathname: `/profile/${person.id}`, params: { name: person.name, photo: person.photo } } as any)}
+                  <Text
+                    style={[styles.personBio, { color: muted }]}
+                    numberOfLines={2}
                   >
-                    {/* Photo */}
-                    <View style={styles.personImageContainer}>
-                      <Image
-                        source={{ uri: person.photo }}
-                        style={styles.personImage}
-                      />
-                      <LinearGradient
-                        colors={["transparent", "rgba(0,0,0,0.18)", "rgba(0,0,0,0.72)"]}
-                        locations={[0.4, 0.7, 1]}
-                        style={StyleSheet.absoluteFill}
-                      />
-                      <View style={styles.personNameContainer}>
-                        <Text style={styles.personNameAge}>
-                          {person.name}, {person.age}
-                        </Text>
-                      </View>
-                    </View>
+                    {person.bio}
+                  </Text>
 
-                    {/* Content below photo */}
-                    <View style={styles.personContent}>
-                      {/* Tags */}
-                      <View style={styles.personTags}>
-                        {person.tags.slice(0, 2).map((tag) => (
-                          <View
-                            key={tag}
-                            style={[styles.smallPill, { backgroundColor: primary + "18" }]}
-                          >
-                            <Text style={[styles.smallPillText, { color: primary }]}>
-                              {tag}
-                            </Text>
-                          </View>
-                        ))}
-                      </View>
-
-                      <Text
-                        style={[styles.personBio, { color: muted }]}
-                        numberOfLines={2}
-                      >
-                        {person.bio}
-                      </Text>
-
-                      <Pressable
-                        style={[
-                          styles.addFriendBtn,
-                          { backgroundColor: primary, opacity: isSending ? 0.6 : 1 },
-                        ]}
-                        disabled={isSending}
-                        onPress={() => handleAddFriend(person.id)}
-                      >
-                        <Text style={styles.addFriendText}>
-                          {isSending ? "Sending…" : "Add Friend"}
-                        </Text>
-                      </Pressable>
-                    </View>
-                  </AnimatedPressable>
-                );
-              })}
-            </View>
-          )}
-
-          <View style={{ height: 40 }} />
-        </ScrollView>
+                  <Pressable
+                    style={[
+                      styles.addFriendBtn,
+                      { backgroundColor: primary, opacity: isSending ? 0.6 : 1 },
+                    ]}
+                    disabled={isSending}
+                    onPress={() => handleAddFriend(person.id)}
+                  >
+                    <Text style={styles.addFriendText}>
+                      {isSending ? "Sending…" : "Add Friend"}
+                    </Text>
+                  </Pressable>
+                </View>
+              </AnimatedPressable>
+            );
+          }}
+        />
       </View>
     </VerificationOverlay>
   );

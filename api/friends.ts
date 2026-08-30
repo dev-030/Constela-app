@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { apiClient } from './client';
 
 export interface Suggestion {
@@ -29,20 +29,36 @@ export interface FriendSuggestionsFilters {
   gender?: string;
 }
 
-export const useFriendSuggestionsQuery = (filters: FriendSuggestionsFilters = {}) => {
-  return useQuery({
+export interface SuggestionsResponse {
+  results: Suggestion[];
+  next: boolean;
+  total: number;
+}
+
+export const useInfiniteFriendSuggestionsQuery = (filters: FriendSuggestionsFilters = {}, limit = 20) => {
+  return useInfiniteQuery({
     queryKey: ['friendSuggestions', filters],
-    queryFn: async () => {
+    queryFn: async ({ pageParam = 0 }): Promise<SuggestionsResponse> => {
       const params = new URLSearchParams();
       for (const [key, value] of Object.entries(filters)) {
         if (value !== undefined && value !== null && value !== '') {
           params.append(key, String(value));
         }
       }
+      params.append('limit', String(limit));
+      params.append('offset', String(pageParam));
+      
       const queryString = params.toString();
-      const url = `/api/friends/suggestions/${queryString ? `?${queryString}` : ''}`;
-      const response = await apiClient.get<Suggestion[]>(url);
+      const url = `/api/friends/suggestions/?${queryString}`;
+      const response = await apiClient.get<SuggestionsResponse>(url);
       return response.data;
+    },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+      if (lastPage.next) {
+        return allPages.length * limit;
+      }
+      return undefined;
     },
   });
 };

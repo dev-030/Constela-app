@@ -22,12 +22,6 @@ export default function MatchesScreen() {
 
   const feed = useMatchesFeed();
 
-  useFocusEffect(
-    useCallback(() => {
-      feed.refetch();
-    }, [feed.refetch])
-  );
-
   return (
       <View style={[styles.container, { backgroundColor: background }]}>
         <Header />
