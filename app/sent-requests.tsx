@@ -73,7 +73,7 @@ export default function SentRequestsScreen() {
                   layout={Layout.springify()}
                   entering={FadeIn}
                   exiting={FadeOut.duration(300)}
-                  style={styles.personCard}
+                  style={[styles.personCard, { backgroundColor: cardColor }]}
                   onPress={() => router.push({ pathname: `/profile/${req.receiver_id}`, params: { name: req.name, photo: req.photo } } as any)}
                 >
                   {/* Photo */}
@@ -169,7 +169,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     overflow: "hidden",
     marginBottom: 4,
-    backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "rgba(0,0,0,0.07)",
     // Soft floating shadow

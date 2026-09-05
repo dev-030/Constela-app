@@ -88,10 +88,10 @@ export default function OnboardingEmotionalScreen() {
         "Going Out": "casual",
       };
       if (data.lookingFor && data.lookingFor.length > 0) {
-        formData.append(
-          "looking_for",
-          lookingForMap[data.lookingFor[0]] || data.lookingFor[0],
+        const mappedLookingFor = data.lookingFor.map(
+          (v) => lookingForMap[v] || v
         );
+        formData.append("looking_for", JSON.stringify(mappedLookingFor));
       }
 
       if (data.hasChildren)
@@ -162,9 +162,24 @@ export default function OnboardingEmotionalScreen() {
     }
   };
 
-  const setRecharge = (v: string) => update("rechargeMethods", [v]);
-  const setExhausts = (v: string) => update("exhaustTriggers", [v]);
-  const setNeeds = (v: string) => update("emotionalNeeds", [v]);
+  const toggleRecharge = (v: string) => {
+    const next = rechargeMethods.includes(v)
+      ? rechargeMethods.filter((x) => x !== v)
+      : [...rechargeMethods, v];
+    update("rechargeMethods", next);
+  };
+  const toggleExhausts = (v: string) => {
+    const next = exhaustTriggers.includes(v)
+      ? exhaustTriggers.filter((x) => x !== v)
+      : [...exhaustTriggers, v];
+    update("exhaustTriggers", next);
+  };
+  const toggleNeeds = (v: string) => {
+    const next = emotionalNeeds.includes(v)
+      ? emotionalNeeds.filter((x) => x !== v)
+      : [...emotionalNeeds, v];
+    update("emotionalNeeds", next);
+  };
   const setHumor = (v: string) => update("humor", v as any);
   const setSoothes = (v: string[]) => update("soothesMethods", v);
 
@@ -215,19 +230,19 @@ export default function OnboardingEmotionalScreen() {
           title="Silence"
           subtitle="Reducing noise, Lights, Movement"
           selected={rechargeMethods.includes("Silence")}
-          onPress={() => setRecharge("Silence")}
+          onPress={() => toggleRecharge("Silence")}
         />
         <FilterListItem
           title="Cocoon Spaces"
           subtitle="Quiet room, Blanket corner, Soft light"
           selected={rechargeMethods.includes("Cocoon Spaces")}
-          onPress={() => setRecharge("Cocoon Spaces")}
+          onPress={() => toggleRecharge("Cocoon Spaces")}
         />
         <FilterListItem
           title="Reduced Stimulation"
           subtitle="Noise-cancelling headphones, tinted glasses, Dim light"
           selected={rechargeMethods.includes("Reduced Stimulation")}
-          onPress={() => setRecharge("Reduced Stimulation")}
+          onPress={() => toggleRecharge("Reduced Stimulation")}
         />
 
         <View style={styles.spacing} />
@@ -250,7 +265,7 @@ export default function OnboardingEmotionalScreen() {
             key={item}
             title={item}
             selected={exhaustTriggers.includes(item)}
-            onPress={() => setExhausts(item)}
+            onPress={() => toggleExhausts(item)}
           />
         ))}
 
@@ -273,7 +288,7 @@ export default function OnboardingEmotionalScreen() {
             key={item}
             title={item}
             selected={emotionalNeeds.includes(item)}
-            onPress={() => setNeeds(item)}
+            onPress={() => toggleNeeds(item)}
           />
         ))}
 

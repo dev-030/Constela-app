@@ -309,7 +309,7 @@ export default function FriendsScreen() {
                 layout={Layout.springify()}
                 entering={FadeIn}
                 exiting={FadeOut.duration(300)}
-                style={styles.personCard}
+                style={[styles.personCard, { backgroundColor: cardColor }]}
                 onPress={() => router.push({ pathname: `/profile/${person.id}`, params: { name: person.name, photo: person.photo } } as any)}
               >
                 <View style={styles.personImageContainer}>
@@ -324,14 +324,14 @@ export default function FriendsScreen() {
                   />
                   <View style={styles.personNameContainer}>
                     <Text style={styles.personNameAge}>
-                      {person.name}, {person.age}
+                      {person.name || person.username || "Unknown"}, {person.age ?? ""}
                     </Text>
                   </View>
                 </View>
 
                 <View style={styles.personContent}>
                   <View style={styles.personTags}>
-                    {person.tags.slice(0, 2).map((tag) => (
+                    {(person.tags ?? []).slice(0, 2).map((tag) => (
                       <View
                         key={tag}
                         style={[styles.smallPill, { backgroundColor: primary + "18" }]}
@@ -501,7 +501,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     overflow: "hidden",
     marginBottom: 4,
-    backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "rgba(0,0,0,0.07)",
     // Soft floating shadow

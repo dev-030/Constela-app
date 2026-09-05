@@ -57,28 +57,28 @@ export default function TabsLayout() {
       <Tabs.Screen
         name='home/index'
         options={{
-          title: 'Home',
+          title: 'Accueil',
           tabBarIcon: ({ color }) => <MaterialIcons name="home" size={26} color={color} />,
         }}
       />
       <Tabs.Screen
         name='matches/index'
         options={{
-          title: 'Matches',
+          title: 'Rencontres',
           tabBarIcon: ({ color }) => <MaterialIcons name="heart" size={26} color={color} />,
         }}
       />
       <Tabs.Screen
         name='friends/index'
         options={{
-          title: 'Friends',
+          title: 'Amitié',
           tabBarIcon: ({ color }) => <MaterialIcons name="users" size={26} color={color} />,
         }}
       />
       <Tabs.Screen
         name='community/index'
         options={{
-          title: 'Community',
+          title: 'Communauté',
           tabBarIcon: ({ color }) => <MaterialIcons name="users" size={26} color={color} />,
         }}
       />

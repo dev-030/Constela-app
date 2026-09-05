@@ -4,40 +4,14 @@ import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { Text } from "@/components/ui/text";
 import { useColor } from "@/hooks/useColor";
 import { useOnboarding } from "@/providers/onboarding-context";
+import { LANGUAGES } from "@/constants/languages";
 import { ChevronDown, Check, Search } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Pressable, ScrollView, TextInput, View } from "react-native";
 
 const MARITAL_STATUS = ["single", "married", "divorced", "widowed"];
-const LANGUAGES = [
-  "Afrikaans", "Albanian", "Amharic", "Arabic", "Armenian", "ASL", "Assamese", "Aymara", "Azerbaijani",
-  "Bambara", "Basque", "Belarusian", "Bengali", "Bhojpuri", "Bosnian", "Bulgarian", "Burmese",
-  "Catalan", "Cebuano", "Chichewa", "Chinese (Cantonese)", "Chinese (Mandarin)", "Corsican", "Croatian", "Czech",
-  "Danish", "Dhivehi", "Dogri", "Dutch",
-  "English", "Esperanto", "Estonian", "Ewe",
-  "Filipino", "Finnish", "French", "Frisian",
-  "Galician", "Georgian", "German", "Greek", "Guarani", "Gujarati",
-  "Haitian Creole", "Hausa", "Hawaiian", "Hebrew", "Hindi", "Hmong", "Hungarian",
-  "Icelandic", "Igbo", "Ilocano", "Indonesian", "Irish", "Italian",
-  "Japanese", "Javanese",
-  "Kannada", "Kazakh", "Khmer", "Kinyarwanda", "Konkani", "Korean", "Krio", "Kurdish", "Kyrgyz",
-  "Lao", "Latin", "Latvian", "Lingala", "Lithuanian", "Luganda", "Luxembourgish",
-  "Macedonian", "Maithili", "Malagasy", "Malay", "Malayalam", "Maltese", "Maori", "Marathi", "Meiteilon (Manipuri)", "Mizo", "Mongolian",
-  "Nepali", "Norwegian",
-  "Odia (Oriya)", "Oromo", "Other",
-  "Pashto", "Persian", "Polish", "Portuguese", "Punjabi",
-  "Quechua",
-  "Romanian", "Russian",
-  "Samoan", "Sanskrit", "Scots Gaelic", "Sepedi", "Serbian", "Sesotho", "Shona", "Sindhi", "Sinhala", "Slovak", "Slovenian", "Somali", "Spanish", "Sundanese", "Swahili", "Swedish",
-  "Tajik", "Tamil", "Tatar", "Telugu", "Thai", "Tigrinya", "Tsonga", "Turkish", "Turkmen", "Twi",
-  "Ukrainian", "Urdu", "Uyghur", "Uzbek",
-  "Vietnamese",
-  "Welsh",
-  "Xhosa",
-  "Yiddish", "Yoruba",
-  "Zulu"
-];
+const EDUCATION_OPTIONS = ["High School", "Bachelor's", "Master's", "PhD", "Other"];
 
 export default function OnboardingStep2() {
   const router = useRouter();
@@ -52,6 +26,7 @@ export default function OnboardingStep2() {
   const [statusOpen, setStatusOpen] = useState(false);
   const [languagesOpen, setLanguagesOpen] = useState(false);
   const [languageSearch, setLanguageSearch] = useState("");
+  const [educationOpen, setEducationOpen] = useState(false);
   const [statusError, setStatusError] = useState("");
   const [languagesError, setLanguagesError] = useState("");
 
@@ -366,25 +341,77 @@ export default function OnboardingStep2() {
 
         {/* Education */}
         <FieldLabel>Education</FieldLabel>
-        <View
+        <Pressable
+          onPress={() => setEducationOpen((o) => !o)}
           style={{
             borderWidth: 1,
             borderColor: border,
             backgroundColor: card,
             borderRadius: 12,
             paddingHorizontal: 14,
-            paddingVertical: 12,
+            paddingVertical: 14,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
             marginBottom: 16,
           }}
         >
-          <TextInput
-            value={data.education}
-            onChangeText={(v) => update("education", v)}
-            placeholder="Optional"
-            placeholderTextColor={muted}
-            style={{ color: text, fontSize: 15, padding: 0 }}
+          <Text
+            style={{
+              color: data.education ? text : muted,
+              fontSize: 15,
+            }}
+          >
+            {data.education || "Select education (optional)"}
+          </Text>
+          <Icon
+            name={ChevronDown}
+            size={20}
+            color={muted}
+            style={{
+              transform: [{ rotate: educationOpen ? "180deg" : "0deg" }],
+            }}
           />
-        </View>
+        </Pressable>
+        {educationOpen && (
+          <View
+            style={{
+              borderWidth: 1,
+              borderColor: border,
+              backgroundColor: card,
+              borderRadius: 12,
+              marginBottom: 16,
+              marginTop: -8,
+              overflow: "hidden",
+            }}
+          >
+            {EDUCATION_OPTIONS.map((e, i) => (
+              <Pressable
+                key={e}
+                onPress={() => {
+                  update("education", e);
+                  setEducationOpen(false);
+                }}
+                style={{
+                  paddingVertical: 12,
+                  paddingHorizontal: 14,
+                  borderTopWidth: i === 0 ? 0 : 1,
+                  borderTopColor: border,
+                }}
+              >
+                <Text
+                  style={{
+                    color: text,
+                    fontSize: 15,
+                    fontWeight: data.education === e ? "600" : "400",
+                  }}
+                >
+                  {e}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
       </ScrollView>
     </OnboardingShell>
   );

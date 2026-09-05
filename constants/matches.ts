@@ -35,7 +35,7 @@ const BIOS = [
   "Quiet spaces, loud laughs with the right people. Patient hearts welcome.",
 ];
 
-const INTERESTS_POOL = [
+export const INTERESTS_POOL = [
   "Gaming",
   "Art",
   "Space",

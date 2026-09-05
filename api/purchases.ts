@@ -23,7 +23,7 @@ const RC_KEY = process.env.EXPO_PUBLIC_REVENUECAT_KEY ?? "";
 let initialized = false;
 
 // Check if the native RevenueCat module is actually compiled in (fails on Expo Go)
-function isNativeModuleAvailable(): boolean {
+export function isNativeModuleAvailable(): boolean {
   try {
     return !!NativeModules.RNPurchases;
   } catch (e) {

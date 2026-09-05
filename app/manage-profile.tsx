@@ -10,43 +10,44 @@ import { useColor } from '@/hooks/useColor';
 
 export default function ManageProfileScreen() {
   const insets = useSafeAreaInsets();
-  const background = '#FBF8F1'; // Same cream background
+  const background = useColor('background');
   const text = useColor('text');
   const muted = useColor('textMuted');
   const border = useColor('border');
+  const destructive = useColor('red');
 
   const [isBlocked, setIsBlocked] = useState(false);
 
   return (
-    <View>
+    <View style={{ backgroundColor: background }}>
       {/* Block User */}
       <View style={styles.row}>
-        <View style={[styles.iconContainer, { backgroundColor: '#EFEBE1' }]}>
-          <Icon name={Ban} size={20} color="#5D4037" />
+        <View style={[styles.iconContainer, { backgroundColor: border }]}>
+          <Icon name={Ban} size={20} color={muted} />
         </View>
         <View style={styles.rowTextCol}>
-          <Text style={styles.rowTitle}>Block Jordan</Text>
-          <Text style={styles.rowSubtitle}>They won't be able to message you or see your profile.</Text>
+          <Text style={[styles.rowTitle, { color: text }]}>Block Jordan</Text>
+          <Text style={[styles.rowSubtitle, { color: muted }]}>They won't be able to message you or see your profile.</Text>
         </View>
         <Switch
           value={isBlocked}
           onValueChange={setIsBlocked}
-          trackColor={{ true: '#5D4037' }}
+          trackColor={{ true: destructive }}
         />
       </View>
 
-      <View style={[styles.divider, { backgroundColor: '#EFEBE1' }]} />
+      <View style={[styles.divider, { backgroundColor: border }]} />
 
       {/* Report User */}
       <Pressable style={styles.row}>
-        <View style={[styles.iconContainer, { backgroundColor: '#FFEBEE' }]}>
-          <Icon name={AlertTriangle} size={20} color="#C62828" />
+        <View style={[styles.iconContainer, { backgroundColor: border }]}>
+          <Icon name={AlertTriangle} size={20} color={destructive} />
         </View>
         <View style={styles.rowTextCol}>
-          <Text style={[styles.rowTitle, { color: '#C62828' }]}>Report User</Text>
-          <Text style={[styles.rowSubtitle, { color: '#C62828' }]}>Flag this profile for safety or community guideline violations.</Text>
+          <Text style={[styles.rowTitle, { color: destructive }]}>Report User</Text>
+          <Text style={[styles.rowSubtitle, { color: destructive }]}>Flag this profile for safety or community guideline violations.</Text>
         </View>
-        <Icon name={ChevronRight} size={20} color="#C62828" />
+        <Icon name={ChevronRight} size={20} color={destructive} />
       </Pressable>
 
     </View>
@@ -96,7 +97,6 @@ const styles = StyleSheet.create({
   },
   rowSubtitle: {
     fontSize: 12,
-    color: '#5D4037',
     fontWeight: '500',
   },
   divider: {

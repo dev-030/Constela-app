@@ -158,7 +158,7 @@ export default function OnboardingStep1() {
   };
 
   const isFormValid =
-    !!(data.photos[0] && data.photos[1] && data.photos[2]) &&
+    !!data.photos[0] &&
     data.username.trim().length >= 3 &&
     !isChecking &&
     usernameCheck?.available === true &&
@@ -198,15 +198,15 @@ export default function OnboardingStep1() {
           >
             UPLOAD PHOTOS
           </Text>
-          <Text style={{ fontSize: 12, fontWeight: "500", color: danger }}>
-            3 required
+          <Text style={{ fontSize: 12, fontWeight: "500", color: muted }}>
+            1 required, 2 optional
           </Text>
         </View>
 
         <View style={{ flexDirection: "row", gap: 10, marginBottom: 20 }}>
-          <PhotoSlot slot={0} label="Main Photo" showLabel />
-          <PhotoSlot slot={1} label="" showLabel={false} />
-          <PhotoSlot slot={2} label="" showLabel={false} />
+          <PhotoSlot slot={0} label="Main Photo (required)" showLabel />
+          <PhotoSlot slot={1} label="Optional" showLabel />
+          <PhotoSlot slot={2} label="Optional" showLabel />
         </View>
 
         {/* Username */}

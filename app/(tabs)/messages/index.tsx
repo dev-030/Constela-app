@@ -92,8 +92,8 @@ function SegmentedControl({
   }));
 
   const containerBg = isDark ? "#2C2C2E" : "#EFEFEF";
-  const pillBg = isDark ? "#3A3A3C" : "#FFFFFF";
-  const activeTextColor = isDark ? "#FFFFFF" : "#1C1C1C";
+  const pillBg = isDark ? "#3A3A3C" : useColor("card");
+  const activeTextColor = isDark ? "#FFFFFF" : useColor("text");
   const inactiveTextColor = isDark ? "#8E8E93" : "#8E8E93";
 
   return (
@@ -195,6 +195,9 @@ function ConversationList({
   type: "dating" | "friends";
 }) {
   const background = useColor("background");
+  const primary = useColor("primary");
+  const text = useColor("text");
+  const textMuted = useColor("textMuted");
   const { onlineUsers } = useChatSocket();
 
   // Only show a full-page spinner on the very first load (no data yet).
@@ -203,7 +206,7 @@ function ConversationList({
   if (isLoading && threads.length === 0) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator color="#1F3A3D" />
+        <ActivityIndicator color={primary} />
       </View>
     );
   }
@@ -216,13 +219,13 @@ function ConversationList({
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={onRefresh}
-            tintColor="#1F3A3D"
+            tintColor={primary}
           />
         }
       >
-        <Text style={styles.emptyText}>Couldn&apos;t load conversations.</Text>
+        <Text style={[styles.emptyText, { color: textMuted }]}>Couldn&apos;t load conversations.</Text>
         <Pressable onPress={onRefresh}>
-          <Text style={styles.retryText}>Retry</Text>
+          <Text style={[styles.retryText, { color: primary }]}>Retry</Text>
         </Pressable>
       </ScrollView>
     );
@@ -236,11 +239,11 @@ function ConversationList({
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={onRefresh}
-            tintColor="#1F3A3D"
+            tintColor={primary}
           />
         }
       >
-        <Text style={styles.emptyText}>{emptyText}</Text>
+        <Text style={[styles.emptyText, { color: textMuted }]}>{emptyText}</Text>
       </ScrollView>
     );
   }
@@ -252,7 +255,7 @@ function ConversationList({
         <RefreshControl
           refreshing={isRefreshing}
           onRefresh={onRefresh}
-          tintColor="#1F3A3D"
+          tintColor={primary}
         />
       }
     >
@@ -283,13 +286,13 @@ function ConversationList({
 
               <View style={styles.conversationBody}>
                 <View style={styles.conversationTop}>
-                  <Text style={styles.name}>{thread.profile.name}</Text>
+                  <Text style={[styles.name, { color: text }]}>{thread.profile.name}</Text>
                   <Text style={styles.time}>
                     {formatThreadTime(thread.last_message_time)}
                   </Text>
                 </View>
                 <View style={styles.previewRow}>
-                  <Text numberOfLines={1} style={styles.messagePreview}>
+                  <Text numberOfLines={1} style={[styles.messagePreview, { color: textMuted }]}>
                     {thread.last_message}
                   </Text>
                   {thread.unread_count > 0 ? (
@@ -415,7 +418,6 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   name: {
-    color: "#1C1C1C",
     fontSize: 14,
     fontWeight: "800",
   },
@@ -431,7 +433,6 @@ const styles = StyleSheet.create({
   },
   messagePreview: {
     flex: 1,
-    color: "#71717A",
     fontSize: 15,
     fontWeight: "500",
     lineHeight: 20,
@@ -460,7 +461,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   emptyText: {
-    color: "#71717A",
     fontSize: 14,
   },
   retryText: {

@@ -23,7 +23,7 @@ import {
   useUpgradeSubscriptionMutation,
 } from "@/api/settings";
 import { useProfileStore } from "@/store/profileStore";
-import { getOfferings, purchasePackage } from "@/api/purchases";
+import { getOfferings, purchasePackage, isNativeModuleAvailable } from "@/api/purchases";
 import Purchases, { type PurchasesOffering, type PurchasesPackage } from "react-native-purchases";
 import VerificationOverlay from "@/components/VerificationOverlay";
 import { useAndroidBack } from '@/hooks/useAndroidBack';
@@ -482,6 +482,13 @@ export default function SubscriptionScreen() {
 
 
   const handleRestore = async () => {
+    if (!isNativeModuleAvailable()) {
+      Alert.alert(
+        "Restore Purchases",
+        "Restore is only available in a production build. Please use your device's App Store / Play Store subscriptions page."
+      );
+      return;
+    }
     try {
       setIsPurchasing(true);
       await Purchases.restorePurchases();
@@ -546,10 +553,20 @@ export default function SubscriptionScreen() {
               </View>
               <Pressable
                 onPress={async () => {
+                  if (!isNativeModuleAvailable()) {
+                    Alert.alert(
+                      "Manage Subscription",
+                      "Subscription management is only available in a production build. Please use your device's App Store / Play Store subscriptions page."
+                    );
+                    return;
+                  }
                   try {
                     await Purchases.showManageSubscriptions();
-                  } catch (e) {
-                    Alert.alert("Error", "Could not open subscription management.");
+                  } catch (e: any) {
+                    Alert.alert(
+                      "Manage Subscription",
+                      e?.message || "Could not open subscription management."
+                    );
                   }
                 }}
                 style={({ pressed }) => ({

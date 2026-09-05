@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, LayoutChangeEvent } from 'react-native';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, {
@@ -41,10 +41,23 @@ export function RangeSlider({ min, max, low = min, high = max, onValueChanged, s
     const w = e.nativeEvent.layout.width - THUMB_SIZE;
     setWidth(w);
     lowX.value = ((low - min) / (max - min)) * w;
+    lowValue.value = low;
     if (!single) {
       highX.value = ((high - min) / (max - min)) * w;
+      highValue.value = high;
     }
   };
+
+  // Re-derive thumb positions whenever props change (e.g. parent state update, reset)
+  useEffect(() => {
+    if (width === 0) return;
+    lowX.value = ((low - min) / (max - min)) * width;
+    lowValue.value = low;
+    if (!single) {
+      highX.value = ((high - min) / (max - min)) * width;
+      highValue.value = high;
+    }
+  }, [low, high, width, min, max, single]);
 
   const updateValues = (isLow: boolean, x: number) => {
     const percentage = x / width;
@@ -66,7 +79,7 @@ export function RangeSlider({ min, max, low = min, high = max, onValueChanged, s
       const newX = clamp(
         lowStartX.value + e.translationX,
         0,
-        single ? width : highX.value - THUMB_SIZE
+        width
       );
       lowX.value = newX;
       lowValue.value = min + (newX / width) * (max - min);

@@ -18,10 +18,13 @@ export default function DrawerScreen() {
   useAndroidBack();
   const background = useColor('background');
   const secondary = useColor('secondary');
+  const secondaryForeground = useColor('secondaryForeground');
   const muted = useColor('textMuted');
   const text = useColor('text');
   const border = useColor('border');
   const destructive = useColor('red');
+  const teal = useColor('teal');
+  const green = useColor('green');
   
   const [needBreak, setNeedBreak] = useState(false);
   const { profile, fetchProfile } = useProfileStore();
@@ -50,12 +53,12 @@ export default function DrawerScreen() {
       }}>
         {/* Profile Info */}
         <View style={{ alignItems: 'center', marginBottom: 32 }}>
-          <View style={{ 
-            width: 90, 
-            height: 90, 
-            borderRadius: 45, 
-            borderWidth: 3, 
-            borderColor: '#5AC8FA', // Teal ring
+          <View style={{
+            width: 90,
+            height: 90,
+            borderRadius: 45,
+            borderWidth: 3,
+            borderColor: teal, // Teal ring
             padding: 2,
             marginBottom: 16,
             justifyContent: 'center',
@@ -64,14 +67,14 @@ export default function DrawerScreen() {
             <Avatar uri={profile?.photos?.[0]?.image} size={80} />
           </View>
           <Text style={{ fontSize: 24, fontWeight: 'bold' }}>{profile?.username || 'Loading...'}</Text>
-          <Text style={{ color: '#004D40', fontSize: 12, fontWeight: '600', marginTop: 4 }}>{profile?.neurotype_labels?.join(' & ') || ''}</Text>
+          <Text style={{ color: green, fontSize: 12, fontWeight: '600', marginTop: 4 }}>{profile?.neurotype_labels?.join(' & ') || ''}</Text>
         </View>
 
         {/* Need a break toggle */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <Icon name={Moon} size={20} color="#00897B" />
-            <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#002B36' }}>Need a break?</Text>
+            <Icon name={Moon} size={20} color={green} />
+            <Text style={{ fontSize: 16, fontWeight: 'bold', color: text }}>Need a break?</Text>
           </View>
           <Switch 
             value={needBreak} 
@@ -97,8 +100,8 @@ export default function DrawerScreen() {
             padding: 16, 
             borderRadius: 24 
           }}>
-            <Icon name={User} size={20} color="#FFF" />
-            <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '500' }}>Profile</Text>
+            <Icon name={User} size={20} color={secondaryForeground} />
+            <Text style={{ color: secondaryForeground, fontSize: 16, fontWeight: '500' }}>Profile</Text>
           </Pressable>
 
           {/* Likes */}

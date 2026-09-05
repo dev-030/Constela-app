@@ -3,10 +3,11 @@ import { apiClient } from './client';
 
 export interface Suggestion {
   id: string;
-  username: string;
-  age: number;
-  tags: string[];
-  bio: string;
+  username?: string;
+  name: string;
+  age?: number;
+  tags?: string[];
+  bio?: string;
   photo: string;
 }
 

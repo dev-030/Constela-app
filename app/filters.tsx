@@ -21,11 +21,16 @@ import { RangeSlider } from "@/components/ui/range-slider";
 import { FilterPill } from "@/components/ui/filter-pill";
 import { FilterCard } from "@/components/ui/filter-card";
 import { FilterListItem } from "@/components/ui/filter-list-item";
+import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { useColor } from "@/hooks/useColor";
 import { useQueryClient } from "@tanstack/react-query";
 import { useFilterStore } from "@/store/filterStore";
 import { useProfileStore } from "@/store/profileStore";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
+import { LANGUAGES } from "@/constants/languages";
+import { INTERESTS_POOL } from "@/constants/matches";
+import { Search } from "lucide-react-native";
+import { TextInput } from "react-native";
 
 export default function FiltersScreen() {
   const insets = useSafeAreaInsets();
@@ -85,17 +90,17 @@ export default function FiltersScreen() {
       age_max: ageRange.high !== 65 ? ageRange.high : undefined,
       height_min: height !== 140 ? height : undefined,
       gender: mappedGender,
-      marital_status: selectedMaritalStatus || undefined,
-      looking_for: selectedLookingFor || undefined,
+      marital_status: selectedMaritalStatus.length ? selectedMaritalStatus.join(',') : undefined,
+      looking_for: selectedLookingFor.length ? selectedLookingFor.join(',') : undefined,
       spoken_languages: selectedLanguages.length ? selectedLanguages.join(',') : undefined,
       education_level: selectedEducation || undefined,
       smoking: smoking ? true : undefined,
       alcohol: alcohol ? true : undefined,
       sport: selectedSport || undefined,
       interests: selectedInterests.length ? selectedInterests.join(',') : undefined,
-      recharge_methods: recharge || undefined,
-      exhaust_triggers: exhausts || undefined,
-      emotional_needs: needs || undefined,
+      recharge_methods: recharge.length ? recharge.join(',') : undefined,
+      exhaust_triggers: exhausts.length ? exhausts.join(',') : undefined,
+      emotional_needs: needs.length ? needs.join(',') : undefined,
       second_degree_humor: humor === 'Yes' ? true : undefined,
       soothe_methods: soothes.length ? soothes.join(',') : undefined,
     };
@@ -113,11 +118,15 @@ export default function FiltersScreen() {
   };
 
   const [selectedGender, setSelectedGender] = useState(globalFilters.gender || "");
-  const [selectedMaritalStatus, setSelectedMaritalStatus] = useState(globalFilters.marital_status || "");
+  const [selectedMaritalStatus, setSelectedMaritalStatus] = useState<string[]>(
+    globalFilters.marital_status ? globalFilters.marital_status.split(',') : []
+  );
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>(
     globalFilters.spoken_languages ? globalFilters.spoken_languages.split(',') : []
   );
-  const [selectedLookingFor, setSelectedLookingFor] = useState(globalFilters.looking_for || "");
+  const [selectedLookingFor, setSelectedLookingFor] = useState<string[]>(
+    globalFilters.looking_for ? globalFilters.looking_for.split(',') : []
+  );
 
   // Advanced States
   const [selectedEducation, setSelectedEducation] = useState(globalFilters.education_level || "");
@@ -128,13 +137,22 @@ export default function FiltersScreen() {
     globalFilters.interests ? globalFilters.interests.split(',') : []
   );
 
-  const [recharge, setRecharge] = useState(globalFilters.recharge_methods || "");
-  const [exhausts, setExhausts] = useState(globalFilters.exhaust_triggers || "");
-  const [needs, setNeeds] = useState(globalFilters.emotional_needs || "");
+  const [recharge, setRecharge] = useState<string[]>(
+    globalFilters.recharge_methods ? globalFilters.recharge_methods.split(',') : []
+  );
+  const [exhausts, setExhausts] = useState<string[]>(
+    globalFilters.exhaust_triggers ? globalFilters.exhaust_triggers.split(',') : []
+  );
+  const [needs, setNeeds] = useState<string[]>(
+    globalFilters.emotional_needs ? globalFilters.emotional_needs.split(',') : []
+  );
   const [humor, setHumor] = useState(globalFilters.second_degree_humor ? "Yes" : "");
   const [soothes, setSoothes] = useState<string[]>(
     globalFilters.soothe_methods ? globalFilters.soothe_methods.split(',') : []
   );
+
+  const [languagesSheetOpen, setLanguagesSheetOpen] = useState(false);
+  const [languageSearch, setLanguageSearch] = useState("");
 
   const renderSectionHeader = (title: string, valueStr?: string) => (
     <View style={styles.sectionHeader}>
@@ -204,8 +222,10 @@ export default function FiltersScreen() {
             <FilterPill
               key={status}
               label={status}
-              selected={selectedMaritalStatus === status}
-              onPress={() => setSelectedMaritalStatus(status)}
+              selected={selectedMaritalStatus.includes(status)}
+              onPress={() =>
+                toggleArrayItem(selectedMaritalStatus, setSelectedMaritalStatus, status)
+              }
             />
           ))}
         </View>
@@ -214,19 +234,96 @@ export default function FiltersScreen() {
       <View style={styles.section}>
         {renderSectionHeader("Spoken Languages")}
         <View style={styles.wrapContainer}>
-          {["English", "Spanish"].map((lang) => (
+          {selectedLanguages.slice(0, 4).map((lang) => (
             <FilterPill
               key={lang}
               label={lang}
-              selected={selectedLanguages.includes(lang)}
+              selected
               onPress={() =>
                 toggleArrayItem(selectedLanguages, setSelectedLanguages, lang)
               }
             />
           ))}
-          <FilterPill label="+ Add Language" />
+          {selectedLanguages.length > 4 && (
+            <FilterPill
+              label={`+${selectedLanguages.length - 4} more`}
+              onPress={() => setLanguagesSheetOpen(true)}
+            />
+          )}
+          <FilterPill
+            label="+ Add Language"
+            onPress={() => setLanguagesSheetOpen(true)}
+          />
         </View>
       </View>
+
+      <BottomSheet
+        isVisible={languagesSheetOpen}
+        onClose={() => setLanguagesSheetOpen(false)}
+        title="Select Languages"
+        snapPoints={[0.6]}
+        headerComponent={
+          <View style={{ paddingHorizontal: 16, marginTop: 8 }}>
+            <View
+              style={{
+                marginBottom: 16,
+                backgroundColor: background,
+                borderRadius: 12,
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+                flexDirection: "row",
+                alignItems: "center",
+                borderWidth: 1,
+                borderColor: useColor("border"),
+              }}
+            >
+              <Icon name={Search} size={20} color={muted} style={{ marginRight: 8 }} />
+              <TextInput
+                value={languageSearch}
+                onChangeText={setLanguageSearch}
+                placeholder="Search languages..."
+                placeholderTextColor={muted}
+                style={{ color: text, fontSize: 16, flex: 1, padding: 0 }}
+              />
+            </View>
+          </View>
+        }
+      >
+        <View style={{ paddingBottom: 24, paddingHorizontal: 16 }}>
+          {LANGUAGES.filter((l) =>
+            l.toLowerCase().includes(languageSearch.toLowerCase())
+          ).map((lang, i, arr) => {
+            const isSelected = selectedLanguages.includes(lang);
+            return (
+              <Pressable
+                key={lang}
+                onPress={() =>
+                  toggleArrayItem(selectedLanguages, setSelectedLanguages, lang)
+                }
+                style={{
+                  paddingVertical: 14,
+                  borderBottomWidth: i === arr.length - 1 ? 0 : 1,
+                  borderBottomColor: useColor("border"),
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <Text
+                  style={{
+                    color: text,
+                    fontSize: 16,
+                    fontWeight: isSelected ? "600" : "400",
+                  }}
+                >
+                  {lang}
+                </Text>
+                {isSelected && <Icon name={Check} size={20} color={primary} />}
+              </Pressable>
+            );
+          })}
+        </View>
+      </BottomSheet>
 
       <View style={styles.section}>
         {renderSectionHeader("Looking for")}
@@ -235,15 +332,15 @@ export default function FiltersScreen() {
             title="Serious"
             subtitle="Long-term bonds"
             icon={<Heart size={20} />}
-            selected={selectedLookingFor === "Serious"}
-            onPress={() => setSelectedLookingFor("Serious")}
+            selected={selectedLookingFor.includes("Serious")}
+            onPress={() => toggleArrayItem(selectedLookingFor, setSelectedLookingFor, "Serious")}
           />
           <FilterCard
             title="Friendship"
             subtitle="Platonic first"
             icon={<Users size={20} />}
-            selected={selectedLookingFor === "Friendship"}
-            onPress={() => setSelectedLookingFor("Friendship")}
+            selected={selectedLookingFor.includes("Friendship")}
+            onPress={() => toggleArrayItem(selectedLookingFor, setSelectedLookingFor, "Friendship")}
           />
         </View>
         <View style={[styles.gridContainer, { marginTop: 12 }]}>
@@ -251,15 +348,15 @@ export default function FiltersScreen() {
             title="We'll see"
             subtitle="Open to options"
             icon={<HelpCircle size={20} />}
-            selected={selectedLookingFor === "We'll see"}
-            onPress={() => setSelectedLookingFor("We'll see")}
+            selected={selectedLookingFor.includes("We'll see")}
+            onPress={() => toggleArrayItem(selectedLookingFor, setSelectedLookingFor, "We'll see")}
           />
           <FilterCard
             title="Going out"
             subtitle="Casual fun"
             icon={<PartyPopper size={20} />}
-            selected={selectedLookingFor === "Going out"}
-            onPress={() => setSelectedLookingFor("Going out")}
+            selected={selectedLookingFor.includes("Going out")}
+            onPress={() => toggleArrayItem(selectedLookingFor, setSelectedLookingFor, "Going out")}
           />
         </View>
       </View>
@@ -323,7 +420,7 @@ export default function FiltersScreen() {
         <View style={styles.section}>
           {renderSectionHeader("Interests")}
           <View style={styles.wrapContainer}>
-            {["Gaming", "Art", "Coding", "Reading"].map((interest) => {
+            {INTERESTS_POOL.map((interest) => {
               const isSelected = selectedInterests.includes(interest);
               return (
                 <FilterPill
@@ -353,20 +450,20 @@ export default function FiltersScreen() {
           <FilterListItem
             title="Silence"
             subtitle="Reducing noise, lights, movement"
-            selected={recharge === "Silence"}
-            onPress={() => setRecharge("Silence")}
+            selected={recharge.includes("Silence")}
+            onPress={() => toggleArrayItem(recharge, setRecharge, "Silence")}
           />
           <FilterListItem
             title="Cocoon Spaces"
             subtitle="Quiet room, blanket cocoon, soft light"
-            selected={recharge === "Cocoon Spaces"}
-            onPress={() => setRecharge("Cocoon Spaces")}
+            selected={recharge.includes("Cocoon Spaces")}
+            onPress={() => toggleArrayItem(recharge, setRecharge, "Cocoon Spaces")}
           />
           <FilterListItem
             title="Reduced Stimulation"
             subtitle="Noise-cancelling headphones, blindglasses, dim light"
-            selected={recharge === "Reduced Stimulation"}
-            onPress={() => setRecharge("Reduced Stimulation")}
+            selected={recharge.includes("Reduced Stimulation")}
+            onPress={() => toggleArrayItem(recharge, setRecharge, "Reduced Stimulation")}
           />
 
           <Text style={[styles.subsectionTitle, { marginTop: 24 }]}>
@@ -384,8 +481,8 @@ export default function FiltersScreen() {
             <FilterListItem
               key={item}
               title={item}
-              selected={exhausts === item}
-              onPress={() => setExhausts(item)}
+              selected={exhausts.includes(item)}
+              onPress={() => toggleArrayItem(exhausts, setExhausts, item)}
             />
           ))}
 
@@ -403,8 +500,8 @@ export default function FiltersScreen() {
             <FilterListItem
               key={item}
               title={item}
-              selected={needs === item}
-              onPress={() => setNeeds(item)}
+              selected={needs.includes(item)}
+              onPress={() => toggleArrayItem(needs, setNeeds, item)}
             />
           ))}
 
@@ -462,26 +559,26 @@ export default function FiltersScreen() {
           <View style={styles.header}>
             <Text style={styles.title}>Filters</Text>
             <View style={styles.headerRight}>
-              <Pressable 
+              <Pressable
                 onPress={() => {
                   useFilterStore.getState().clearFilters();
                   setAgeRange({ low: 18, high: 65 });
                   setHeight(140);
                   setSelectedGender("");
-                  setSelectedMaritalStatus("");
+                  setSelectedMaritalStatus([]);
                   setSelectedLanguages([]);
-                  setSelectedLookingFor("");
+                  setSelectedLookingFor([]);
                   setSelectedEducation("");
                   setSmoking(false);
                   setAlcohol(false);
                   setSelectedSport("");
                   setSelectedInterests([]);
-                  setRecharge("");
-                  setExhausts("");
-                  setNeeds("");
+                  setRecharge([]);
+                  setExhausts([]);
+                  setNeeds([]);
                   setHumor("");
                   setSoothes([]);
-                }} 
+                }}
                 hitSlop={10} 
                 style={styles.resetBtn}
               >

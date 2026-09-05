@@ -35,7 +35,7 @@ export default function HomeScreen() {
   const primary = useColor("primary");
   const muted = useColor("textMuted");
   const border = useColor("border");
-  const error = useColor("error") || "#ef4444";
+  const error = useColor("destructive");
   
   const { profile, fetchProfile } = useProfileStore();
   const isFaceApproved = profile?.face_verification_status === "approved";
