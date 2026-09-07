@@ -4,21 +4,22 @@ import { Text } from "@/components/ui/text";
 import { useColor } from "@/hooks/useColor";
 import { useThemeContext } from "@/providers/theme-context";
 import { router } from "expo-router";
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Moon, 
-  User, 
-  Heart, 
-  CreditCard, 
-  Mail, 
-  Lock, 
-  Globe, 
-  UserX, 
-  Bell, 
+import {
+  ChevronLeft,
+  ChevronRight,
+  Moon,
+  User,
+  Heart,
+  CreditCard,
+  Mail,
+  Lock,
+  Globe,
+  UserX,
+  Bell,
   History,
   LifeBuoy,
-  CheckCircle2
+  CheckCircle2,
+  Bug,
 } from "lucide-react-native";
 import { useMemo, useEffect } from "react";
 import { useProfileStore } from "@/store/profileStore";
@@ -210,9 +211,9 @@ export default function SettingsIndexScreen() {
         {/* Profile Section */}
         <View style={styles.profileContainer}>
           <View style={styles.avatarContainer}>
-            <Avatar 
-              uri={profile?.photos?.[0]?.image} 
-              size={116} 
+            <Avatar
+              uri={profile?.photos?.[0]?.image}
+              size={116}
               style={{ borderRadius: 58 }}
               imageStyle={{ borderRadius: 58 }}
             />
@@ -299,6 +300,16 @@ export default function SettingsIndexScreen() {
           </View>
         </View>
 
+        {/* DEBUG (developer only) */}
+        {__DEV__ && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Developer</Text>
+            <View style={styles.sectionCard}>
+              {renderItem("RevenueCat Debug", Bug, "/settings/revenuecat-debug", true)}
+            </View>
+          </View>
+        )}
+
         <Button
           variant="destructive"
           style={styles.logoutBtn}
@@ -323,9 +334,9 @@ export default function SettingsIndexScreen() {
               "Are you sure you want to delete your account? This action is permanent and will delete all your data.",
               [
                 { text: "Cancel", style: "cancel" },
-                { 
-                  text: "Delete", 
-                  style: "destructive", 
+                {
+                  text: "Delete",
+                  style: "destructive",
                   onPress: () => {
                     deleteAccount.mutate(undefined, {
                       onSuccess: async () => {

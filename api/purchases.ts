@@ -1,16 +1,3 @@
-/**
- * PurchasesService.ts
- * RevenueCat SDK wrapper for Chahira.
- * Uses the Test Store API key for sandbox testing — no App Store or Google Play account needed.
- *
- * To test:
- * 1. Sign up at revenuecat.com and create a project.
- * 2. Go to Products → + New → create products using "Test Store".
- * 3. Create Entitlements: premium_light, premium_plus, add_on_advanced_filters, add_on_chat_rooms, add_on_match_analysis
- * 4. Create an Offering with Packages pointing to those products.
- * 5. Copy the Test API key from Project Settings → API Keys.
- * 6. Add EXPO_PUBLIC_REVENUECAT_KEY=rcb_test_xxxx to your app/.env file.
- */
 import Purchases, {
   PurchasesOffering,
   CustomerInfo,

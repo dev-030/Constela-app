@@ -1,4 +1,9 @@
-import Animated, { useAnimatedStyle, useSharedValue, withTiming, Easing } from "react-native-reanimated";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+  Easing,
+} from "react-native-reanimated";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
@@ -6,7 +11,15 @@ import { Text } from "@/components/ui/text";
 import { useColor } from "@/hooks/useColor";
 import { router } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, Check, Filter, MessageSquare, Rocket, X, Zap } from "lucide-react-native";
+import {
+  ChevronLeft,
+  Check,
+  Filter,
+  MessageSquare,
+  Rocket,
+  X,
+  Zap,
+} from "lucide-react-native";
 import { useState, useEffect } from "react";
 import {
   Alert,
@@ -17,20 +30,26 @@ import {
   ActivityIndicator,
   TouchableOpacity,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import {
   SubscriptionTier,
   useUpgradeSubscriptionMutation,
 } from "@/api/settings";
 import { useProfileStore } from "@/store/profileStore";
-import { getOfferings, purchasePackage, isNativeModuleAvailable } from "@/api/purchases";
-import Purchases, { type PurchasesOffering, type PurchasesPackage } from "react-native-purchases";
+import {
+  getOfferings,
+  purchasePackage,
+  isNativeModuleAvailable,
+} from "@/api/purchases";
+import Purchases, {
+  type PurchasesOffering,
+  type PurchasesPackage,
+} from "react-native-purchases";
 import VerificationOverlay from "@/components/VerificationOverlay";
-import { useAndroidBack } from '@/hooks/useAndroidBack';
-
-const PRIMARY = "#DE4177";
-const GOLD = "#1A3A2A";
-const GOLD_TEXT = "#FFFFFF";
+import { useAndroidBack } from "@/hooks/useAndroidBack";
 
 type LightPlanChoice = "1m" | "3m" | "1yr" | "lifetime";
 type PlusPlanChoice = "1m" | "3m" | "1yr" | "lifetime";
@@ -48,8 +67,6 @@ const PLUS_PRICES: Record<PlusPlanChoice, number> = {
   "1yr": 79.99,
   lifetime: 199.99,
 };
-
-// ─── Reusable row ───────────────────────────────────────────────────────────
 
 function FeatureRow({
   label,
@@ -71,14 +88,20 @@ function FeatureRow({
       ) : (
         <X size={18} color={muted} strokeWidth={2.5} />
       )}
-      <Text style={{ fontSize: 14, color: available ? text : muted, flex: 1, marginLeft: 12, fontWeight: "500" }}>
+      <Text
+        style={{
+          fontSize: 14,
+          color: available ? text : muted,
+          flex: 1,
+          marginLeft: 12,
+          fontWeight: "500",
+        }}
+      >
         {label}
       </Text>
     </View>
   );
 }
-
-// ─── Price chip ─────────────────────────────────────────────────────────────
 
 function PriceChip({
   badgeColor = "#FF6B00",
@@ -119,8 +142,13 @@ function PriceChip({
     >
       {badge ? (
         <View style={[styles.chipBadge, { backgroundColor: badgeColor }]}>
-          <Text 
-            style={{ fontSize: 7, fontWeight: "800", color: "#fff", letterSpacing: 0.3 }}
+          <Text
+            style={{
+              fontSize: 7,
+              fontWeight: "800",
+              color: "#fff",
+              letterSpacing: 0.3,
+            }}
             numberOfLines={1}
             adjustsFontSizeToFit
           >
@@ -128,19 +156,32 @@ function PriceChip({
           </Text>
         </View>
       ) : null}
-      <Text style={{ fontSize: 8, color: muted, fontWeight: "700", marginBottom: 2 }}>
+      <Text
+        style={{
+          fontSize: 8,
+          color: muted,
+          fontWeight: "700",
+          marginBottom: 2,
+        }}
+      >
         {duration}
       </Text>
-      <Text style={{ fontSize: 13, fontWeight: "800", color: selected ? primary : text }} numberOfLines={1} adjustsFontSizeToFit>
+      <Text
+        style={{
+          fontSize: 13,
+          fontWeight: "800",
+          color: selected ? primary : text,
+        }}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+      >
         {price}
       </Text>
     </Pressable>
   );
 }
 
-
-
-// ─── Segmented Control ────────────────────────────────────────────────────────
+// ─── Segmented Control
 
 const TABS = ["Freemium", "Premium Light", "Premium Plus"];
 
@@ -221,11 +262,7 @@ function SegmentedControl({
     >
       {containerWidth > 0 && (
         <Animated.View
-          style={[
-            segStyles.pill,
-            { backgroundColor: pillBg },
-            pillStyle,
-          ]}
+          style={[segStyles.pill, { backgroundColor: pillBg }, pillStyle]}
         />
       )}
       {TABS.map((tab, index) => (
@@ -233,16 +270,28 @@ function SegmentedControl({
           key={tab}
           onPress={() => onChange(tab)}
           activeOpacity={0.75}
-          style={[segStyles.tab, containerWidth > 0 && { width: getTabWidth(index, containerWidth) }]}
+          style={[
+            segStyles.tab,
+            containerWidth > 0 && { width: getTabWidth(index, containerWidth) },
+          ]}
         >
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', width: '100%', paddingHorizontal: 4 }}>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              width: "100%",
+              paddingHorizontal: 4,
+            }}
+          >
             <Text
               numberOfLines={1}
               adjustsFontSizeToFit
               style={[
                 segStyles.tabText,
                 {
-                  color: activeTab === tab ? activeTextColor : inactiveTextColor,
+                  color:
+                    activeTab === tab ? activeTextColor : inactiveTextColor,
                   fontWeight: activeTab === tab ? "700" : "500",
                 },
               ]}
@@ -250,7 +299,16 @@ function SegmentedControl({
               {tab}
             </Text>
             {isCurrentPlanActive(tab) && (
-              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: primaryColor, marginLeft: 6, marginTop: 1 }} />
+              <View
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: 3,
+                  backgroundColor: primaryColor,
+                  marginLeft: 6,
+                  marginTop: 1,
+                }}
+              />
             )}
           </View>
         </TouchableOpacity>
@@ -292,8 +350,6 @@ const segStyles = StyleSheet.create({
   },
 });
 
-// ─── Main ────────────────────────────────────────────────────────────────────
-
 export default function SubscriptionScreen() {
   useAndroidBack();
   const background = useColor("background");
@@ -307,11 +363,12 @@ export default function SubscriptionScreen() {
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
 
-  const initialTab = profile?.subscription_tier === "plus" 
-    ? "Premium Plus" 
-    : profile?.subscription_tier === "light" 
-      ? "Premium Light" 
-      : "Freemium";
+  const initialTab =
+    profile?.subscription_tier === "plus"
+      ? "Premium Plus"
+      : profile?.subscription_tier === "light"
+        ? "Premium Light"
+        : "Freemium";
   const [activeTab, setActiveTab] = useState<string>(initialTab);
   const [lightPlan, setLightPlan] = useState<LightPlanChoice | null>(null);
   const [plusPlan, setPlusPlan] = useState<PlusPlanChoice | null>(null);
@@ -329,30 +386,124 @@ export default function SubscriptionScreen() {
     fetchProfile();
   }, [fetchProfile]);
 
-  const findPackage = (identifier: string): PurchasesPackage | undefined =>
-    offering?.availablePackages.find((p) => p.identifier === identifier);
+  const findPackage = (identifier: string): PurchasesPackage | undefined => {
+    const match = offering?.availablePackages.find(
+      (p) => p.identifier === identifier || p.product.identifier === identifier,
+    );
+    return match;
+  };
+
+  const findPackageForChoice = (
+    tier: SubscriptionTier,
+    plan: LightPlanChoice | PlusPlanChoice,
+  ): PurchasesPackage | undefined => {
+    const packages = offering?.availablePackages ?? [];
+    if (!packages.length) return undefined;
+
+    const legacyId = `chahira_${tier}_${plan}`;
+    const exact = packages.find(
+      (p) => p.identifier === legacyId || p.product.identifier === legacyId,
+    );
+    if (exact) return exact;
+
+    // Heuristic matching: figure out which duration + tier this plan refers to.
+    const planDuration =
+      plan === "1m"
+        ? "monthly"
+        : plan === "3m"
+          ? "threeMonth"
+          : plan === "1yr"
+            ? "yearly"
+            : "lifetime";
+    const tierWord = tier === "light" ? "light" : "plus";
+    const tierTitle = tier === "light" ? "Light" : "Plus";
+
+    const score = (p: PurchasesPackage): number => {
+      const id = p.identifier.toLowerCase();
+      const productId = p.product.identifier.toLowerCase();
+      const title = p.product.title.toLowerCase();
+      const pkgType = String(p.packageType).toLowerCase();
+      const period = String(p.product.subscriptionPeriod ?? "").toLowerCase();
+
+      let s = 0;
+      if (id.includes(tierWord) || productId.includes(tierWord)) s += 4;
+      if (title.includes(tierTitle)) s += 4;
+
+      if (planDuration === "monthly") {
+        if (id.includes("1m") || productId.includes("1m")) s += 3;
+        if (
+          pkgType.includes("month") ||
+          period.includes("p1m") ||
+          period.includes("1 month")
+        )
+          s += 3;
+        if (id.includes("monthly") || productId.includes("monthly")) s += 2;
+      } else if (planDuration === "threeMonth") {
+        if (id.includes("3m") || productId.includes("3m")) s += 3;
+        if (
+          pkgType.includes("three") ||
+          period.includes("p3m") ||
+          period.includes("3 month")
+        )
+          s += 3;
+      } else if (planDuration === "yearly") {
+        if (
+          id.includes("1yr") ||
+          id.includes("1y") ||
+          productId.includes("1yr") ||
+          productId.includes("1y")
+        )
+          s += 3;
+        if (
+          pkgType.includes("annual") ||
+          period.includes("p1y") ||
+          period.includes("1 year")
+        )
+          s += 3;
+      } else if (planDuration === "lifetime") {
+        if (id.includes("life") || productId.includes("life")) s += 4;
+        if (pkgType.includes("lifetime") || period === "lifetime") s += 4;
+      }
+      return s;
+    };
+
+    const ranked = packages
+      .map((p) => ({ p, s: score(p) }))
+      .filter((x) => x.s > 0)
+      .sort((a, b) => b.s - a.s);
+
+    return ranked.length > 0 ? ranked[0].p : undefined;
+  };
 
   const handlePurchase = async (
     tier: SubscriptionTier,
-    rcPackageId: string,
+    plan: LightPlanChoice | PlusPlanChoice,
     fallbackAmount: number,
-    label: string
+    label: string,
   ) => {
-    if (rcPackageId === currentProductId) {
-      Alert.alert("Already on this plan", `You're already subscribed to this exact plan duration.`);
+    const pkg = findPackageForChoice(tier, plan);
+    const rcPackageId =
+      pkg?.identifier ?? pkg?.product.identifier ?? `chahira_${tier}_${plan}`;
+
+    if (pkg && rcPackageId === currentProductId) {
+      Alert.alert(
+        "Already on this plan",
+        `You're already subscribed to this exact plan duration.`,
+      );
       return;
     }
 
     const redundantAddons = [];
     if (tier === "plus") {
-      if (profile?.has_advanced_filters) redundantAddons.push("Advanced Filters");
+      if (profile?.has_advanced_filters)
+        redundantAddons.push("Advanced Filters");
       if (profile?.has_all_chat_rooms) redundantAddons.push("All Chat Rooms");
     } else if (tier === "light") {
-      if (profile?.has_advanced_filters) redundantAddons.push("Advanced Filters");
+      if (profile?.has_advanced_filters)
+        redundantAddons.push("Advanced Filters");
     }
 
     const executePurchase = async () => {
-      const pkg = findPackage(rcPackageId);
       setIsPurchasing(true);
 
       const handleBackendUpgrade = (rcSuccess: boolean = false) => {
@@ -362,10 +513,14 @@ export default function SubscriptionScreen() {
           setIsPurchasing(false);
           useProfileStore.setState((state) => ({
             profile: state.profile
-              ? { ...state.profile, subscription_tier: tier, subscription_product_id: rcPackageId }
+              ? {
+                  ...state.profile,
+                  subscription_tier: tier,
+                  subscription_product_id: rcPackageId,
+                }
               : null,
           }));
-          queryClient.invalidateQueries({ queryKey: ['chatRooms'] });
+          queryClient.invalidateQueries({ queryKey: ["chatRooms"] });
           Alert.alert("Subscription updated", `You are now on ${label}.`);
         } else {
           // FALLBACK MODE: No RevenueCat connected. We use the insecure mock endpoint.
@@ -376,14 +531,18 @@ export default function SubscriptionScreen() {
                 setIsPurchasing(false);
                 useProfileStore.setState((state) => ({
                   profile: state.profile
-                    ? { ...state.profile, ...updatedProfile, subscription_product_id: rcPackageId }
+                    ? {
+                        ...state.profile,
+                        ...updatedProfile,
+                        subscription_product_id: rcPackageId,
+                      }
                     : null,
                 }));
-                queryClient.invalidateQueries({ queryKey: ['chatRooms'] });
+                queryClient.invalidateQueries({ queryKey: ["chatRooms"] });
                 Alert.alert(
                   "Subscription updated",
                   `You are now on ${label}. (Fallback Mode)`,
-                  [{ text: "OK", onPress: () => fetchProfile() }]
+                  [{ text: "OK", onPress: () => fetchProfile() }],
                 );
               },
               onError: (err: any) => {
@@ -394,7 +553,7 @@ export default function SubscriptionScreen() {
                   "We couldn’t process your upgrade. Please try again.";
                 Alert.alert("Upgrade failed", message);
               },
-            }
+            },
           );
         }
       };
@@ -417,8 +576,12 @@ export default function SubscriptionScreen() {
         `Upgrading to ${label} gives you access to ${redundantAddons.join(" and ")}! After upgrading, please remember to cancel your active add-on subscriptions in your device settings to avoid being double-billed.`,
         [
           { text: "Cancel", style: "cancel" },
-          { text: "Continue & Upgrade", onPress: executePurchase, style: "default" }
-        ]
+          {
+            text: "Continue & Upgrade",
+            onPress: executePurchase,
+            style: "default",
+          },
+        ],
       );
       return;
     }
@@ -426,66 +589,111 @@ export default function SubscriptionScreen() {
     await executePurchase();
   };
 
-  const handleAddonPurchase = async (
-    rcPackageId: string,
-    label: string,
-  ) => {
+  const handleAddonPurchase = async (rcPackageId: string, label: string) => {
     const pkg = findPackage(rcPackageId);
     setIsPurchasing(true);
     if (pkg) {
       const customerInfo = await purchasePackage(pkg);
       if (customerInfo) {
+        // Use whichever identifier actually came back from RC, falling back to
+        // the legacy `chahira_addon_*` strings so the backend can still match.
+        const resolvedId = pkg.identifier ?? rcPackageId;
         let backendTier = "";
-        if (rcPackageId === 'chahira_addon_filters_monthly') backendTier = 'add_on_filters';
-        if (rcPackageId === 'chahira_addon_chatrooms_monthly') backendTier = 'add_on_chatrooms';
-        if (rcPackageId === 'chahira_addon_match_analysis') backendTier = 'add_on_perfect_match';
-        
-        // PRODUCTION MODE: RevenueCat succeeded. 
+        if (
+          resolvedId.includes("addon_filters") ||
+          resolvedId.includes("add_on_filters") ||
+          resolvedId.includes("filters_monthly")
+        )
+          backendTier = "add_on_filters";
+        else if (
+          resolvedId.includes("addon_chatrooms") ||
+          resolvedId.includes("add_on_chatrooms") ||
+          resolvedId.includes("chatrooms_monthly")
+        )
+          backendTier = "add_on_chatrooms";
+        else if (
+          resolvedId.includes("addon_match") ||
+          resolvedId.includes("add_on_perfect_match") ||
+          resolvedId.includes("match_analysis")
+        )
+          backendTier = "add_on_perfect_match";
+
+        // PRODUCTION MODE: RevenueCat succeeded.
         // We optimistically update the UI. The secure Webhook handles the database.
         setIsPurchasing(false);
         useProfileStore.setState((state) => ({
-          profile: state.profile ? {
-            ...state.profile,
-            has_advanced_filters: backendTier === 'add_on_filters' ? true : state.profile.has_advanced_filters,
-            has_all_chat_rooms: backendTier === 'add_on_chatrooms' ? true : state.profile.has_all_chat_rooms,
-            has_match_analysis: backendTier === 'add_on_perfect_match' ? true : state.profile.has_match_analysis,
-          } : null
+          profile: state.profile
+            ? {
+                ...state.profile,
+                has_advanced_filters:
+                  backendTier === "add_on_filters"
+                    ? true
+                    : state.profile.has_advanced_filters,
+                has_all_chat_rooms:
+                  backendTier === "add_on_chatrooms"
+                    ? true
+                    : state.profile.has_all_chat_rooms,
+                has_match_analysis:
+                  backendTier === "add_on_perfect_match"
+                    ? true
+                    : state.profile.has_match_analysis,
+              }
+            : null,
         }));
-        Alert.alert("Add-on activated!", `${label} is now active on your account.`);
+        Alert.alert(
+          "Add-on activated!",
+          `${label} is now active on your account.`,
+        );
       } else {
         setIsPurchasing(false);
       }
     } else {
       setIsPurchasing(false);
-      Alert.alert("Coming Soon", `${label} will be available when connected to the store.`);
+      Alert.alert(
+        "Coming Soon",
+        `${label} will be available when connected to the store.`,
+      );
     }
   };
 
   const isUpgrading = isPurchasing || upgradeMutation.isPending;
 
   const getActivePlanDetails = () => {
-    let tierName = currentTier === "plus" ? "Premium Plus" : (currentTier === "light" ? "Premium Light" : "Freemium");
+    let tierName =
+      currentTier === "plus"
+        ? "Premium Plus"
+        : currentTier === "light"
+          ? "Premium Light"
+          : "Freemium";
     let duration = "1 Year";
     let price = currentTier === "plus" ? "$79.99" : "$39.99";
 
     if (currentProductId) {
       const isPlus = currentProductId.includes("plus");
       tierName = isPlus ? "Premium Plus" : "Premium Light";
-      if (currentProductId.includes("_1m")) { duration = "1 Month"; price = isPlus ? "$9.99" : "$4.99"; }
-      else if (currentProductId.includes("_3m")) { duration = "3 Months"; price = isPlus ? "$24.99" : "$12.99"; }
-      else if (currentProductId.includes("_1yr")) { duration = "1 Year"; price = isPlus ? "$79.99" : "$39.99"; }
-      else if (currentProductId.includes("_life")) { duration = "Lifetime"; price = isPlus ? "$199.99" : "$99.99"; }
+      if (currentProductId.includes("_1m")) {
+        duration = "1 Month";
+        price = isPlus ? "$9.99" : "$4.99";
+      } else if (currentProductId.includes("_3m")) {
+        duration = "3 Months";
+        price = isPlus ? "$24.99" : "$12.99";
+      } else if (currentProductId.includes("_1yr")) {
+        duration = "1 Year";
+        price = isPlus ? "$79.99" : "$39.99";
+      } else if (currentProductId.includes("_life")) {
+        duration = "Lifetime";
+        price = isPlus ? "$199.99" : "$99.99";
+      }
     }
 
     return { tierName, duration, price };
   };
 
-
   const handleRestore = async () => {
     if (!isNativeModuleAvailable()) {
       Alert.alert(
         "Restore Purchases",
-        "Restore is only available in a production build. Please use your device's App Store / Play Store subscriptions page."
+        "Restore is only available in a production build. Please use your device's App Store / Play Store subscriptions page.",
       );
       return;
     }
@@ -497,7 +705,10 @@ export default function SubscriptionScreen() {
       Alert.alert("Success", "Your purchases have been restored.");
     } catch (e: any) {
       setIsPurchasing(false);
-      Alert.alert("Restore Failed", e.message || "We couldn't restore your purchases.");
+      Alert.alert(
+        "Restore Failed",
+        e.message || "We couldn't restore your purchases.",
+      );
     }
   };
 
@@ -516,17 +727,24 @@ export default function SubscriptionScreen() {
     return false;
   };
 
-  const showFooter = 
-    (activeTab === "Premium Light" && lightPlan !== null) || 
+  const showFooter =
+    (activeTab === "Premium Light" && lightPlan !== null) ||
     (activeTab === "Premium Plus" && plusPlan !== null);
-    
-  const selectedProductIsActive = 
-    (activeTab === "Premium Light" && lightPlan && isProductActive("light", lightPlan)) ||
-    (activeTab === "Premium Plus" && plusPlan && isProductActive("plus", plusPlan));
+
+  const selectedProductIsActive =
+    (activeTab === "Premium Light" &&
+      lightPlan &&
+      isProductActive("light", lightPlan)) ||
+    (activeTab === "Premium Plus" &&
+      plusPlan &&
+      isProductActive("plus", plusPlan));
 
   return (
     <VerificationOverlay>
-      <SafeAreaView style={[styles.root, { backgroundColor: background }]} edges={["top"]}>
+      <SafeAreaView
+        style={[styles.root, { backgroundColor: background }]}
+        edges={["top"]}
+      >
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
@@ -535,7 +753,12 @@ export default function SubscriptionScreen() {
             </Pressable>
           </View>
           <View style={styles.headerCenter}>
-            <Text style={[styles.headerTitle, { color: text }]} numberOfLines={1}>Subscription</Text>
+            <Text
+              style={[styles.headerTitle, { color: text }]}
+              numberOfLines={1}
+            >
+              Subscription
+            </Text>
           </View>
           <View style={styles.headerRight} />
         </View>
@@ -545,18 +768,54 @@ export default function SubscriptionScreen() {
           contentContainerStyle={{ paddingBottom: showFooter ? 220 : 60 }}
         >
           {currentTier !== "freemium" && (
-            <View style={{ marginHorizontal: 16, marginTop: 12, marginBottom: 24, padding: 16, backgroundColor: card, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(150, 150, 150, 0.2)', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <View
+              style={{
+                marginHorizontal: 16,
+                marginTop: 12,
+                marginBottom: 24,
+                padding: 16,
+                backgroundColor: card,
+                borderRadius: 16,
+                borderWidth: 1,
+                borderColor: "rgba(150, 150, 150, 0.2)",
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
               <View>
-                <Text style={{ fontSize: 11, fontWeight: "800", color: primary, marginBottom: 4, letterSpacing: 0.5 }}>ACTIVE PLAN</Text>
-                <Text style={{ fontSize: 16, fontWeight: "800", color: text, marginBottom: 2 }}>{getActivePlanDetails().tierName}</Text>
-                <Text style={{ fontSize: 13, color: muted }}>{getActivePlanDetails().duration} • {getActivePlanDetails().price}</Text>
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: "800",
+                    color: primary,
+                    marginBottom: 4,
+                    letterSpacing: 0.5,
+                  }}
+                >
+                  ACTIVE PLAN
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "800",
+                    color: text,
+                    marginBottom: 2,
+                  }}
+                >
+                  {getActivePlanDetails().tierName}
+                </Text>
+                <Text style={{ fontSize: 13, color: muted }}>
+                  {getActivePlanDetails().duration} •{" "}
+                  {getActivePlanDetails().price}
+                </Text>
               </View>
               <Pressable
                 onPress={async () => {
                   if (!isNativeModuleAvailable()) {
                     Alert.alert(
                       "Manage Subscription",
-                      "Subscription management is only available in a production build. Please use your device's App Store / Play Store subscriptions page."
+                      "Subscription management is only available in a production build. Please use your device's App Store / Play Store subscriptions page.",
                     );
                     return;
                   }
@@ -565,7 +824,7 @@ export default function SubscriptionScreen() {
                   } catch (e: any) {
                     Alert.alert(
                       "Manage Subscription",
-                      e?.message || "Could not open subscription management."
+                      e?.message || "Could not open subscription management.",
                     );
                   }
                 }}
@@ -574,167 +833,637 @@ export default function SubscriptionScreen() {
                   paddingHorizontal: 20,
                   paddingVertical: 10,
                   borderRadius: 20,
-                  opacity: pressed ? 0.8 : 1
+                  opacity: pressed ? 0.8 : 1,
                 })}
               >
-                <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 14 }}>Manage</Text>
+                <Text
+                  style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 14 }}
+                >
+                  Manage
+                </Text>
               </Pressable>
             </View>
           )}
 
-          <SegmentedControl 
-            activeTab={activeTab} 
-            onChange={setActiveTab} 
+          <SegmentedControl
+            activeTab={activeTab}
+            onChange={setActiveTab}
             isCurrentPlanActive={isCurrentPlanActive}
             primaryColor={primary}
           />
 
           {activeTab === "Freemium" && (
             <View style={{ paddingHorizontal: 20 }}>
-              <Text style={{ fontSize: 22, fontWeight: "800", color: text, marginBottom: 4 }}>Freemium Access</Text>
-              <Text style={{ fontSize: 14, color: muted, marginBottom: 24 }}>The basic experience.</Text>
-              
+              <Text
+                style={{
+                  fontSize: 22,
+                  fontWeight: "800",
+                  color: text,
+                  marginBottom: 4,
+                }}
+              >
+                Freemium Access
+              </Text>
+              <Text style={{ fontSize: 14, color: muted, marginBottom: 24 }}>
+                The basic experience.
+              </Text>
+
               <View style={{ gap: 12, marginBottom: 32 }}>
-                <FeatureRow label="Browse dating & friendship profiles" muted={muted} primary={primary} text={text} />
-                <FeatureRow label="28 likes per day" muted={muted} primary={primary} text={text} />
-                <FeatureRow label="1 free message/match to new profiles" muted={muted} primary={primary} text={text} />
-                <FeatureRow label="Ads displayed (Banner + Video)" muted={muted} primary={primary} text={text} />
-                <FeatureRow label="Basic filters only" available={false} muted={muted} primary={primary} text={text} />
-                <FeatureRow label="No chat room access" available={false} muted={muted} primary={primary} text={text} />
+                <FeatureRow
+                  label="Browse dating & friendship profiles"
+                  muted={muted}
+                  primary={primary}
+                  text={text}
+                />
+                <FeatureRow
+                  label="28 likes per day"
+                  muted={muted}
+                  primary={primary}
+                  text={text}
+                />
+                <FeatureRow
+                  label="1 free message/match to new profiles"
+                  muted={muted}
+                  primary={primary}
+                  text={text}
+                />
+                <FeatureRow
+                  label="Ads displayed (Banner + Video)"
+                  muted={muted}
+                  primary={primary}
+                  text={text}
+                />
+                <FeatureRow
+                  label="Basic filters only"
+                  available={false}
+                  muted={muted}
+                  primary={primary}
+                  text={text}
+                />
+                <FeatureRow
+                  label="No chat room access"
+                  available={false}
+                  muted={muted}
+                  primary={primary}
+                  text={text}
+                />
               </View>
             </View>
           )}
 
           {activeTab === "Premium Light" && (
             <View style={{ paddingHorizontal: 20 }}>
-              <Text style={{ fontSize: 22, fontWeight: "800", color: text, marginBottom: 4 }}>Premium Light</Text>
-              <Text style={{ fontSize: 14, color: muted, marginBottom: 24 }}>For serious, intentional browsing.</Text>
-              
+              <Text
+                style={{
+                  fontSize: 22,
+                  fontWeight: "800",
+                  color: text,
+                  marginBottom: 4,
+                }}
+              >
+                Premium Light
+              </Text>
+              <Text style={{ fontSize: 14, color: muted, marginBottom: 24 }}>
+                For serious, intentional browsing.
+              </Text>
+
               <View style={{ gap: 12, marginBottom: 32 }}>
-                <FeatureRow label="See who liked you" muted={muted} primary={primary} text={text} />
-                <FeatureRow label="50 likes per day" muted={muted} primary={primary} text={text} />
-                <FeatureRow label="3 free messages/match to new profiles" muted={muted} primary={primary} text={text} />
-                <FeatureRow label="Access to 3 themed chat rooms" muted={muted} primary={primary} text={text} />
-                <FeatureRow label="Advanced search filters" muted={muted} primary={primary} text={text} />
+                <FeatureRow
+                  label="See who liked you"
+                  muted={muted}
+                  primary={primary}
+                  text={text}
+                />
+                <FeatureRow
+                  label="50 likes per day"
+                  muted={muted}
+                  primary={primary}
+                  text={text}
+                />
+                <FeatureRow
+                  label="3 free messages/match to new profiles"
+                  muted={muted}
+                  primary={primary}
+                  text={text}
+                />
+                <FeatureRow
+                  label="Access to 3 themed chat rooms"
+                  muted={muted}
+                  primary={primary}
+                  text={text}
+                />
+                <FeatureRow
+                  label="Advanced search filters"
+                  muted={muted}
+                  primary={primary}
+                  text={text}
+                />
               </View>
 
-              <Text style={{ fontSize: 13, fontWeight: "700", color: text, marginBottom: 12, letterSpacing: 0.5 }}>SELECT PLAN</Text>
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: "700",
+                  color: text,
+                  marginBottom: 12,
+                  letterSpacing: 0.5,
+                }}
+              >
+                SELECT PLAN
+              </Text>
               <View style={styles.priceRow}>
-                <PriceChip duration="1 MONTH" price="$4.99" badge={isProductActive("light", "1m") ? "CURRENT PLAN" : undefined} badgeColor={primary} selected={lightPlan === "1m"} onPress={() => setLightPlan("1m")} primary={primary} border={border} card={card} text={text} muted={muted} />
-                <PriceChip duration="3 MONTHS" price="$12.99" badge={isProductActive("light", "3m") ? "CURRENT PLAN" : undefined} badgeColor={primary} selected={lightPlan === "3m"} onPress={() => setLightPlan("3m")} primary={primary} border={border} card={card} text={text} muted={muted} />
-                <PriceChip duration="1 YEAR" price="$39.99" badge={isProductActive("light", "1yr") ? "CURRENT PLAN" : "BEST VALUE"} badgeColor={isProductActive("light", "1yr") ? primary : "#FF6B00"} selected={lightPlan === "1yr"} onPress={() => setLightPlan("1yr")} primary={primary} border={border} card={card} text={text} muted={muted} />
-                <PriceChip duration="LIFETIME" price="$99.99" badge={isProductActive("light", "lifetime") ? "CURRENT PLAN" : undefined} badgeColor={primary} selected={lightPlan === "lifetime"} onPress={() => setLightPlan("lifetime")} primary={primary} border={border} card={card} text={text} muted={muted} />
+                <PriceChip
+                  duration="1 MONTH"
+                  price="$4.99"
+                  badge={
+                    isProductActive("light", "1m") ? "CURRENT PLAN" : undefined
+                  }
+                  badgeColor={primary}
+                  selected={lightPlan === "1m"}
+                  onPress={() => setLightPlan("1m")}
+                  primary={primary}
+                  border={border}
+                  card={card}
+                  text={text}
+                  muted={muted}
+                />
+                <PriceChip
+                  duration="3 MONTHS"
+                  price="$12.99"
+                  badge={
+                    isProductActive("light", "3m") ? "CURRENT PLAN" : undefined
+                  }
+                  badgeColor={primary}
+                  selected={lightPlan === "3m"}
+                  onPress={() => setLightPlan("3m")}
+                  primary={primary}
+                  border={border}
+                  card={card}
+                  text={text}
+                  muted={muted}
+                />
+                <PriceChip
+                  duration="1 YEAR"
+                  price="$39.99"
+                  badge={
+                    isProductActive("light", "1yr")
+                      ? "CURRENT PLAN"
+                      : "BEST VALUE"
+                  }
+                  badgeColor={
+                    isProductActive("light", "1yr") ? primary : "#FF6B00"
+                  }
+                  selected={lightPlan === "1yr"}
+                  onPress={() => setLightPlan("1yr")}
+                  primary={primary}
+                  border={border}
+                  card={card}
+                  text={text}
+                  muted={muted}
+                />
+                <PriceChip
+                  duration="LIFETIME"
+                  price="$99.99"
+                  badge={
+                    isProductActive("light", "lifetime")
+                      ? "CURRENT PLAN"
+                      : undefined
+                  }
+                  badgeColor={primary}
+                  selected={lightPlan === "lifetime"}
+                  onPress={() => setLightPlan("lifetime")}
+                  primary={primary}
+                  border={border}
+                  card={card}
+                  text={text}
+                  muted={muted}
+                />
               </View>
             </View>
           )}
 
           {activeTab === "Premium Plus" && (
             <View style={{ paddingHorizontal: 20 }}>
-              <Text style={{ fontSize: 22, fontWeight: "800", color: text, marginBottom: 4 }}>Premium Plus</Text>
-              <Text style={{ fontSize: 14, color: muted, marginBottom: 24 }}>The complete experience with total freedom.</Text>
+              <Text
+                style={{
+                  fontSize: 22,
+                  fontWeight: "800",
+                  color: text,
+                  marginBottom: 4,
+                }}
+              >
+                Premium Plus
+              </Text>
+              <Text style={{ fontSize: 14, color: muted, marginBottom: 24 }}>
+                The complete experience with total freedom.
+              </Text>
 
               <View style={{ gap: 12, marginBottom: 32 }}>
-                <FeatureRow label="Unlimited Likes & Messages" muted={muted} primary={primary} text={text} />
-                <FeatureRow label="Access to ALL Chat Rooms" muted={muted} primary={primary} text={text} />
-                <FeatureRow label="See all received likes" muted={muted} primary={primary} text={text} />
-                <FeatureRow label="Full Advanced Filter toolkit" muted={muted} primary={primary} text={text} />
-                <FeatureRow label="No Ads" muted={muted} primary={primary} text={text} />
+                <FeatureRow
+                  label="Unlimited Likes & Messages"
+                  muted={muted}
+                  primary={primary}
+                  text={text}
+                />
+                <FeatureRow
+                  label="Access to ALL Chat Rooms"
+                  muted={muted}
+                  primary={primary}
+                  text={text}
+                />
+                <FeatureRow
+                  label="See all received likes"
+                  muted={muted}
+                  primary={primary}
+                  text={text}
+                />
+                <FeatureRow
+                  label="Full Advanced Filter toolkit"
+                  muted={muted}
+                  primary={primary}
+                  text={text}
+                />
+                <FeatureRow
+                  label="No Ads"
+                  muted={muted}
+                  primary={primary}
+                  text={text}
+                />
               </View>
 
-              <Text style={{ fontSize: 13, fontWeight: "700", color: text, marginBottom: 12, letterSpacing: 0.5 }}>SELECT PLAN</Text>
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: "700",
+                  color: text,
+                  marginBottom: 12,
+                  letterSpacing: 0.5,
+                }}
+              >
+                SELECT PLAN
+              </Text>
               <View style={styles.priceRow}>
-                <PriceChip duration="1 MONTH" price="$9.99" badge={isProductActive("plus", "1m") ? "CURRENT PLAN" : undefined} badgeColor={primary} selected={plusPlan === "1m"} onPress={() => setPlusPlan("1m")} primary={primary} border={border} card={card} text={text} muted={muted} />
-                <PriceChip duration="3 MONTHS" price="$24.99" badge={isProductActive("plus", "3m") ? "CURRENT PLAN" : undefined} badgeColor={primary} selected={plusPlan === "3m"} onPress={() => setPlusPlan("3m")} primary={primary} border={border} card={card} text={text} muted={muted} />
-                <PriceChip duration="1 YEAR" price="$79.99" badge={isProductActive("plus", "1yr") ? "CURRENT PLAN" : "BEST VALUE"} badgeColor={isProductActive("plus", "1yr") ? primary : "#FF6B00"} selected={plusPlan === "1yr"} onPress={() => setPlusPlan("1yr")} primary={primary} border={border} card={card} text={text} muted={muted} />
-                <PriceChip duration="LIFETIME" price="$199.99" badge={isProductActive("plus", "lifetime") ? "CURRENT PLAN" : undefined} badgeColor={primary} selected={plusPlan === "lifetime"} onPress={() => setPlusPlan("lifetime")} primary={primary} border={border} card={card} text={text} muted={muted} />
+                <PriceChip
+                  duration="1 MONTH"
+                  price="$9.99"
+                  badge={
+                    isProductActive("plus", "1m") ? "CURRENT PLAN" : undefined
+                  }
+                  badgeColor={primary}
+                  selected={plusPlan === "1m"}
+                  onPress={() => setPlusPlan("1m")}
+                  primary={primary}
+                  border={border}
+                  card={card}
+                  text={text}
+                  muted={muted}
+                />
+                <PriceChip
+                  duration="3 MONTHS"
+                  price="$24.99"
+                  badge={
+                    isProductActive("plus", "3m") ? "CURRENT PLAN" : undefined
+                  }
+                  badgeColor={primary}
+                  selected={plusPlan === "3m"}
+                  onPress={() => setPlusPlan("3m")}
+                  primary={primary}
+                  border={border}
+                  card={card}
+                  text={text}
+                  muted={muted}
+                />
+                <PriceChip
+                  duration="1 YEAR"
+                  price="$79.99"
+                  badge={
+                    isProductActive("plus", "1yr")
+                      ? "CURRENT PLAN"
+                      : "BEST VALUE"
+                  }
+                  badgeColor={
+                    isProductActive("plus", "1yr") ? primary : "#FF6B00"
+                  }
+                  selected={plusPlan === "1yr"}
+                  onPress={() => setPlusPlan("1yr")}
+                  primary={primary}
+                  border={border}
+                  card={card}
+                  text={text}
+                  muted={muted}
+                />
+                <PriceChip
+                  duration="LIFETIME"
+                  price="$199.99"
+                  badge={
+                    isProductActive("plus", "lifetime")
+                      ? "CURRENT PLAN"
+                      : undefined
+                  }
+                  badgeColor={primary}
+                  selected={plusPlan === "lifetime"}
+                  onPress={() => setPlusPlan("lifetime")}
+                  primary={primary}
+                  border={border}
+                  card={card}
+                  text={text}
+                  muted={muted}
+                />
               </View>
             </View>
           )}
 
-          <View style={{ marginTop: activeTab === "Freemium" ? 8 : 40, paddingHorizontal: 20 }}>
-            <Text style={{ fontSize: 11, fontWeight: "800", color: muted, marginBottom: 16, letterSpacing: 0.8, textTransform: "uppercase" }}>Specialized Add-ons</Text>
-            
+          <View
+            style={{
+              marginTop: activeTab === "Freemium" ? 8 : 40,
+              paddingHorizontal: 20,
+            }}
+          >
+            {/* Live offering dump so you can see exactly what RC is returning */}
+            <Text
+              style={{
+                fontSize: 11,
+                fontWeight: "800",
+                color: muted,
+                marginBottom: 16,
+                letterSpacing: 0.8,
+                textTransform: "uppercase",
+              }}
+            >
+              Specialized Add-ons
+            </Text>
+
             {/* Perfect Match */}
-            <View style={{ backgroundColor: '#1A3A2A', borderRadius: 16, padding: 16, marginBottom: 16 }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <View
+              style={{
+                backgroundColor: "#1A3A2A",
+                borderRadius: 16,
+                padding: 16,
+                marginBottom: 16,
+              }}
+            >
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: 12,
+                }}
+              >
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 15, fontWeight: "700", color: '#FFF' }}>Perfect Match Analysis</Text>
-                  <Text style={{ fontSize: 13, color: '#A0B8AA', marginTop: 2 }}>Deep compatibility insights.</Text>
+                  <Text
+                    style={{ fontSize: 15, fontWeight: "700", color: "#FFF" }}
+                  >
+                    Perfect Match Analysis
+                  </Text>
+                  <Text
+                    style={{ fontSize: 13, color: "#A0B8AA", marginTop: 2 }}
+                  >
+                    Deep compatibility insights.
+                  </Text>
                 </View>
                 {profile?.has_match_analysis ? (
-                  <View style={{ backgroundColor: 'rgba(255,255,255,0.15)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 }}>
-                    <Text style={{ color: '#FFF', fontWeight: "800", fontSize: 10, letterSpacing: 0.5 }}>SUBSCRIBED</Text>
+                  <View
+                    style={{
+                      backgroundColor: "rgba(255,255,255,0.15)",
+                      paddingHorizontal: 10,
+                      paddingVertical: 4,
+                      borderRadius: 8,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: "#FFF",
+                        fontWeight: "800",
+                        fontSize: 10,
+                        letterSpacing: 0.5,
+                      }}
+                    >
+                      SUBSCRIBED
+                    </Text>
                   </View>
                 ) : (
-                  <View style={{ backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 }}>
-                    <Text style={{ color: '#FFF', fontWeight: "700", fontSize: 13 }}>$14.99</Text>
+                  <View
+                    style={{
+                      backgroundColor: "rgba(255,255,255,0.1)",
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      borderRadius: 12,
+                    }}
+                  >
+                    <Text
+                      style={{ color: "#FFF", fontWeight: "700", fontSize: 13 }}
+                    >
+                      $14.99
+                    </Text>
                   </View>
                 )}
               </View>
-              <View style={{ gap: 6, marginBottom: profile?.has_perfect_match ? 0 : 16 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)', alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
+              <View
+                style={{
+                  gap: 6,
+                  marginBottom: profile?.has_perfect_match ? 0 : 16,
+                }}
+              >
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    backgroundColor: "rgba(255,255,255,0.05)",
+                    alignSelf: "flex-start",
+                    paddingHorizontal: 10,
+                    paddingVertical: 4,
+                    borderRadius: 12,
+                  }}
+                >
                   <Text style={{ fontSize: 12, marginRight: 6 }}>🔬</Text>
-                  <Text style={{ fontSize: 11, color: '#E0EAE4', fontWeight: "500" }}>Top 5 compatible matches</Text>
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      color: "#E0EAE4",
+                      fontWeight: "500",
+                    }}
+                  >
+                    Top 5 compatible matches
+                  </Text>
                 </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)', alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    backgroundColor: "rgba(255,255,255,0.05)",
+                    alignSelf: "flex-start",
+                    paddingHorizontal: 10,
+                    paddingVertical: 4,
+                    borderRadius: 12,
+                  }}
+                >
                   <Text style={{ fontSize: 12, marginRight: 6 }}>📊</Text>
-                  <Text style={{ fontSize: 11, color: '#E0EAE4', fontWeight: "500" }}>Compatibility percentage scores</Text>
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      color: "#E0EAE4",
+                      fontWeight: "500",
+                    }}
+                  >
+                    Compatibility percentage scores
+                  </Text>
                 </View>
               </View>
               {!profile?.has_match_analysis ? (
                 <Pressable
-                  onPress={() => handleAddonPurchase('chahira_addon_match_analysis', 'Perfect Match Analysis')}
+                  onPress={() =>
+                    handleAddonPurchase(
+                      "chahira_addon_match_analysis",
+                      "Perfect Match Analysis",
+                    )
+                  }
                   style={({ pressed }) => ({
-                    backgroundColor: '#FFF',
+                    backgroundColor: "#FFF",
                     paddingVertical: 12,
                     borderRadius: 12,
-                    alignItems: 'center',
-                    opacity: pressed ? 0.8 : 1
+                    alignItems: "center",
+                    opacity: pressed ? 0.8 : 1,
                   })}
                 >
-                  <Text style={{ color: '#1A3A2A', fontWeight: "700", fontSize: 14 }}>Get Add-on</Text>
+                  <Text
+                    style={{
+                      color: "#1A3A2A",
+                      fontWeight: "700",
+                      fontSize: 14,
+                    }}
+                  >
+                    Get Add-on
+                  </Text>
                 </Pressable>
               ) : (
                 <Pressable
                   disabled
                   style={{
-                    backgroundColor: '#FFF',
+                    backgroundColor: "#FFF",
                     paddingVertical: 12,
                     borderRadius: 12,
-                    alignItems: 'center',
-                    opacity: 0.5
+                    alignItems: "center",
+                    opacity: 0.5,
                   }}
                 >
-                  <Text style={{ color: '#1A3A2A', fontWeight: "700", fontSize: 14 }}>Subscribed</Text>
+                  <Text
+                    style={{
+                      color: "#1A3A2A",
+                      fontWeight: "700",
+                      fontSize: 14,
+                    }}
+                  >
+                    Subscribed
+                  </Text>
                 </Pressable>
               )}
             </View>
 
             {/* Advanced Filters */}
-            <View style={{ backgroundColor: card, borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: border }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
-                  <Icon name={Filter} size={20} color={text} style={{ marginRight: 10 }} />
+            <View
+              style={{
+                backgroundColor: card,
+                borderRadius: 16,
+                padding: 16,
+                marginBottom: 16,
+                borderWidth: 1,
+                borderColor: border,
+              }}
+            >
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <View
+                  style={{
+                    flex: 1,
+                    flexDirection: "row",
+                    alignItems: "center",
+                  }}
+                >
+                  <Icon
+                    name={Filter}
+                    size={20}
+                    color={text}
+                    style={{ marginRight: 10 }}
+                  />
                   <View>
-                    <Text style={{ fontSize: 15, fontWeight: "700", color: text }}>Advanced Filters</Text>
-                    <Text style={{ fontSize: 13, color: muted, marginTop: 2 }}>Including anonymous profile.</Text>
+                    <Text
+                      style={{ fontSize: 15, fontWeight: "700", color: text }}
+                    >
+                      Advanced Filters
+                    </Text>
+                    <Text style={{ fontSize: 13, color: muted, marginTop: 2 }}>
+                      Including anonymous profile.
+                    </Text>
                   </View>
                 </View>
-                {activeTab === 'Premium Light' || activeTab === 'Premium Plus' ? (
-                  <View style={{ backgroundColor: primary + '20', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 }}>
-                    <Text style={{ color: primary, fontWeight: "800", fontSize: 10, letterSpacing: 0.5 }}>INCLUDED</Text>
+                {activeTab === "Premium Light" ||
+                activeTab === "Premium Plus" ? (
+                  <View
+                    style={{
+                      backgroundColor: primary + "20",
+                      paddingHorizontal: 10,
+                      paddingVertical: 4,
+                      borderRadius: 8,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: primary,
+                        fontWeight: "800",
+                        fontSize: 10,
+                        letterSpacing: 0.5,
+                      }}
+                    >
+                      INCLUDED
+                    </Text>
                   </View>
-                ) : currentTier === 'light' || currentTier === 'plus' || profile?.has_advanced_filters ? (
-                  <View style={{ backgroundColor: background, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 }}>
-                    <Text style={{ color: text, fontWeight: "800", fontSize: 10, letterSpacing: 0.5, opacity: 0.7 }}>SUBSCRIBED</Text>
+                ) : currentTier === "light" ||
+                  currentTier === "plus" ||
+                  profile?.has_advanced_filters ? (
+                  <View
+                    style={{
+                      backgroundColor: background,
+                      paddingHorizontal: 10,
+                      paddingVertical: 4,
+                      borderRadius: 8,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: text,
+                        fontWeight: "800",
+                        fontSize: 10,
+                        letterSpacing: 0.5,
+                        opacity: 0.7,
+                      }}
+                    >
+                      SUBSCRIBED
+                    </Text>
                   </View>
                 ) : (
-                  <View style={{ backgroundColor: background, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 }}>
-                    <Text style={{ color: text, fontWeight: "700", fontSize: 13 }}>$2.99/mo</Text>
+                  <View
+                    style={{
+                      backgroundColor: background,
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      borderRadius: 12,
+                    }}
+                  >
+                    <Text
+                      style={{ color: text, fontWeight: "700", fontSize: 13 }}
+                    >
+                      $2.99/mo
+                    </Text>
                   </View>
                 )}
               </View>
-              {activeTab === 'Premium Light' || activeTab === 'Premium Plus' ? (
+              {activeTab === "Premium Light" || activeTab === "Premium Plus" ? (
                 <Pressable
                   disabled
                   style={{
@@ -744,13 +1473,17 @@ export default function SubscriptionScreen() {
                     borderColor: border,
                     paddingVertical: 12,
                     borderRadius: 12,
-                    alignItems: 'center',
-                    opacity: 0.8
+                    alignItems: "center",
+                    opacity: 0.8,
                   }}
                 >
-                  <Text style={{ color: text, fontWeight: "700", fontSize: 14 }}>Included in {activeTab}</Text>
+                  <Text
+                    style={{ color: text, fontWeight: "700", fontSize: 14 }}
+                  >
+                    Included in {activeTab}
+                  </Text>
                 </Pressable>
-              ) : currentTier === 'light' || currentTier === 'plus' ? (
+              ) : currentTier === "light" || currentTier === "plus" ? (
                 <Pressable
                   disabled
                   style={{
@@ -760,11 +1493,15 @@ export default function SubscriptionScreen() {
                     borderColor: border,
                     paddingVertical: 12,
                     borderRadius: 12,
-                    alignItems: 'center',
-                    opacity: 0.8
+                    alignItems: "center",
+                    opacity: 0.8,
                   }}
                 >
-                  <Text style={{ color: text, fontWeight: "700", fontSize: 14 }}>Included in your plan</Text>
+                  <Text
+                    style={{ color: text, fontWeight: "700", fontSize: 14 }}
+                  >
+                    Included in your plan
+                  </Text>
                 </Pressable>
               ) : profile?.has_advanced_filters ? (
                 <Pressable
@@ -776,54 +1513,143 @@ export default function SubscriptionScreen() {
                     borderColor: border,
                     paddingVertical: 12,
                     borderRadius: 12,
-                    alignItems: 'center',
-                    opacity: 0.8
+                    alignItems: "center",
+                    opacity: 0.8,
                   }}
                 >
-                  <Text style={{ color: text, fontWeight: "700", fontSize: 14 }}>Subscribed</Text>
+                  <Text
+                    style={{ color: text, fontWeight: "700", fontSize: 14 }}
+                  >
+                    Subscribed
+                  </Text>
                 </Pressable>
               ) : (
                 <Pressable
-                  onPress={() => handleAddonPurchase('chahira_addon_filters_monthly', 'Advanced Filters')}
+                  onPress={() =>
+                    handleAddonPurchase(
+                      "chahira_addon_filters_monthly",
+                      "Advanced Filters",
+                    )
+                  }
                   style={({ pressed }) => ({
                     marginTop: 16,
                     backgroundColor: primary,
                     paddingVertical: 12,
                     borderRadius: 12,
-                    alignItems: 'center',
-                    opacity: pressed ? 0.8 : 1
+                    alignItems: "center",
+                    opacity: pressed ? 0.8 : 1,
                   })}
                 >
-                  <Text style={{ color: '#FFF', fontWeight: "700", fontSize: 14 }}>Get Add-on</Text>
+                  <Text
+                    style={{ color: "#FFF", fontWeight: "700", fontSize: 14 }}
+                  >
+                    Get Add-on
+                  </Text>
                 </Pressable>
               )}
             </View>
 
             {/* All Chat Rooms */}
-            <View style={{ backgroundColor: card, borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: border }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
-                  <Icon name={MessageSquare} size={20} color={text} style={{ marginRight: 10 }} />
+            <View
+              style={{
+                backgroundColor: card,
+                borderRadius: 16,
+                padding: 16,
+                marginBottom: 16,
+                borderWidth: 1,
+                borderColor: border,
+              }}
+            >
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <View
+                  style={{
+                    flex: 1,
+                    flexDirection: "row",
+                    alignItems: "center",
+                  }}
+                >
+                  <Icon
+                    name={MessageSquare}
+                    size={20}
+                    color={text}
+                    style={{ marginRight: 10 }}
+                  />
                   <View>
-                    <Text style={{ fontSize: 15, fontWeight: "700", color: text }}>All Chat Rooms</Text>
-                    <Text style={{ fontSize: 13, color: muted, marginTop: 2 }}>Access all chat rooms.</Text>
+                    <Text
+                      style={{ fontSize: 15, fontWeight: "700", color: text }}
+                    >
+                      All Chat Rooms
+                    </Text>
+                    <Text style={{ fontSize: 13, color: muted, marginTop: 2 }}>
+                      Access all chat rooms.
+                    </Text>
                   </View>
                 </View>
-                {activeTab === 'Premium Plus' ? (
-                  <View style={{ backgroundColor: primary + '20', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 }}>
-                    <Text style={{ color: primary, fontWeight: "800", fontSize: 10, letterSpacing: 0.5 }}>INCLUDED</Text>
+                {activeTab === "Premium Plus" ? (
+                  <View
+                    style={{
+                      backgroundColor: primary + "20",
+                      paddingHorizontal: 10,
+                      paddingVertical: 4,
+                      borderRadius: 8,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: primary,
+                        fontWeight: "800",
+                        fontSize: 10,
+                        letterSpacing: 0.5,
+                      }}
+                    >
+                      INCLUDED
+                    </Text>
                   </View>
-                ) : currentTier === 'plus' || profile?.has_all_chat_rooms ? (
-                  <View style={{ backgroundColor: background, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 }}>
-                    <Text style={{ color: text, fontWeight: "800", fontSize: 10, letterSpacing: 0.5, opacity: 0.7 }}>SUBSCRIBED</Text>
+                ) : currentTier === "plus" || profile?.has_all_chat_rooms ? (
+                  <View
+                    style={{
+                      backgroundColor: background,
+                      paddingHorizontal: 10,
+                      paddingVertical: 4,
+                      borderRadius: 8,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: text,
+                        fontWeight: "800",
+                        fontSize: 10,
+                        letterSpacing: 0.5,
+                        opacity: 0.7,
+                      }}
+                    >
+                      SUBSCRIBED
+                    </Text>
                   </View>
                 ) : (
-                  <View style={{ backgroundColor: background, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 }}>
-                    <Text style={{ color: text, fontWeight: "700", fontSize: 13 }}>$3.99/mo</Text>
+                  <View
+                    style={{
+                      backgroundColor: background,
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      borderRadius: 12,
+                    }}
+                  >
+                    <Text
+                      style={{ color: text, fontWeight: "700", fontSize: 13 }}
+                    >
+                      $3.99/mo
+                    </Text>
                   </View>
                 )}
               </View>
-              {activeTab === 'Premium Plus' ? (
+              {activeTab === "Premium Plus" ? (
                 <Pressable
                   disabled
                   style={{
@@ -833,13 +1659,17 @@ export default function SubscriptionScreen() {
                     borderColor: border,
                     paddingVertical: 12,
                     borderRadius: 12,
-                    alignItems: 'center',
-                    opacity: 0.8
+                    alignItems: "center",
+                    opacity: 0.8,
                   }}
                 >
-                  <Text style={{ color: text, fontWeight: "700", fontSize: 14 }}>Included in {activeTab}</Text>
+                  <Text
+                    style={{ color: text, fontWeight: "700", fontSize: 14 }}
+                  >
+                    Included in {activeTab}
+                  </Text>
                 </Pressable>
-              ) : currentTier === 'plus' ? (
+              ) : currentTier === "plus" ? (
                 <Pressable
                   disabled
                   style={{
@@ -849,11 +1679,15 @@ export default function SubscriptionScreen() {
                     borderColor: border,
                     paddingVertical: 12,
                     borderRadius: 12,
-                    alignItems: 'center',
-                    opacity: 0.8
+                    alignItems: "center",
+                    opacity: 0.8,
                   }}
                 >
-                  <Text style={{ color: text, fontWeight: "700", fontSize: 14 }}>Included in your plan</Text>
+                  <Text
+                    style={{ color: text, fontWeight: "700", fontSize: 14 }}
+                  >
+                    Included in your plan
+                  </Text>
                 </Pressable>
               ) : profile?.has_all_chat_rooms ? (
                 <Pressable
@@ -865,42 +1699,90 @@ export default function SubscriptionScreen() {
                     borderColor: border,
                     paddingVertical: 12,
                     borderRadius: 12,
-                    alignItems: 'center',
-                    opacity: 0.8
+                    alignItems: "center",
+                    opacity: 0.8,
                   }}
                 >
-                  <Text style={{ color: text, fontWeight: "700", fontSize: 14 }}>Subscribed</Text>
+                  <Text
+                    style={{ color: text, fontWeight: "700", fontSize: 14 }}
+                  >
+                    Subscribed
+                  </Text>
                 </Pressable>
               ) : (
                 <Pressable
-                  onPress={() => handleAddonPurchase('chahira_addon_chatrooms_monthly', 'All Chat Rooms')}
+                  onPress={() =>
+                    handleAddonPurchase(
+                      "chahira_addon_chatrooms_monthly",
+                      "All Chat Rooms",
+                    )
+                  }
                   style={({ pressed }) => ({
                     marginTop: 16,
                     backgroundColor: primary,
                     paddingVertical: 12,
                     borderRadius: 12,
-                    alignItems: 'center',
-                    opacity: pressed ? 0.8 : 1
+                    alignItems: "center",
+                    opacity: pressed ? 0.8 : 1,
                   })}
                 >
-                  <Text style={{ color: '#FFF', fontWeight: "700", fontSize: 14 }}>Get Add-on</Text>
+                  <Text
+                    style={{ color: "#FFF", fontWeight: "700", fontSize: 14 }}
+                  >
+                    Get Add-on
+                  </Text>
                 </Pressable>
               )}
             </View>
           </View>
 
           {/* Compliance Footer */}
-          <View style={{ alignItems: 'center', marginTop: 16, paddingHorizontal: 20, paddingBottom: 24 }}>
-            <TouchableOpacity onPress={handleRestore} style={{ paddingVertical: 12, paddingHorizontal: 24 }}>
-              <Text style={{ color: primary, fontWeight: '700', fontSize: 14 }}>Restore Purchases</Text>
+          <View
+            style={{
+              alignItems: "center",
+              marginTop: 16,
+              paddingHorizontal: 20,
+              paddingBottom: 24,
+            }}
+          >
+            <TouchableOpacity
+              onPress={handleRestore}
+              style={{ paddingVertical: 12, paddingHorizontal: 24 }}
+            >
+              <Text style={{ color: primary, fontWeight: "700", fontSize: 14 }}>
+                Restore Purchases
+              </Text>
             </TouchableOpacity>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 12 }}>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                marginTop: 8,
+                gap: 12,
+              }}
+            >
               <TouchableOpacity>
-                <Text style={{ color: muted, fontSize: 11, textDecorationLine: 'underline' }}>Terms of Service</Text>
+                <Text
+                  style={{
+                    color: muted,
+                    fontSize: 11,
+                    textDecorationLine: "underline",
+                  }}
+                >
+                  Terms of Service
+                </Text>
               </TouchableOpacity>
               <Text style={{ color: muted, fontSize: 11 }}>•</Text>
               <TouchableOpacity>
-                <Text style={{ color: muted, fontSize: 11, textDecorationLine: 'underline' }}>Privacy Policy</Text>
+                <Text
+                  style={{
+                    color: muted,
+                    fontSize: 11,
+                    textDecorationLine: "underline",
+                  }}
+                >
+                  Privacy Policy
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -908,29 +1790,67 @@ export default function SubscriptionScreen() {
 
         {/* Fixed Footer for Upgrade Button */}
         {showFooter && (
-          <View style={[styles.footer, { backgroundColor: background, borderTopColor: border, paddingBottom: Math.max(insets.bottom / 2, 16) }]}>
+          <View
+            style={[
+              styles.footer,
+              {
+                backgroundColor: background,
+                borderTopColor: border,
+                paddingBottom: Math.max(insets.bottom, 10),
+              },
+            ]}
+          >
             <Button
               onPress={() => {
                 if (selectedProductIsActive) return;
-                
+
                 if (activeTab === "Premium Light" && lightPlan) {
-                  handlePurchase("light", `chahira_light_${lightPlan}`, LIGHT_PRICES[lightPlan], "Premium Light");
+                  handlePurchase(
+                    "light",
+                    lightPlan,
+                    LIGHT_PRICES[lightPlan],
+                    "Premium Light",
+                  );
                 } else if (activeTab === "Premium Plus" && plusPlan) {
-                  handlePurchase("plus", `chahira_plus_${plusPlan}`, PLUS_PRICES[plusPlan], "Premium Plus");
+                  handlePurchase(
+                    "plus",
+                    plusPlan,
+                    PLUS_PRICES[plusPlan],
+                    "Premium Plus",
+                  );
                 }
               }}
               disabled={isUpgrading || !!selectedProductIsActive}
               loading={isUpgrading}
-              style={{ borderRadius: 28, height: 54, opacity: selectedProductIsActive ? 0.6 : 1 }}
+              style={{
+                borderRadius: 28,
+                height: 54,
+                opacity: selectedProductIsActive ? 0.6 : 1,
+              }}
             >
-              {selectedProductIsActive 
-                ? "Current Plan" 
-                : activeTab === "Premium Light" 
-                  ? (currentTier === "plus" ? "Downgrade to Light" : (currentTier === "light" ? "Change Plan" : "Upgrade to Light")) 
-                  : (currentTier === "plus" ? "Change Plan" : "Go Premium Plus")}
+              {selectedProductIsActive
+                ? "Current Plan"
+                : activeTab === "Premium Light"
+                  ? currentTier === "plus"
+                    ? "Downgrade to Light"
+                    : currentTier === "light"
+                      ? "Change Plan"
+                      : "Upgrade to Light"
+                  : currentTier === "plus"
+                    ? "Change Plan"
+                    : "Go Premium Plus"}
             </Button>
-            <Text style={{ textAlign: "center", fontSize: 11, color: muted, marginTop: 6, paddingHorizontal: 20 }}>
-              Secure checkout. You agree to let the app auto-renew. Manage or cancel in your in-account settings.
+            <Text
+              style={{
+                textAlign: "center",
+                fontSize: 11,
+                color: muted,
+                marginTop: 6,
+                paddingHorizontal: 20,
+              }}
+            >
+              Secure checkout. You agree to let the app auto-renew. Manage or
+              cancel in your in-account settings.
             </Text>
           </View>
         )}
