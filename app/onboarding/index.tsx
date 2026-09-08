@@ -204,7 +204,7 @@ export default function OnboardingStep1() {
         </View>
 
         <View style={{ flexDirection: "row", gap: 10, marginBottom: 20 }}>
-          <PhotoSlot slot={0} label="Main Photo (required)" showLabel />
+          <PhotoSlot slot={0} label="Main" showLabel />
           <PhotoSlot slot={1} label="Optional" showLabel />
           <PhotoSlot slot={2} label="Optional" showLabel />
         </View>

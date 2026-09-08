@@ -324,13 +324,6 @@ export default function OnboardingEmotionalScreen() {
               label={item}
               selected={soothesMethods.includes(item)}
               onPress={() => toggleArrayItem(soothesMethods, setSoothes, item)}
-              style={
-                !soothesMethods.includes(item) && {
-                  backgroundColor: "#FAF3E0",
-                  borderWidth: 1,
-                  borderColor: "#E0D4B4",
-                }
-              }
             />
           ))}
         </View>

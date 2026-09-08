@@ -14,7 +14,7 @@ import { toast } from "sonner-native";
 import { FontAwesome } from "@expo/vector-icons";
 import { GoogleIcon } from "@/components/ui/GoogleIcon";
 import { useTranslation } from "react-i18next";
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { GoogleSignin } from "@react-native-google-signin/google-signin";
 
 export default function LoginScreen() {
   const { t, i18n } = useTranslation();
@@ -33,13 +33,15 @@ export default function LoginScreen() {
 
   const handleGoogleSignIn = async () => {
     try {
-      await GoogleSignin.hasPlayServices();
-      const userInfo = await GoogleSignin.signIn() as any;
+      await GoogleSignin.signOut(); // Ensure previous sessions are cleared
 
-      if (userInfo.type === 'cancelled') {
+      await GoogleSignin.hasPlayServices();
+      const userInfo = (await GoogleSignin.signIn()) as any;
+
+      if (userInfo.type === "cancelled") {
         return;
       }
-      
+
       const idToken = userInfo.data?.idToken;
 
       if (!idToken) {
@@ -56,18 +58,21 @@ export default function LoginScreen() {
             router.replace("/");
           },
           onError: (err: any) => {
-            const errMsg = err?.response?.data?.error || err?.message || "Google Sign-In failed";
+            const errMsg =
+              err?.response?.data?.error ||
+              err?.message ||
+              "Google Sign-In failed";
             toast.error(errMsg);
           },
-        }
+        },
       );
     } catch (error: any) {
-      if (error.code === 'SIGN_IN_CANCELLED') {
+      if (error.code === "SIGN_IN_CANCELLED") {
         // user cancelled the login flow
-      } else if (error.code === 'IN_PROGRESS') {
+      } else if (error.code === "IN_PROGRESS") {
         // operation (e.g. sign in) is in progress already
         toast.error("Sign-in in progress");
-      } else if (error.code === 'PLAY_SERVICES_NOT_AVAILABLE') {
+      } else if (error.code === "PLAY_SERVICES_NOT_AVAILABLE") {
         // play services not available or outdated
         toast.error("Play services not available");
       } else {
@@ -97,19 +102,34 @@ export default function LoginScreen() {
             "Invalid credentials";
           toast.error(errMsg);
         },
-      }
+      },
     );
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: background }} edges={["top", "bottom"]}>
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: background }}
+      edges={["top", "bottom"]}
+    >
       <KeyboardAwareScrollView
-        contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingBottom: 40 }}
+        contentContainerStyle={{
+          flexGrow: 1,
+          paddingHorizontal: 24,
+          paddingBottom: 40,
+        }}
         keyboardShouldPersistTaps="handled"
         bottomOffset={60}
       >
         {/* Logo Section */}
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center", minHeight: 220, paddingVertical: 40 }}>
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            minHeight: 220,
+            paddingVertical: 40,
+          }}
+        >
           <Image
             source={require("@/assets/images/logo.png")}
             style={{ width: 280, height: 140 }}
@@ -124,112 +144,131 @@ export default function LoginScreen() {
               variant="title"
               style={{ fontSize: 32, fontWeight: "bold", marginBottom: 8 }}
             >
-              {t('auth.welcome')}
+              {t("auth.welcome")}
             </Text>
             <Text style={{ color: muted, textAlign: "center", fontSize: 16 }}>
-              {t('auth.sign_in_prompt')}
+              {t("auth.sign_in_prompt")}
             </Text>
           </View>
 
-        {/* Form */}
-        <View style={{ gap: 16 }}>
-          <View style={{ gap: 8 }}>
-            <Text style={{ fontWeight: "600", fontSize: 14 }}>{t('auth.email')}</Text>
-            <Input
-              placeholder={t('auth.email_placeholder')}
-              variant="outline"
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-            />
-          </View>
+          {/* Form */}
+          <View style={{ gap: 16 }}>
+            <View style={{ gap: 8 }}>
+              <Text style={{ fontWeight: "600", fontSize: 14 }}>
+                {t("auth.email")}
+              </Text>
+              <Input
+                placeholder={t("auth.email_placeholder")}
+                variant="outline"
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+              />
+            </View>
 
-          <View style={{ gap: 8 }}>
-            <Text style={{ fontWeight: "600", fontSize: 14 }}>{t('auth.password')}</Text>
-            <Input
-              placeholder={t('auth.password_placeholder')}
-              secureTextEntry={!showPassword}
-              variant="outline"
-              value={password}
-              onChangeText={setPassword}
-              rightComponent={() => (
-                <Pressable onPress={() => setShowPassword(!showPassword)}>
-                  <Icon
-                    name={showPassword ? EyeOff : Eye}
-                    size={20}
-                    color={muted}
-                  />
+            <View style={{ gap: 8 }}>
+              <Text style={{ fontWeight: "600", fontSize: 14 }}>
+                {t("auth.password")}
+              </Text>
+              <Input
+                placeholder={t("auth.password_placeholder")}
+                secureTextEntry={!showPassword}
+                variant="outline"
+                value={password}
+                onChangeText={setPassword}
+                rightComponent={() => (
+                  <Pressable onPress={() => setShowPassword(!showPassword)}>
+                    <Icon
+                      name={showPassword ? EyeOff : Eye}
+                      size={20}
+                      color={muted}
+                    />
+                  </Pressable>
+                )}
+              />
+            </View>
+            <View style={{ alignItems: "flex-end" }}>
+              <></>
+              <Link href="/(auth)/forgot-password" asChild>
+                <Pressable>
+                  <Text style={{ color: orange, fontSize: 14 }}>
+                    {t("auth.forgot_password")}
+                  </Text>
                 </Pressable>
-              )}
-            />
-          </View>
-          <View style={{ alignItems: "flex-end" }}>
-            <></>
-            <Link href="/(auth)/forgot-password" asChild>
-              <Pressable>
-                <Text style={{ color: orange, fontSize: 14 }}>
-                  {t('auth.forgot_password')}
-                </Text>
-              </Pressable>
-            </Link>
-          </View>
+              </Link>
+            </View>
 
-          <Button
-            style={{ marginTop: 8 }}
-            onPress={handleLogin}
-            disabled={login.isPending}
-            loading={login.isPending}
-          >
-            {t('auth.log_in')}
-          </Button>
-        </View>
-
-        {/* Footer */}
-        <View style={{ alignItems: "center", marginTop: 16 }}>
-          <Text>
-            {t('auth.no_account')}
-            {" "}
-            <Text
-              style={{ color: orange }}
-              onPress={() => router.push("/(auth)/signup")}
+            <Button
+              style={{ marginTop: 8 }}
+              onPress={handleLogin}
+              disabled={login.isPending}
+              loading={login.isPending}
             >
-              {t('auth.sign_up')}
-            </Text>
-          </Text>
-        </View>
-
-        {/* Social Login */}
-        <View style={{ marginTop: 8, alignItems: "center" }}>
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              marginBottom: 20,
-            }}
-          >
-            <View style={{ flex: 1, height: 1, backgroundColor: border }} />
-            <Text style={{ marginHorizontal: 16, color: muted, fontSize: 13, fontWeight: "500" }}>
-              {t('auth.or_continue')}
-            </Text>
-            <View style={{ flex: 1, height: 1, backgroundColor: border }} />
-          </View>
-
-          <View style={{ flexDirection: "row", gap: 16, width: "100%" }}>
-            <Button variant="outline" style={{ flex: 1, height: 50, gap: 10 }} onPress={handleGoogleSignIn} disabled={googleAuth.isPending} loading={googleAuth.isPending}>
-              <GoogleIcon width={20} height={20} />
-              <Text style={{ fontWeight: "600" }}>Continue with Google</Text>
+              {t("auth.log_in")}
             </Button>
-            {Platform.OS === "ios" && (
-              <Button variant="outline" style={{ flex: 1, height: 50, gap: 10 }}>
-                <FontAwesome name="apple" size={22} color={text} />
-                <Text style={{ fontWeight: "600" }}>Apple</Text>
+          </View>
+
+          {/* Footer */}
+          <View style={{ alignItems: "center", marginTop: 16 }}>
+            <Text>
+              {t("auth.no_account")}{" "}
+              <Text
+                style={{ color: orange }}
+                onPress={() => router.push("/(auth)/signup")}
+              >
+                {t("auth.sign_up")}
+              </Text>
+            </Text>
+          </View>
+
+          {/* Social Login */}
+          <View style={{ marginTop: 8, alignItems: "center" }}>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                marginBottom: 20,
+              }}
+            >
+              <View style={{ flex: 1, height: 1, backgroundColor: border }} />
+              <Text
+                style={{
+                  marginHorizontal: 16,
+                  color: muted,
+                  fontSize: 13,
+                  fontWeight: "500",
+                }}
+              >
+                {t("auth.or_continue")}
+              </Text>
+              <View style={{ flex: 1, height: 1, backgroundColor: border }} />
+            </View>
+
+            <View style={{ flexDirection: "row", gap: 16, width: "100%" }}>
+              <Button
+                variant="outline"
+                style={{ flex: 1, height: 50, gap: 10 }}
+                onPress={handleGoogleSignIn}
+                disabled={googleAuth.isPending}
+                loading={googleAuth.isPending}
+              >
+                <GoogleIcon width={20} height={20} />
+                <Text style={{ fontWeight: "600" }}>Continue with Google</Text>
               </Button>
-            )}
+              {Platform.OS === "ios" && (
+                <Button
+                  variant="outline"
+                  style={{ flex: 1, height: 50, gap: 10 }}
+                >
+                  <FontAwesome name="apple" size={22} color={text} />
+                  <Text style={{ fontWeight: "600" }}>Apple</Text>
+                </Button>
+              )}
+            </View>
           </View>
         </View>
-        </View>
-        </KeyboardAwareScrollView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }

@@ -29,6 +29,8 @@ import {
   View,
   ActivityIndicator,
   TouchableOpacity,
+  Linking,
+  Platform,
 } from "react-native";
 import {
   SafeAreaView,
@@ -43,6 +45,7 @@ import {
   getOfferings,
   purchasePackage,
   isNativeModuleAvailable,
+  getCustomerInfo,
 } from "@/api/purchases";
 import Purchases, {
   type PurchasesOffering,
@@ -374,6 +377,7 @@ export default function SubscriptionScreen() {
   const [plusPlan, setPlusPlan] = useState<PlusPlanChoice | null>(null);
   const [offering, setOffering] = useState<PurchasesOffering | null>(null);
   const [isPurchasing, setIsPurchasing] = useState(false);
+  const [managementURL, setManagementURL] = useState<string | null>(null);
 
   const upgradeMutation = useUpgradeSubscriptionMutation();
 
@@ -384,6 +388,11 @@ export default function SubscriptionScreen() {
   useEffect(() => {
     getOfferings().then(setOffering);
     fetchProfile();
+    if (isNativeModuleAvailable()) {
+      getCustomerInfo().then((info) =>
+        setManagementURL(info?.managementURL ?? null),
+      );
+    }
   }, [fetchProfile]);
 
   const findPackage = (identifier: string): PurchasesPackage | undefined => {
@@ -820,7 +829,12 @@ export default function SubscriptionScreen() {
                     return;
                   }
                   try {
-                    await Purchases.showManageSubscriptions();
+                    const url =
+                      managementURL ??
+                      (Platform.OS === "android"
+                        ? "https://play.google.com/store/account/subscriptions"
+                        : "https://apps.apple.com/account/subscriptions");
+                    await Linking.openURL(url);
                   } catch (e: any) {
                     Alert.alert(
                       "Manage Subscription",
@@ -1761,7 +1775,11 @@ export default function SubscriptionScreen() {
                 gap: 12,
               }}
             >
-              <TouchableOpacity>
+              <TouchableOpacity
+                onPress={() =>
+                  Linking.openURL("https://constela-dating.com/privacy")
+                }
+              >
                 <Text
                   style={{
                     color: muted,
@@ -1773,7 +1791,11 @@ export default function SubscriptionScreen() {
                 </Text>
               </TouchableOpacity>
               <Text style={{ color: muted, fontSize: 11 }}>•</Text>
-              <TouchableOpacity>
+              <TouchableOpacity
+                onPress={() =>
+                  Linking.openURL("https://constela-dating.com/privacy")
+                }
+              >
                 <Text
                   style={{
                     color: muted,
