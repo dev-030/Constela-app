@@ -396,6 +396,11 @@ export default function ChatScreen() {
   const border = useColor("border");
   const card = useColor("card");
 
+  type ChatMenuItem = { key: string; label: string; onPress: () => void };
+  const [chatMenuItems, setChatMenuItems] = useState<ChatMenuItem[]>([]);
+  const [chatMenuOpen, setChatMenuOpen] = useState(false);
+  const destructive = "#ef4444";
+
   const { profile, fetchProfile } = useProfileStore();
   useEffect(() => { if (!profile) fetchProfile(); }, [profile, fetchProfile]);
 
@@ -432,12 +437,12 @@ export default function ChatScreen() {
   const { mutate: reportUser } = useReportUserMutation();
 
   const openActionMenu = useCallback(() => {
-    const options: any[] = [];
+    const items: ChatMenuItem[] = [];
 
     if (type !== "friends") {
-      options.push({
-        text: "Remove from Matches",
-        style: "destructive",
+      items.push({
+        key: "unmatch",
+        label: "Remove from Matches",
         onPress: () => {
           unmatchUser(recipientId, {
             onSuccess: () => {
@@ -450,9 +455,9 @@ export default function ChatScreen() {
     }
 
     if (type !== "dating") {
-      options.push({
-        text: "Unfriend",
-        style: "destructive",
+      items.push({
+        key: "unfriend",
+        label: "Unfriend",
         onPress: () => {
           unfriendUser(recipientId, {
             onSuccess: () => {
@@ -464,9 +469,9 @@ export default function ChatScreen() {
       });
     }
 
-    options.push({
-      text: "Report User",
-      style: "destructive",
+    items.push({
+      key: "report",
+      label: "Report User",
       onPress: () => {
         Alert.alert("Report User", "Please select a reason", [
           { text: "Fake Profile", onPress: () => reportUser({ reported_user: recipientId, reason: "fake_profile" }, { onSuccess: () => Alert.alert("Reported", "Thank you for keeping the community safe.") }) },
@@ -477,9 +482,9 @@ export default function ChatScreen() {
       },
     });
 
-    options.push({
-      text: "Block User",
-      style: "destructive",
+    items.push({
+      key: "block",
+      label: "Block User",
       onPress: () => {
         Alert.alert("Confirm Block", "Are you sure you want to block this user?", [
           { text: "Cancel", style: "cancel" },
@@ -495,9 +500,8 @@ export default function ChatScreen() {
       },
     });
 
-    options.push({ text: "Cancel", style: "cancel" });
-
-    Alert.alert("Chat Options", "Choose an action", options);
+    setChatMenuItems(items);
+    setChatMenuOpen(true);
   }, [recipientId, type, blockUser, unmatchUser, unfriendUser, reportUser]);
 
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -784,6 +788,87 @@ export default function ChatScreen() {
         </View>
       </KeyboardAvoidingView>
 
+      {/* ── Chat Action Menu ── */}
+      <Modal
+        visible={chatMenuOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setChatMenuOpen(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setChatMenuOpen(false)}>
+          <View style={styles.actionMenuOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={[styles.actionMenuSheet, { backgroundColor: card }]}>
+                <Text
+                  style={{
+                    color: muted,
+                    fontSize: 12,
+                    fontWeight: "700",
+                    letterSpacing: 0.5,
+                    textTransform: "uppercase",
+                    paddingHorizontal: 16,
+                    paddingTop: 14,
+                    paddingBottom: 8,
+                  }}
+                >
+                  Chat Options
+                </Text>
+                {chatMenuItems.map((item, i) => (
+                  <Pressable
+                    key={item.key}
+                    onPress={() => {
+                      setChatMenuOpen(false);
+                      item.onPress();
+                    }}
+                    style={{
+                      paddingVertical: 14,
+                      paddingHorizontal: 16,
+                      borderTopWidth: i === 0 ? 0 : StyleSheet.hairlineWidth,
+                      borderTopColor: border,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: destructive,
+                        fontSize: 16,
+                        fontWeight: "600",
+                        textAlign: "center",
+                      }}
+                    >
+                      {item.label}
+                    </Text>
+                  </Pressable>
+                ))}
+                <Pressable
+                  onPress={() => setChatMenuOpen(false)}
+                  style={{
+                    marginTop: 8,
+                    marginHorizontal: 12,
+                    marginBottom: 12,
+                    paddingVertical: 14,
+                    borderRadius: 12,
+                    backgroundColor: background,
+                    borderWidth: 1,
+                    borderColor: border,
+                    alignItems: "center",
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: textColor,
+                      fontSize: 16,
+                      fontWeight: "700",
+                    }}
+                  >
+                    Cancel
+                  </Text>
+                </Pressable>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
       {/* ── Reaction Picker Overlay ── */}
       <Modal
         visible={!!reactingToMessage}
@@ -809,6 +894,16 @@ export default function ChatScreen() {
                 </Pressable>
               ))}
             </View>
+            <Pressable
+              onPress={() => setReactingToMessage(null)}
+              hitSlop={12}
+              style={styles.reactionPickerCancel}
+            >
+              <X size={20} color="#FFFFFF" />
+              <Text style={{ color: "#FFFFFF", fontWeight: "600", marginLeft: 6 }}>
+                Cancel
+              </Text>
+            </Pressable>
           </View>
         </TouchableWithoutFeedback>
       </Modal>
@@ -924,6 +1019,23 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  actionMenuOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 32,
+  },
+  actionMenuSheet: {
+    width: "100%",
+    borderRadius: 16,
+    paddingBottom: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 8,
+  },
   reactionPickerContainer: {
     flexDirection: "row",
     backgroundColor: "#FFFFFF",
@@ -940,6 +1052,15 @@ const styles = StyleSheet.create({
   reactionEmojiBtn: {
     padding: 2,
     transform: [{ scale: 1 }],
+  },
+  reactionPickerCancel: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: "rgba(0,0,0,0.45)",
   },
   replyThumbnail: {
     width: 36,

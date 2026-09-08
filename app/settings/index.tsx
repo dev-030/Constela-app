@@ -255,7 +255,6 @@ export default function SettingsIndexScreen() {
             {renderItem(t('settings.profile'), User, "/profile")}
             {renderItem(t('settings.likes'), Heart, "/settings/likes")}
             {renderItem(t('settings.subscription'), CreditCard, "/settings/subscription")}
-            {renderItem(t('settings.change_email'), Mail, "/settings/email", true)}
           </View>
         </View>
 

@@ -24,10 +24,6 @@ import { useLikesSentQuery, useLikesReceivedQuery, MutualMatchProfile } from "@/
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { useAndroidBack } from '@/hooks/useAndroidBack';
 
-// ─── Underline tab bar ────────────────────────────────────────────────────────
-
-// ─── Segmented pill control ────────────────────────────────────────────────────────
-
 const TABS = ["Liked", "Likes You"];
 
 function SegmentedControl({
@@ -114,7 +110,6 @@ const segStyles = StyleSheet.create({
     borderRadius: 30,
     padding: 3,
     marginHorizontal: 16,
-    marginBottom: 16,
     position: "relative",
   },
   pill: {
@@ -140,8 +135,6 @@ const segStyles = StyleSheet.create({
     letterSpacing: 0.1,
   },
 });
-
-// ─── Profile card ─────────────────────────────────────────────────────────────
 
 function ProfileCard({
   profile,
@@ -209,10 +202,6 @@ function ProfileCard({
   );
 }
 
-// ─── Screen ───────────────────────────────────────────────────────────────────
-
-
-
 export default function LikesScreen() {
   useAndroidBack();
   const background = useColor("background");
@@ -245,7 +234,7 @@ export default function LikesScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.root, { backgroundColor: background }]} edges={["top"]}>
+    <SafeAreaView style={[styles.root, { backgroundColor: background }]} edges={["top", "bottom"]}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Pressable onPress={() => router.back()} hitSlop={12}>
@@ -280,15 +269,15 @@ export default function LikesScreen() {
             See Who Likes You
           </Text>
           <Text style={{ color: muted, textAlign: "center", fontSize: 16, lineHeight: 24, marginBottom: 32 }}>
-            {getErrorMessage(receivedError) === "Upgrade to Premium to see who liked you." 
-              ? "Match instantly with people who already like you by upgrading to Premium." 
+            {getErrorMessage(receivedError) === "Upgrade to Premium to see who liked you."
+              ? "Match instantly with people who already like you by upgrading to Premium."
               : getErrorMessage(receivedError)}
           </Text>
-          <Pressable 
-            style={{ 
-              backgroundColor: primary, 
-              width: "100%", 
-              paddingVertical: 16, 
+          <Pressable
+            style={{
+              backgroundColor: primary,
+              width: "100%",
+              paddingVertical: 16,
               borderRadius: 30,
               alignItems: "center",
               shadowColor: primary,
