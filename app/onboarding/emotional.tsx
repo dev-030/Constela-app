@@ -81,17 +81,17 @@ export default function OnboardingEmotionalScreen() {
       if (data.city && data.city.trim()) formData.append("city", data.city);
       if (data.country && data.country.trim()) formData.append("country", data.country);
 
-      const lookingForMap: any = {
+      const lookingForMap: Record<string, string> = {
         "Serious Relationship": "serious",
         Friendship: "friendship",
-        "We'll See": "casual",
+        "We'll See": "undecided",
         "Going Out": "casual",
       };
       if (data.lookingFor && data.lookingFor.length > 0) {
         const mappedLookingFor = data.lookingFor.map(
           (v) => lookingForMap[v] || v
         );
-        formData.append("looking_for", JSON.stringify(mappedLookingFor));
+        formData.append("looking_for", mappedLookingFor.join(","));
       }
 
       if (data.hasChildren)

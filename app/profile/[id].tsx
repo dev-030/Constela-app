@@ -32,7 +32,7 @@ import { useAndroidBack } from "@/hooks/useAndroidBack";
 
 export default function ProfileDetailScreen() {
   const { id, name, age, photo } = useLocalSearchParams<{ id: string; name?: string; age?: string; photo?: string }>();
-  
+
   // Secondary fetch for heavy data
   const { data: fullProfile, isLoading: isLoadingFull } = useGetProfileDetailsQuery(id as string);
   const insets = useSafeAreaInsets();
@@ -41,6 +41,7 @@ export default function ProfileDetailScreen() {
   const text = useColor("text");
   const muted = useColor("textMuted");
   const primary = useColor("primary");
+  const cardColor = useColor("card");
   const { isVisible, open, close } = useBottomSheet();
   const swipeMutation = useSwipeActionMutation();
   const queryClient = useQueryClient();
@@ -54,7 +55,7 @@ export default function ProfileDetailScreen() {
   };
 
   const SectionHeader = ({ title }: { title: string }) => (
-    <Text style={styles.sectionTitle}>{title}</Text>
+    <Text style={[styles.sectionTitle, { color: muted }]}>{title}</Text>
   );
 
   return (
@@ -70,9 +71,7 @@ export default function ProfileDetailScreen() {
           </Text>
           {fullProfile?.is_verified && <CheckCircle2 size={24} color="#3B82F6" />}
         </View>
-        <Pressable onPress={() => open()} hitSlop={10}>
-          <Icon name={MoreHorizontal} size={24} color={text} />
-        </Pressable>
+        <View />
       </View>
 
       <ScrollView
@@ -84,17 +83,17 @@ export default function ProfileDetailScreen() {
           {fullProfile?.photos && fullProfile.photos.length > 0 ? (
             <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}>
               {fullProfile.photos.map((p: any) => (
-                <Image 
+                <Image
                   key={p.id}
-                  source={{ uri: p.image }} 
+                  source={{ uri: p.image }}
                   style={{ width: Dimensions.get('window').width - 40, height: Dimensions.get('window').width - 40, borderRadius: 24 }}
                   resizeMode="cover"
                 />
               ))}
             </ScrollView>
           ) : (
-            <Image 
-              source={{ uri: photo || fullProfile?.face_selfie || 'https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=800&auto=format&fit=crop' }} 
+            <Image
+              source={{ uri: photo || fullProfile?.face_selfie || 'https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=800&auto=format&fit=crop' }}
               style={{ width: Dimensions.get('window').width - 40, height: Dimensions.get('window').width - 40, borderRadius: 24 }}
               resizeMode="cover"
             />
@@ -170,9 +169,9 @@ export default function ProfileDetailScreen() {
           <>
             <SectionHeader title="HOW I RECHARGE" />
             {fullProfile.recharge_methods.map((method: string, index: number) => (
-              <View key={index} style={styles.sensoryRow}>
+              <View key={index} style={[styles.sensoryRow, { backgroundColor: cardColor }]}>
                 <View style={styles.sensoryLeft}>
-                  <Icon name={Lightbulb} size={20} color={muted} />
+                  <Icon name={Lightbulb} size={20} color={text} />
                   <Text style={[styles.sensoryText, { color: text }]}>{method}</Text>
                 </View>
                 <View style={styles.checkCircle}>
@@ -188,9 +187,9 @@ export default function ProfileDetailScreen() {
           <>
             <SectionHeader title="WHAT EXHAUSTS ME" />
             {fullProfile.exhaust_triggers.map((trigger: string, index: number) => (
-              <View key={index} style={styles.sensoryRow}>
+              <View key={index} style={[styles.sensoryRow, { backgroundColor: cardColor }]}>
                 <View style={styles.sensoryLeft}>
-                  <Icon name={VolumeX} size={20} color={muted} />
+                  <Icon name={VolumeX} size={20} color={text} />
                   <Text style={[styles.sensoryText, { color: text }]}>{trigger}</Text>
                 </View>
                 <View style={[styles.checkCircle, { backgroundColor: '#FFEBEE' }]}>
@@ -212,7 +211,7 @@ export default function ProfileDetailScreen() {
           <Button onPress={() => router.push(`/inbox/${id}`)}>Message</Button>
         </View>
       ) : (
-        <View style={[styles.fabContainer, { paddingBottom: insets.bottom || 24, backgroundColor: background }]}>
+        <View style={[styles.fabContainer, { paddingBottom: insets.bottom, backgroundColor: background }]}>
           <ActionButtons
             onReject={() => handleAction('disliked')}
             onSuper={() => handleAction('superliked')}
@@ -262,7 +261,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 12,
     fontWeight: "bold",
-    color: "#8D6E63",
     letterSpacing: 1,
     marginBottom: 12,
     marginTop: 24,
@@ -304,7 +302,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#FFF",
     padding: 16,
     borderRadius: 16,
     marginBottom: 12,
@@ -316,7 +313,6 @@ const styles = StyleSheet.create({
   },
   sensoryText: {
     fontSize: 16,
-    color: "#333",
   },
   checkCircle: {
     width: 24,
@@ -340,7 +336,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     gap: 16,
-    paddingTop: 20,
     // Gradient overlay could go here, but transparent background for now
   },
   fab: {

@@ -19,7 +19,7 @@ export default function ManageProfileScreen() {
   const [isBlocked, setIsBlocked] = useState(false);
 
   return (
-    <View style={{ backgroundColor: background }}>
+    <View>
       {/* Block User */}
       <View style={styles.row}>
         <View style={[styles.iconContainer, { backgroundColor: border }]}>
@@ -32,7 +32,7 @@ export default function ManageProfileScreen() {
         <Switch
           value={isBlocked}
           onValueChange={setIsBlocked}
-          trackColor={{ true: destructive }}
+         //  trackColor={{ true: destructive }}
         />
       </View>
 

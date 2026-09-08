@@ -74,6 +74,9 @@ function SegmentedControl({
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
+  const cardColor = useColor("card");
+  const textColor = useColor("text");
+
   const [pillWidth, setPillWidth] = useState(0);
   const activeIndex = TABS.findIndex((t) => t.value === activeTab);
   const translateX = useSharedValue(0);
@@ -92,8 +95,8 @@ function SegmentedControl({
   }));
 
   const containerBg = isDark ? "#2C2C2E" : "#EFEFEF";
-  const pillBg = isDark ? "#3A3A3C" : useColor("card");
-  const activeTextColor = isDark ? "#FFFFFF" : useColor("text");
+  const pillBg = isDark ? "#3A3A3C" : cardColor;
+  const activeTextColor = isDark ? "#FFFFFF" : textColor;
   const inactiveTextColor = isDark ? "#8E8E93" : "#8E8E93";
 
   return (

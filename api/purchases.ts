@@ -1,5 +1,6 @@
 import Purchases, {
   PurchasesOffering,
+  PurchasesOfferings,
   CustomerInfo,
   PurchasesPackage,
 } from "react-native-purchases";
@@ -37,11 +38,22 @@ export function initializePurchases(userId: string) {
   }
 }
 
-export async function getOfferings(): Promise<PurchasesOffering | null> {
+/**
+ * Returns every offering configured in RevenueCat as an array, with the
+ * "current" offering first. The caller should flatten availablePackages
+ * across all of them — many apps configure products across multiple
+ * offerings (e.g. one per tier or per locale) and lookups by identifier
+ * shouldn't depend on which one is currently flagged as default.
+ */
+export async function getOfferings(): Promise<PurchasesOffering[] | null> {
   if (!RC_KEY || !isNativeModuleAvailable()) return null;
   try {
-    const offerings = await Purchases.getOfferings();
-    return offerings.current;
+    const offerings: PurchasesOfferings = await Purchases.getOfferings();
+    const currentId = offerings.current?.identifier;
+    const all = Object.values(offerings.all ?? {});
+    if (!currentId) return all;
+    // Put the current offering first so its packages win dedup ties.
+    return [...all.filter((o) => o.identifier === currentId), ...all.filter((o) => o.identifier !== currentId)];
   } catch (e) {
     console.error("[Purchases] Failed to fetch offerings:", e);
     return null;

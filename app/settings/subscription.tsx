@@ -47,28 +47,41 @@ import {
   isNativeModuleAvailable,
   getCustomerInfo,
 } from "@/api/purchases";
-import Purchases, {
-  type PurchasesOffering,
-  type PurchasesPackage,
-} from "react-native-purchases";
+import Purchases, { type PurchasesPackage } from "react-native-purchases";
 import VerificationOverlay from "@/components/VerificationOverlay";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
 
-type LightPlanChoice = "1m" | "3m" | "1yr" | "lifetime";
-type PlusPlanChoice = "1m" | "3m" | "1yr" | "lifetime";
+type LightPlanChoice = "1m" | "3m" | "6m" | "1yr" | "lifetime";
+type PlusPlanChoice = "1m" | "3m" | "6m" | "1yr" | "lifetime";
 
-const LIGHT_PRICES: Record<LightPlanChoice, number> = {
-  "1m": 4.99,
-  "3m": 12.99,
-  "1yr": 39.99,
-  lifetime: 99.99,
+// Display labels for each plan choice. The actual price + currency come from
+// RevenueCat (PurchasesPackage.product.priceString) at render time, so the UI
+// never hardcodes money — see findPackageForChoice below.
+const PLAN_DURATION_LABEL: Record<LightPlanChoice, string> = {
+  "1m": "1 MONTH",
+  "3m": "3 MONTHS",
+  "6m": "6 MONTHS",
+  "1yr": "1 YEAR",
+  lifetime: "LIFETIME",
 };
 
-const PLUS_PRICES: Record<PlusPlanChoice, number> = {
-  "1m": 9.99,
-  "3m": 24.99,
-  "1yr": 79.99,
-  lifetime: 199.99,
+// Explicit identifiers for each plan, in priority order. The first match wins.
+// `premium_plus:*` / `premium_light:*` are the canonical identifiers
+// configured in RevenueCat; `$rc_*` are the legacy fallback identifiers.
+const PLUS_PACKAGE_IDS: Record<PlusPlanChoice, string[]> = {
+  "1m": ["premium_plus:monthly", "$rc_monthly"],
+  "3m": ["premium_plus:quarterly", "$rc_three_month"],
+  "6m": ["premium_plus:semiannual", "$rc_six_month"],
+  "1yr": ["premium_plus:annual", "$rc_annual"],
+  lifetime: ["premium_plus:lifetime"],
+};
+
+const LIGHT_PACKAGE_IDS: Record<LightPlanChoice, string[]> = {
+  "1m": ["premium_light:monthly", "$rc_monthly"],
+  "3m": ["premium_light:quarterly", "$rc_three_month"],
+  "6m": ["premium_light:semiannual", "$rc_six_month"],
+  "1yr": ["premium_light:annual", "$rc_annual"],
+  lifetime: ["premium_light:lifetime"],
 };
 
 function FeatureRow({
@@ -161,21 +174,23 @@ function PriceChip({
       ) : null}
       <Text
         style={{
-          fontSize: 8,
+          fontSize: 10,
           color: muted,
           fontWeight: "700",
           marginBottom: 2,
+          alignSelf: "center",
+          textAlign: "center",
         }}
       >
         {duration}
       </Text>
       <Text
         style={{
-          fontSize: 13,
+          fontSize: 9,
           fontWeight: "800",
           color: selected ? primary : text,
         }}
-        numberOfLines={1}
+        numberOfLines={2}
         adjustsFontSizeToFit
       >
         {price}
@@ -375,7 +390,11 @@ export default function SubscriptionScreen() {
   const [activeTab, setActiveTab] = useState<string>(initialTab);
   const [lightPlan, setLightPlan] = useState<LightPlanChoice | null>(null);
   const [plusPlan, setPlusPlan] = useState<PlusPlanChoice | null>(null);
-  const [offering, setOffering] = useState<PurchasesOffering | null>(null);
+  // Flattened list of every package across every offering. Searching across
+  // all offerings (rather than just `offerings.current`) lets a product be
+  // configured in any offering — "Plus quarterly", "default", etc. — and
+  // still surface correctly here.
+  const [packages, setPackages] = useState<PurchasesPackage[]>([]);
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [managementURL, setManagementURL] = useState<string | null>(null);
 
@@ -386,7 +405,24 @@ export default function SubscriptionScreen() {
     (profile?.subscription_tier as SubscriptionTier | undefined) ?? "freemium";
 
   useEffect(() => {
-    getOfferings().then(setOffering);
+    getOfferings().then((all) => {
+      if (!all) return;
+      // Flatten every package across every offering, then dedupe by package
+      // identifier so a product present in multiple offerings isn't shown
+      // twice. Order is preserved (current offering first) so the first
+      // match wins.
+      const seen = new Set<string>();
+      const flat: PurchasesPackage[] = [];
+      for (const offering of all) {
+        for (const pkg of offering.availablePackages) {
+          const key = `${pkg.identifier}::${pkg.product.identifier}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          flat.push(pkg);
+        }
+      }
+      setPackages(flat);
+    });
     fetchProfile();
     if (isNativeModuleAvailable()) {
       getCustomerInfo().then((info) =>
@@ -396,98 +432,51 @@ export default function SubscriptionScreen() {
   }, [fetchProfile]);
 
   const findPackage = (identifier: string): PurchasesPackage | undefined => {
-    const match = offering?.availablePackages.find(
+    return packages.find(
       (p) => p.identifier === identifier || p.product.identifier === identifier,
     );
-    return match;
   };
 
   const findPackageForChoice = (
     tier: SubscriptionTier,
     plan: LightPlanChoice | PlusPlanChoice,
   ): PurchasesPackage | undefined => {
-    const packages = offering?.availablePackages ?? [];
     if (!packages.length) return undefined;
 
+    // Deterministic lookup: try each candidate identifier in priority order.
+    // First match on either the package identifier or the underlying product
+    // identifier wins. No keyword scoring — that was unreliable when RC
+    // identifiers changed.
+    const ids =
+      tier === "light" ? LIGHT_PACKAGE_IDS[plan] : PLUS_PACKAGE_IDS[plan];
+
+    for (const id of ids) {
+      const match = packages.find(
+        (p) => p.identifier === id || p.product.identifier === id,
+      );
+      if (match) return match;
+    }
+
+    // Last resort: legacy chahira_* identifier, in case the catalog still
+    // uses the old naming from before the premium_plus:* migration.
     const legacyId = `chahira_${tier}_${plan}`;
-    const exact = packages.find(
+    const legacy = packages.find(
       (p) => p.identifier === legacyId || p.product.identifier === legacyId,
     );
-    if (exact) return exact;
-
-    // Heuristic matching: figure out which duration + tier this plan refers to.
-    const planDuration =
-      plan === "1m"
-        ? "monthly"
-        : plan === "3m"
-          ? "threeMonth"
-          : plan === "1yr"
-            ? "yearly"
-            : "lifetime";
-    const tierWord = tier === "light" ? "light" : "plus";
-    const tierTitle = tier === "light" ? "Light" : "Plus";
-
-    const score = (p: PurchasesPackage): number => {
-      const id = p.identifier.toLowerCase();
-      const productId = p.product.identifier.toLowerCase();
-      const title = p.product.title.toLowerCase();
-      const pkgType = String(p.packageType).toLowerCase();
-      const period = String(p.product.subscriptionPeriod ?? "").toLowerCase();
-
-      let s = 0;
-      if (id.includes(tierWord) || productId.includes(tierWord)) s += 4;
-      if (title.includes(tierTitle)) s += 4;
-
-      if (planDuration === "monthly") {
-        if (id.includes("1m") || productId.includes("1m")) s += 3;
-        if (
-          pkgType.includes("month") ||
-          period.includes("p1m") ||
-          period.includes("1 month")
-        )
-          s += 3;
-        if (id.includes("monthly") || productId.includes("monthly")) s += 2;
-      } else if (planDuration === "threeMonth") {
-        if (id.includes("3m") || productId.includes("3m")) s += 3;
-        if (
-          pkgType.includes("three") ||
-          period.includes("p3m") ||
-          period.includes("3 month")
-        )
-          s += 3;
-      } else if (planDuration === "yearly") {
-        if (
-          id.includes("1yr") ||
-          id.includes("1y") ||
-          productId.includes("1yr") ||
-          productId.includes("1y")
-        )
-          s += 3;
-        if (
-          pkgType.includes("annual") ||
-          period.includes("p1y") ||
-          period.includes("1 year")
-        )
-          s += 3;
-      } else if (planDuration === "lifetime") {
-        if (id.includes("life") || productId.includes("life")) s += 4;
-        if (pkgType.includes("lifetime") || period === "lifetime") s += 4;
-      }
-      return s;
-    };
-
-    const ranked = packages
-      .map((p) => ({ p, s: score(p) }))
-      .filter((x) => x.s > 0)
-      .sort((a, b) => b.s - a.s);
-
-    return ranked.length > 0 ? ranked[0].p : undefined;
+    return legacy;
   };
+
+  // True if at least one RC package exists for the given (tier, plan).
+  // Used to grey out chips whose product isn't configured in RevenueCat —
+  // otherwise clicking them silently falls back to the insecure mock endpoint.
+  const hasPackageFor = (
+    tier: SubscriptionTier,
+    plan: LightPlanChoice | PlusPlanChoice,
+  ): boolean => findPackageForChoice(tier, plan) !== undefined;
 
   const handlePurchase = async (
     tier: SubscriptionTier,
     plan: LightPlanChoice | PlusPlanChoice,
-    fallbackAmount: number,
     label: string,
   ) => {
     const pkg = findPackageForChoice(tier, plan);
@@ -533,6 +522,9 @@ export default function SubscriptionScreen() {
           Alert.alert("Subscription updated", `You are now on ${label}.`);
         } else {
           // FALLBACK MODE: No RevenueCat connected. We use the insecure mock endpoint.
+          // Best-effort: forward the RC package's price so the backend logs match
+          // what the user saw. If unavailable, send 0 — this path is dev-only.
+          const fallbackAmount = pkg?.product.price ?? 0;
           upgradeMutation.mutate(
             { tier, amount: fallbackAmount },
             {
@@ -572,7 +564,14 @@ export default function SubscriptionScreen() {
         if (customerInfo) {
           handleBackendUpgrade(true);
         } else {
+          // RC purchase flow returned nothing — either it failed mid-purchase
+          // or was cancelled. Surface that instead of silently re-enabling
+          // the button.
           setIsPurchasing(false);
+          Alert.alert(
+            "Purchase did not complete",
+            "The store couldn't finish the purchase. Please try again.",
+          );
         }
       } else {
         handleBackendUpgrade(false);
@@ -668,32 +667,65 @@ export default function SubscriptionScreen() {
   const isUpgrading = isPurchasing || upgradeMutation.isPending;
 
   const getActivePlanDetails = () => {
-    let tierName =
+    const tierName =
       currentTier === "plus"
         ? "Premium Plus"
         : currentTier === "light"
           ? "Premium Light"
           : "Freemium";
-    let duration = "1 Year";
-    let price = currentTier === "plus" ? "$79.99" : "$39.99";
+
+    if (currentTier === "freemium") {
+      return { tierName, duration: "—", price: "" };
+    }
+
+    // 1. Try to resolve the (tier, plan) pair from `currentProductId`.
+    //    The backend may store the package as `premium_plus:annual`,
+    //    `$rc_annual`, or the legacy `chahira_plus_1yr` — accept any of
+    //    them, matching the same priority list the price chips use.
+    let matchedPlan: LightPlanChoice | PlusPlanChoice | undefined;
+    const planMaps =
+      currentTier === "light"
+        ? (Object.keys(LIGHT_PACKAGE_IDS) as LightPlanChoice[])
+        : currentTier === "plus"
+          ? (Object.keys(PLUS_PACKAGE_IDS) as PlusPlanChoice[])
+          : [];
 
     if (currentProductId) {
-      const isPlus = currentProductId.includes("plus");
-      tierName = isPlus ? "Premium Plus" : "Premium Light";
-      if (currentProductId.includes("_1m")) {
-        duration = "1 Month";
-        price = isPlus ? "$9.99" : "$4.99";
-      } else if (currentProductId.includes("_3m")) {
-        duration = "3 Months";
-        price = isPlus ? "$24.99" : "$12.99";
-      } else if (currentProductId.includes("_1yr")) {
-        duration = "1 Year";
-        price = isPlus ? "$79.99" : "$39.99";
-      } else if (currentProductId.includes("_life")) {
-        duration = "Lifetime";
-        price = isPlus ? "$199.99" : "$99.99";
+      for (const plan of planMaps) {
+        const ids =
+          currentTier === "light"
+            ? LIGHT_PACKAGE_IDS[plan]
+            : PLUS_PACKAGE_IDS[plan];
+        if (ids?.includes(currentProductId)) {
+          matchedPlan = plan;
+          break;
+        }
+      }
+      if (!matchedPlan) {
+        // Legacy `chahira_<tier>_<plan>` fallback.
+        const legacyMatch = currentProductId.match(
+          /^chahira_(light|plus)_(1m|3m|6m|1yr|lifetime)$/,
+        );
+        if (legacyMatch && legacyMatch[1] === currentTier) {
+          matchedPlan = legacyMatch[2] as LightPlanChoice | PlusPlanChoice;
+        }
       }
     }
+
+    // 2. If we couldn't resolve a plan from the product id, default to 1yr
+    //    for paid tiers — that's the canonical "BEST VALUE" plan and matches
+    //    the pre-existing fallback used by `isProductActive()`.
+    if (!matchedPlan) {
+      matchedPlan = "1yr";
+    }
+
+    // 3. Look up the actual package so we can show the store-localized
+    //    price. If the package isn't findable (e.g. dev/mock env, or RC
+    //    hasn't loaded yet) we still show a readable duration label.
+    const pkg = findPackageForChoice(currentTier, matchedPlan);
+    const duration =
+      (matchedPlan && PLAN_DURATION_LABEL[matchedPlan]) || "—";
+    const price = pkg?.product.priceString ?? "";
 
     return { tierName, duration, price };
   };
@@ -722,11 +754,21 @@ export default function SubscriptionScreen() {
   };
 
   const isProductActive = (tier: "light" | "plus", plan: string) => {
-    if (currentProductId) {
-      return currentProductId === `chahira_${tier}_${plan}`;
+    if (!currentProductId) {
+      // No active RC product on file (e.g. dev/mock). Fall back to the tier
+      // comparison so the UI still highlights something.
+      return currentTier === tier && plan === "1yr";
     }
-    // Fallback logic for dev/mock environment
-    return currentTier === tier && plan === "1yr";
+    // True iff the active product matches any of the candidate identifiers
+    // for this (tier, plan). The active product might be stored as the
+    // canonical `premium_plus:*` name, the legacy `chahira_*` name, or the
+    // `$rc_*` name — we accept any of them.
+    const ids =
+      tier === "light"
+        ? LIGHT_PACKAGE_IDS[plan as LightPlanChoice]
+        : PLUS_PACKAGE_IDS[plan as PlusPlanChoice];
+    if (ids?.includes(currentProductId)) return true;
+    return currentProductId === `chahira_${tier}_${plan}`;
   };
 
   const isCurrentPlanActive = (tab: string) => {
@@ -737,8 +779,12 @@ export default function SubscriptionScreen() {
   };
 
   const showFooter =
-    (activeTab === "Premium Light" && lightPlan !== null) ||
-    (activeTab === "Premium Plus" && plusPlan !== null);
+    (activeTab === "Premium Light" &&
+      lightPlan !== null &&
+      hasPackageFor("light", lightPlan)) ||
+    (activeTab === "Premium Plus" &&
+      plusPlan !== null &&
+      hasPackageFor("plus", plusPlan));
 
   const selectedProductIsActive =
     (activeTab === "Premium Light" &&
@@ -815,8 +861,10 @@ export default function SubscriptionScreen() {
                   {getActivePlanDetails().tierName}
                 </Text>
                 <Text style={{ fontSize: 13, color: muted }}>
-                  {getActivePlanDetails().duration} •{" "}
-                  {getActivePlanDetails().price}
+                  {getActivePlanDetails().duration}
+                  {getActivePlanDetails().price
+                    ? ` • ${getActivePlanDetails().price}`
+                    : ""}
                 </Text>
               </View>
               <Pressable
@@ -986,72 +1034,114 @@ export default function SubscriptionScreen() {
                 SELECT PLAN
               </Text>
               <View style={styles.priceRow}>
-                <PriceChip
-                  duration="1 MONTH"
-                  price="$4.99"
-                  badge={
-                    isProductActive("light", "1m") ? "CURRENT PLAN" : undefined
-                  }
-                  badgeColor={primary}
-                  selected={lightPlan === "1m"}
-                  onPress={() => setLightPlan("1m")}
-                  primary={primary}
-                  border={border}
-                  card={card}
-                  text={text}
-                  muted={muted}
-                />
-                <PriceChip
-                  duration="3 MONTHS"
-                  price="$12.99"
-                  badge={
-                    isProductActive("light", "3m") ? "CURRENT PLAN" : undefined
-                  }
-                  badgeColor={primary}
-                  selected={lightPlan === "3m"}
-                  onPress={() => setLightPlan("3m")}
-                  primary={primary}
-                  border={border}
-                  card={card}
-                  text={text}
-                  muted={muted}
-                />
-                <PriceChip
-                  duration="1 YEAR"
-                  price="$39.99"
-                  badge={
-                    isProductActive("light", "1yr")
-                      ? "CURRENT PLAN"
-                      : "BEST VALUE"
-                  }
-                  badgeColor={
-                    isProductActive("light", "1yr") ? primary : "#FF6B00"
-                  }
-                  selected={lightPlan === "1yr"}
-                  onPress={() => setLightPlan("1yr")}
-                  primary={primary}
-                  border={border}
-                  card={card}
-                  text={text}
-                  muted={muted}
-                />
-                <PriceChip
-                  duration="LIFETIME"
-                  price="$99.99"
-                  badge={
-                    isProductActive("light", "lifetime")
-                      ? "CURRENT PLAN"
-                      : undefined
-                  }
-                  badgeColor={primary}
-                  selected={lightPlan === "lifetime"}
-                  onPress={() => setLightPlan("lifetime")}
-                  primary={primary}
-                  border={border}
-                  card={card}
-                  text={text}
-                  muted={muted}
-                />
+                {hasPackageFor("light", "1m") && (
+                  <PriceChip
+                    duration={PLAN_DURATION_LABEL["1m"]}
+                    price={
+                      findPackageForChoice("light", "1m")?.product
+                        .priceString ?? ""
+                    }
+                    badge={
+                      isProductActive("light", "1m")
+                        ? "CURRENT PLAN"
+                        : undefined
+                    }
+                    badgeColor={primary}
+                    selected={lightPlan === "1m"}
+                    onPress={() => setLightPlan("1m")}
+                    primary={primary}
+                    border={border}
+                    card={card}
+                    text={text}
+                    muted={muted}
+                  />
+                )}
+                {hasPackageFor("light", "3m") && (
+                  <PriceChip
+                    duration={PLAN_DURATION_LABEL["3m"]}
+                    price={
+                      findPackageForChoice("light", "3m")?.product
+                        .priceString ?? ""
+                    }
+                    badge={
+                      isProductActive("light", "3m")
+                        ? "CURRENT PLAN"
+                        : undefined
+                    }
+                    badgeColor={primary}
+                    selected={lightPlan === "3m"}
+                    onPress={() => setLightPlan("3m")}
+                    primary={primary}
+                    border={border}
+                    card={card}
+                    text={text}
+                    muted={muted}
+                  />
+                )}
+                {hasPackageFor("light", "6m") && (
+                  <PriceChip
+                    duration={PLAN_DURATION_LABEL["6m"]}
+                    price={
+                      findPackageForChoice("light", "6m")?.product
+                        .priceString ?? ""
+                    }
+                    badge={undefined}
+                    badgeColor={primary}
+                    selected={lightPlan === "6m"}
+                    onPress={() => setLightPlan("6m")}
+                    primary={primary}
+                    border={border}
+                    card={card}
+                    text={text}
+                    muted={muted}
+                  />
+                )}
+                {hasPackageFor("light", "1yr") && (
+                  <PriceChip
+                    duration={PLAN_DURATION_LABEL["1yr"]}
+                    price={
+                      findPackageForChoice("light", "1yr")?.product
+                        .priceString ?? ""
+                    }
+                    badge={
+                      isProductActive("light", "1yr")
+                        ? "CURRENT PLAN"
+                        : "BEST VALUE"
+                    }
+                    badgeColor={
+                      isProductActive("light", "1yr") ? primary : "#FF6B00"
+                    }
+                    selected={lightPlan === "1yr"}
+                    onPress={() => setLightPlan("1yr")}
+                    primary={primary}
+                    border={border}
+                    card={card}
+                    text={text}
+                    muted={muted}
+                  />
+                )}
+                {hasPackageFor("light", "lifetime") && (
+                  <PriceChip
+                    duration={PLAN_DURATION_LABEL.lifetime}
+                    price={
+                      findPackageForChoice("light", "lifetime")?.product
+                        .priceString ?? ""
+                    }
+                    badge={
+                      isProductActive("light", "lifetime")
+                        ? "CURRENT PLAN"
+                        : undefined
+                    }
+                    badgeColor={primary}
+                    selected={lightPlan === "lifetime"}
+                    onPress={() => setLightPlan("lifetime")}
+                    primary={primary}
+                    border={border}
+                    card={card}
+                    text={text}
+                    muted={muted}
+                  />
+                )}
               </View>
             </View>
           )}
@@ -1117,72 +1207,110 @@ export default function SubscriptionScreen() {
                 SELECT PLAN
               </Text>
               <View style={styles.priceRow}>
-                <PriceChip
-                  duration="1 MONTH"
-                  price="$9.99"
-                  badge={
-                    isProductActive("plus", "1m") ? "CURRENT PLAN" : undefined
-                  }
-                  badgeColor={primary}
-                  selected={plusPlan === "1m"}
-                  onPress={() => setPlusPlan("1m")}
-                  primary={primary}
-                  border={border}
-                  card={card}
-                  text={text}
-                  muted={muted}
-                />
-                <PriceChip
-                  duration="3 MONTHS"
-                  price="$24.99"
-                  badge={
-                    isProductActive("plus", "3m") ? "CURRENT PLAN" : undefined
-                  }
-                  badgeColor={primary}
-                  selected={plusPlan === "3m"}
-                  onPress={() => setPlusPlan("3m")}
-                  primary={primary}
-                  border={border}
-                  card={card}
-                  text={text}
-                  muted={muted}
-                />
-                <PriceChip
-                  duration="1 YEAR"
-                  price="$79.99"
-                  badge={
-                    isProductActive("plus", "1yr")
-                      ? "CURRENT PLAN"
-                      : "BEST VALUE"
-                  }
-                  badgeColor={
-                    isProductActive("plus", "1yr") ? primary : "#FF6B00"
-                  }
-                  selected={plusPlan === "1yr"}
-                  onPress={() => setPlusPlan("1yr")}
-                  primary={primary}
-                  border={border}
-                  card={card}
-                  text={text}
-                  muted={muted}
-                />
-                <PriceChip
-                  duration="LIFETIME"
-                  price="$199.99"
-                  badge={
-                    isProductActive("plus", "lifetime")
-                      ? "CURRENT PLAN"
-                      : undefined
-                  }
-                  badgeColor={primary}
-                  selected={plusPlan === "lifetime"}
-                  onPress={() => setPlusPlan("lifetime")}
-                  primary={primary}
-                  border={border}
-                  card={card}
-                  text={text}
-                  muted={muted}
-                />
+                {hasPackageFor("plus", "1m") && (
+                  <PriceChip
+                    duration={PLAN_DURATION_LABEL["1m"]}
+                    price={
+                      findPackageForChoice("plus", "1m")?.product.priceString ??
+                      ""
+                    }
+                    badge={
+                      isProductActive("plus", "1m") ? "CURRENT PLAN" : undefined
+                    }
+                    badgeColor={primary}
+                    selected={plusPlan === "1m"}
+                    onPress={() => setPlusPlan("1m")}
+                    primary={primary}
+                    border={border}
+                    card={card}
+                    text={text}
+                    muted={muted}
+                  />
+                )}
+                {hasPackageFor("plus", "3m") && (
+                  <PriceChip
+                    duration={PLAN_DURATION_LABEL["3m"]}
+                    price={
+                      findPackageForChoice("plus", "3m")?.product.priceString ??
+                      ""
+                    }
+                    badge={
+                      isProductActive("plus", "3m") ? "CURRENT PLAN" : undefined
+                    }
+                    badgeColor={primary}
+                    selected={plusPlan === "3m"}
+                    onPress={() => setPlusPlan("3m")}
+                    primary={primary}
+                    border={border}
+                    card={card}
+                    text={text}
+                    muted={muted}
+                  />
+                )}
+                {hasPackageFor("plus", "6m") && (
+                  <PriceChip
+                    duration={PLAN_DURATION_LABEL["6m"]}
+                    price={
+                      findPackageForChoice("plus", "6m")?.product.priceString ??
+                      ""
+                    }
+                    badge={undefined}
+                    badgeColor={primary}
+                    selected={plusPlan === "6m"}
+                    onPress={() => setPlusPlan("6m")}
+                    primary={primary}
+                    border={border}
+                    card={card}
+                    text={text}
+                    muted={muted}
+                  />
+                )}
+                {hasPackageFor("plus", "1yr") && (
+                  <PriceChip
+                    duration={PLAN_DURATION_LABEL["1yr"]}
+                    price={
+                      findPackageForChoice("plus", "1yr")?.product
+                        .priceString ?? ""
+                    }
+                    badge={
+                      isProductActive("plus", "1yr")
+                        ? "CURRENT PLAN"
+                        : "BEST VALUE"
+                    }
+                    badgeColor={
+                      isProductActive("plus", "1yr") ? primary : "#FF6B00"
+                    }
+                    selected={plusPlan === "1yr"}
+                    onPress={() => setPlusPlan("1yr")}
+                    primary={primary}
+                    border={border}
+                    card={card}
+                    text={text}
+                    muted={muted}
+                  />
+                )}
+                {hasPackageFor("plus", "lifetime") && (
+                  <PriceChip
+                    duration={PLAN_DURATION_LABEL.lifetime}
+                    price={
+                      findPackageForChoice("plus", "lifetime")?.product
+                        .priceString ?? ""
+                    }
+                    badge={
+                      isProductActive("plus", "lifetime")
+                        ? "CURRENT PLAN"
+                        : undefined
+                    }
+                    badgeColor={primary}
+                    selected={plusPlan === "lifetime"}
+                    onPress={() => setPlusPlan("lifetime")}
+                    primary={primary}
+                    border={border}
+                    card={card}
+                    text={text}
+                    muted={muted}
+                  />
+                )}
               </View>
             </View>
           )}
@@ -1827,19 +1955,9 @@ export default function SubscriptionScreen() {
                 if (selectedProductIsActive) return;
 
                 if (activeTab === "Premium Light" && lightPlan) {
-                  handlePurchase(
-                    "light",
-                    lightPlan,
-                    LIGHT_PRICES[lightPlan],
-                    "Premium Light",
-                  );
+                  handlePurchase("light", lightPlan, "Premium Light");
                 } else if (activeTab === "Premium Plus" && plusPlan) {
-                  handlePurchase(
-                    "plus",
-                    plusPlan,
-                    PLUS_PRICES[plusPlan],
-                    "Premium Plus",
-                  );
+                  handlePurchase("plus", plusPlan, "Premium Plus");
                 }
               }}
               disabled={isUpgrading || !!selectedProductIsActive}
@@ -1912,13 +2030,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
-    gap: 8,
+    gap: 4,
   },
   priceChip: {
     flex: 1,
     borderWidth: 1,
     borderRadius: 16,
     padding: 10,
+    paddingHorizontal: 4,
     alignItems: "center",
     justifyContent: "center",
     position: "relative",
