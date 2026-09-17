@@ -10,7 +10,6 @@ import {
   HelpCircle,
   PartyPopper,
   Check,
-  Lock,
 } from "lucide-react-native";
 
 import { Text } from "@/components/ui/text";
@@ -43,7 +42,10 @@ export default function FiltersScreen() {
   const [activeTab, setActiveTab] = useState("Basic");
   const globalFilters = useFilterStore(state => state.filters);
   const profile = useProfileStore((s) => s.profile);
-  const hasAdvancedAccess = profile?.subscription_tier !== 'freemium' || profile?.has_advanced_filters;
+  // Advanced filters are now available to every user regardless of tier —
+  // no paywall on the Advanced tab. Keep `profile` referenced so the store
+  // subscription stays warm for any other UI that may read from it.
+  void profile;
 
   // Basic States
   const [ageRange, setAgeRange] = useState({ 
@@ -365,7 +367,7 @@ export default function FiltersScreen() {
 
   const renderAdvancedTab = () => (
     <View style={styles.advancedContainer}>
-      <View style={[styles.advancedContent, !hasAdvancedAccess && { opacity: 0.4 }]}>
+      <View style={styles.advancedContent}>
         {renderBasicTab()}
 
         <View style={styles.section}>
@@ -605,42 +607,19 @@ export default function FiltersScreen() {
           <ScrollView
             style={{ flex: 1 }}
             contentContainerStyle={styles.scrollContent}
-            scrollEnabled={!(activeTab === "Advanced" && !hasAdvancedAccess)}
+            scrollEnabled
           >
             <View style={styles.filterContent}>
               {activeTab === "Basic" ? renderBasicTab() : renderAdvancedTab()}
             </View>
           </ScrollView>
-
-          {activeTab === "Advanced" && !hasAdvancedAccess && (
-            <View style={styles.lockedOverlay}>
-              <Lock size={48} color={primary} />
-              <Text style={styles.lockedTitle}>Advanced Filters Locked</Text>
-              <Text style={styles.lockedText}>
-                Upgrade to Premium or get the Advanced Filters add-on to access these filters.
-              </Text>
-              <Pressable
-                style={[styles.applyButton, { width: '80%', marginTop: 24, backgroundColor: primary, padding: 16, borderRadius: 24, alignItems: 'center' }]}
-                onPress={() => {
-                  handleClose();
-                  setTimeout(() => {
-                    router.push('/settings/subscription');
-                  }, 300);
-                }}
-              >
-                <Text style={styles.applyButtonText}>Unlock Now</Text>
-              </Pressable>
-            </View>
-          )}
         </View>
 
-        {!(activeTab === "Advanced" && !hasAdvancedAccess) && (
-          <View style={[styles.footer, { paddingBottom: insets.bottom || 24, backgroundColor: background }]}>
-            <Button onPress={handleApply} style={styles.applyBtn} disabled={isApplying}>
-              {isApplying ? <ActivityIndicator color="#FFF" /> : "Apply Filters"}
-            </Button>
-          </View>
-        )}
+        <View style={[styles.footer, { paddingBottom: insets.bottom || 24, backgroundColor: background }]}>
+          <Button onPress={handleApply} style={styles.applyBtn} disabled={isApplying}>
+            {isApplying ? <ActivityIndicator color="#FFF" /> : "Apply Filters"}
+          </Button>
+        </View>
       </Animated.View>
     </BlurView>
   );
