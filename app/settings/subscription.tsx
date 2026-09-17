@@ -47,7 +47,10 @@ import {
   isNativeModuleAvailable,
   getCustomerInfo,
 } from "@/api/purchases";
-import Purchases, { type PurchasesPackage } from "react-native-purchases";
+import Purchases, {
+  type CustomerInfo,
+  type PurchasesPackage,
+} from "react-native-purchases";
 import VerificationOverlay from "@/components/VerificationOverlay";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
 
@@ -83,6 +86,70 @@ const LIGHT_PACKAGE_IDS: Record<LightPlanChoice, string[]> = {
   "1yr": ["premium_light:annual", "$rc_annual"],
   lifetime: ["premium_light:lifetime"],
 };
+
+// ── productIdentifier → display label ────────────────────────────────────
+//
+// The RC debug screen displays `customerInfo.entitlements.active[id]
+// .productIdentifier` raw. We do the same here: read the live SDK value
+// and humanize it for display, instead of trusting the backend's stored
+// `subscription_product_id` (which can lag the webhook or be the
+// underlying App Store / Play Store SKU instead of the RC package id).
+//
+// Example: `premium_plus:semiannual` → { tier: "Premium Plus",
+// duration: "6 MONTHS" }.
+
+/**
+ * Turn an RC productIdentifier into a human-readable tier + duration
+ * label. Pure string parsing — no translation table — so any future
+ * identifier RevenueCat produces is handled correctly.
+ */
+function formatProductIdentifier(productIdentifier: string): {
+  tier: string;
+  duration: string;
+} {
+  // RC's canonical form is `<tier>:<duration>` (e.g. `premium_plus:semiannual`).
+  if (productIdentifier.includes(":")) {
+    const [tierPart, durationPart] = productIdentifier.split(":", 2);
+    return {
+      tier: tierLabel(tierPart),
+      duration: durationLabel(durationPart),
+    };
+  }
+
+  // No `:` — identifier is either a legacy alias (`$rc_six_month`,
+  // `chahira_plus_6m`) or the underlying store SKU (`premium_plus_6month`).
+  // Pull the tier from any `premium_<x>` prefix; everything else becomes
+  // the duration label.
+  const tierMatch = productIdentifier.match(/premium_(plus|light)/i);
+  const tier = tierMatch ? tierLabel(tierMatch[0]) : "Premium";
+
+  return { tier, duration: durationLabel(productIdentifier) };
+}
+
+function tierLabel(raw: string): string {
+  const s = raw.toLowerCase().trim();
+  if (s === "premium_plus") return "Premium Plus";
+  if (s === "premium_light") return "Premium Light";
+  // Fallback for unexpected prefixes — best-effort humanize.
+  return raw.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function durationLabel(raw: string): string {
+  const s = raw.toLowerCase();
+
+  // Order matters: longer/more specific keywords first.
+  if (/semi\s*annual|semi_annual|six\s*month|six_month|6\s*month|6mo|\b6m\b/.test(s))
+    return "6 MONTHS";
+  if (/quarter|three\s*month|three_month|3\s*month|3mo|\b3m\b/.test(s))
+    return "3 MONTHS";
+  if (/annual|yearly|1\s*year|1yr|12\s*month|\b1y\b/.test(s)) return "1 YEAR";
+  if (/monthly|month(?!.*six|.*three|.*annual)|\b1m\b/.test(s))
+    return "1 MONTH";
+  if (/lifetime|forever/.test(s)) return "LIFETIME";
+
+  // Unknown — return a readable version of whatever RC gave us.
+  return raw.replace(/_/g, " ").toUpperCase();
+}
 
 function FeatureRow({
   label,
@@ -397,6 +464,13 @@ export default function SubscriptionScreen() {
   const [packages, setPackages] = useState<PurchasesPackage[]>([]);
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [managementURL, setManagementURL] = useState<string | null>(null);
+  // Live RevenueCat customer info. The source of truth for which product
+  // the user is currently subscribed to — the same value the
+  // `revenuecat-debug` screen displays under "ACTIVE SUBSCRIPTION". We
+  // read from this directly instead of trusting the backend's
+  // `subscription_product_id`, which can lag the webhook or store the
+  // underlying App Store / Play Store SKU instead of the RC package id.
+  const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
 
   const upgradeMutation = useUpgradeSubscriptionMutation();
 
@@ -406,6 +480,7 @@ export default function SubscriptionScreen() {
 
   useEffect(() => {
     getOfferings().then((all) => {
+      console.log("Fetched offerings:", all);
       if (!all) return;
       // Flatten every package across every offering, then dedupe by package
       // identifier so a product present in multiple offerings isn't shown
@@ -425,9 +500,11 @@ export default function SubscriptionScreen() {
     });
     fetchProfile();
     if (isNativeModuleAvailable()) {
-      getCustomerInfo().then((info) =>
-        setManagementURL(info?.managementURL ?? null),
-      );
+      getCustomerInfo().then((info) => {
+        console.log(info);
+        setCustomerInfo(info);
+        setManagementURL(info?.managementURL ?? null);
+      });
     }
   }, [fetchProfile]);
 
@@ -518,6 +595,15 @@ export default function SubscriptionScreen() {
                 }
               : null,
           }));
+          // Re-fetch the live customer info so the active-plan card reflects
+          // the new product identifier immediately (instead of waiting for
+          // the webhook to round-trip through the backend).
+          if (isNativeModuleAvailable()) {
+            getCustomerInfo().then((info) => {
+              setCustomerInfo(info);
+              setManagementURL(info?.managementURL ?? null);
+            });
+          }
           queryClient.invalidateQueries({ queryKey: ["chatRooms"] });
           Alert.alert("Subscription updated", `You are now on ${label}.`);
         } else {
@@ -599,6 +685,9 @@ export default function SubscriptionScreen() {
 
   const handleAddonPurchase = async (rcPackageId: string, label: string) => {
     const pkg = findPackage(rcPackageId);
+
+    console.log(`handleAddonPurchase: ${rcPackageId} (${label})`);
+
     setIsPurchasing(true);
     if (pkg) {
       const customerInfo = await purchasePackage(pkg);
@@ -667,67 +756,62 @@ export default function SubscriptionScreen() {
   const isUpgrading = isPurchasing || upgradeMutation.isPending;
 
   const getActivePlanDetails = () => {
-    const tierName =
-      currentTier === "plus"
-        ? "Premium Plus"
-        : currentTier === "light"
-          ? "Premium Light"
-          : "Freemium";
+    // Mirror revenuecat-debug.tsx: read the live customerInfo and pick the
+    // first active entitlement. Display its productIdentifier as-is,
+    // humanised for the card. No reliance on the backend's stored
+    // subscription_product_id — that can lag the webhook or be the
+    // underlying store SKU instead of the RC package id, which is why
+    // this card previously always said "1 YEAR".
+    const activeEntitlements = Object.values(
+      customerInfo?.entitlements?.active ?? {},
+    );
 
-    if (currentTier === "freemium") {
+    if (activeEntitlements.length === 0) {
+      // No live entitlement. Fall back to whatever the backend tier says,
+      // so we're not blank if the SDK hasn't loaded yet.
+      const tierName =
+        currentTier === "plus"
+          ? "Premium Plus"
+          : currentTier === "light"
+            ? "Premium Light"
+            : "Freemium";
       return { tierName, duration: "—", price: "" };
     }
 
-    // 1. Try to resolve the (tier, plan) pair from `currentProductId`.
-    //    The backend may store the package as `premium_plus:annual`,
-    //    `$rc_annual`, or the legacy `chahira_plus_1yr` — accept any of
-    //    them, matching the same priority list the price chips use.
-    let matchedPlan: LightPlanChoice | PlusPlanChoice | undefined;
-    const planMaps =
-      currentTier === "light"
-        ? (Object.keys(LIGHT_PACKAGE_IDS) as LightPlanChoice[])
-        : currentTier === "plus"
-          ? (Object.keys(PLUS_PACKAGE_IDS) as PlusPlanChoice[])
-          : [];
+    const primary = activeEntitlements[0];
+    const { tier, duration } = formatProductIdentifier(
+      primary.productIdentifier,
+    );
 
-    if (currentProductId) {
-      for (const plan of planMaps) {
-        const ids =
-          currentTier === "light"
-            ? LIGHT_PACKAGE_IDS[plan]
-            : PLUS_PACKAGE_IDS[plan];
-        if (ids?.includes(currentProductId)) {
-          matchedPlan = plan;
-          break;
-        }
-      }
-      if (!matchedPlan) {
-        // Legacy `chahira_<tier>_<plan>` fallback.
-        const legacyMatch = currentProductId.match(
-          /^chahira_(light|plus)_(1m|3m|6m|1yr|lifetime)$/,
-        );
-        if (legacyMatch && legacyMatch[1] === currentTier) {
-          matchedPlan = legacyMatch[2] as LightPlanChoice | PlusPlanChoice;
-        }
+    // Look up the matching package so we can show the store-localized
+    // price. We resolve (tier, plan) from the identifier for lookup, but
+    // fall back to no price if we can't — the label is still useful.
+    let price = "";
+    const activeTier: SubscriptionTier =
+      primary.identifier === "premium_light" ? "light" : "plus";
+
+    const planMaps = activeTier === "light" ? LIGHT_PACKAGE_IDS : PLUS_PACKAGE_IDS;
+    for (const plan of Object.keys(planMaps) as (LightPlanChoice | PlusPlanChoice)[]) {
+      const ids = planMaps[plan];
+      if (ids.includes(primary.productIdentifier)) {
+        const pkg = findPackageForChoice(activeTier, plan);
+        price = pkg?.product.priceString ?? "";
+        break;
       }
     }
 
-    // 2. If we couldn't resolve a plan from the product id, default to 1yr
-    //    for paid tiers — that's the canonical "BEST VALUE" plan and matches
-    //    the pre-existing fallback used by `isProductActive()`.
-    if (!matchedPlan) {
-      matchedPlan = "1yr";
-    }
+    return { tierName: tier, duration, price };
+  };
 
-    // 3. Look up the actual package so we can show the store-localized
-    //    price. If the package isn't findable (e.g. dev/mock env, or RC
-    //    hasn't loaded yet) we still show a readable duration label.
-    const pkg = findPackageForChoice(currentTier, matchedPlan);
-    const duration =
-      (matchedPlan && PLAN_DURATION_LABEL[matchedPlan]) || "—";
-    const price = pkg?.product.priceString ?? "";
-
-    return { tierName, duration, price };
+  /**
+   * Returns the list of active entitlements from the live SDK, exactly
+   * the way `revenuecat-debug.tsx` iterates
+   * `Object.values(customerInfo.entitlements.active)`. The card above
+   * shows just the primary one; this exposes the full list so we could
+   * render additional cards if a user has multiple active entitlements.
+   */
+  const getActiveEntitlements = () => {
+    return Object.values(customerInfo?.entitlements?.active ?? {});
   };
 
   const handleRestore = async () => {
@@ -742,6 +826,11 @@ export default function SubscriptionScreen() {
       setIsPurchasing(true);
       await Purchases.restorePurchases();
       await fetchProfile();
+      // Refresh customer info so the active-plan card reflects the restored
+      // product, not whatever the backend had cached before the restore.
+      const info = await getCustomerInfo();
+      setCustomerInfo(info);
+      setManagementURL(info?.managementURL ?? null);
       setIsPurchasing(false);
       Alert.alert("Success", "Your purchases have been restored.");
     } catch (e: any) {
@@ -754,21 +843,24 @@ export default function SubscriptionScreen() {
   };
 
   const isProductActive = (tier: "light" | "plus", plan: string) => {
-    if (!currentProductId) {
-      // No active RC product on file (e.g. dev/mock). Fall back to the tier
-      // comparison so the UI still highlights something.
-      return currentTier === tier && plan === "1yr";
+    // Walk the same identifiers the price chips use and check whether any
+    // of them match the live SDK's productIdentifier for the active
+    // entitlement on this tier. This is what the debug screen effectively
+    // does when it shows "ACTIVE SUBSCRIPTION" — it displays the raw
+    // productIdentifier, which is the source of truth.
+    const entitlementId = tier === "plus" ? "premium_plus" : "premium_light";
+    const ent = customerInfo?.entitlements?.active?.[entitlementId];
+    if (ent) {
+      const ids =
+        tier === "light"
+          ? LIGHT_PACKAGE_IDS[plan as LightPlanChoice]
+          : PLUS_PACKAGE_IDS[plan as PlusPlanChoice];
+      if (ids?.includes(ent.productIdentifier)) return true;
     }
-    // True iff the active product matches any of the candidate identifiers
-    // for this (tier, plan). The active product might be stored as the
-    // canonical `premium_plus:*` name, the legacy `chahira_*` name, or the
-    // `$rc_*` name — we accept any of them.
-    const ids =
-      tier === "light"
-        ? LIGHT_PACKAGE_IDS[plan as LightPlanChoice]
-        : PLUS_PACKAGE_IDS[plan as PlusPlanChoice];
-    if (ids?.includes(currentProductId)) return true;
-    return currentProductId === `chahira_${tier}_${plan}`;
+
+    // Fallback for dev/Expo Go (no native module): trust the backend
+    // tier and highlight 1yr so the UI still shows something attached.
+    return currentTier === tier && plan === "1yr";
   };
 
   const isCurrentPlanActive = (tab: string) => {
@@ -1544,151 +1636,45 @@ export default function SubscriptionScreen() {
                     </Text>
                   </View>
                 </View>
-                {activeTab === "Premium Light" ||
-                activeTab === "Premium Plus" ? (
-                  <View
+                <View
+                  style={{
+                    backgroundColor: primary + "20",
+                    paddingHorizontal: 10,
+                    paddingVertical: 4,
+                    borderRadius: 8,
+                  }}
+                >
+                  <Text
                     style={{
-                      backgroundColor: primary + "20",
-                      paddingHorizontal: 10,
-                      paddingVertical: 4,
-                      borderRadius: 8,
+                      color: primary,
+                      fontWeight: "800",
+                      fontSize: 10,
+                      letterSpacing: 0.5,
                     }}
                   >
-                    <Text
-                      style={{
-                        color: primary,
-                        fontWeight: "800",
-                        fontSize: 10,
-                        letterSpacing: 0.5,
-                      }}
-                    >
-                      INCLUDED
-                    </Text>
-                  </View>
-                ) : currentTier === "light" ||
-                  currentTier === "plus" ||
-                  profile?.has_advanced_filters ? (
-                  <View
-                    style={{
-                      backgroundColor: background,
-                      paddingHorizontal: 10,
-                      paddingVertical: 4,
-                      borderRadius: 8,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        color: text,
-                        fontWeight: "800",
-                        fontSize: 10,
-                        letterSpacing: 0.5,
-                        opacity: 0.7,
-                      }}
-                    >
-                      SUBSCRIBED
-                    </Text>
-                  </View>
-                ) : (
-                  <View
-                    style={{
-                      backgroundColor: background,
-                      paddingHorizontal: 12,
-                      paddingVertical: 6,
-                      borderRadius: 12,
-                    }}
-                  >
-                    <Text
-                      style={{ color: text, fontWeight: "700", fontSize: 13 }}
-                    >
-                      $2.99/mo
-                    </Text>
-                  </View>
-                )}
+                    AVAILABLE TO ALL
+                  </Text>
+                </View>
               </View>
-              {activeTab === "Premium Light" || activeTab === "Premium Plus" ? (
-                <Pressable
-                  disabled
-                  style={{
-                    marginTop: 16,
-                    backgroundColor: background,
-                    borderWidth: 1,
-                    borderColor: border,
-                    paddingVertical: 12,
-                    borderRadius: 12,
-                    alignItems: "center",
-                    opacity: 0.8,
-                  }}
+              <Pressable
+                disabled
+                style={{
+                  marginTop: 16,
+                  backgroundColor: background,
+                  borderWidth: 1,
+                  borderColor: border,
+                  paddingVertical: 12,
+                  borderRadius: 12,
+                  alignItems: "center",
+                  opacity: 0.8,
+                }}
+              >
+                <Text
+                  style={{ color: text, fontWeight: "700", fontSize: 14 }}
                 >
-                  <Text
-                    style={{ color: text, fontWeight: "700", fontSize: 14 }}
-                  >
-                    Included in {activeTab}
-                  </Text>
-                </Pressable>
-              ) : currentTier === "light" || currentTier === "plus" ? (
-                <Pressable
-                  disabled
-                  style={{
-                    marginTop: 16,
-                    backgroundColor: background,
-                    borderWidth: 1,
-                    borderColor: border,
-                    paddingVertical: 12,
-                    borderRadius: 12,
-                    alignItems: "center",
-                    opacity: 0.8,
-                  }}
-                >
-                  <Text
-                    style={{ color: text, fontWeight: "700", fontSize: 14 }}
-                  >
-                    Included in your plan
-                  </Text>
-                </Pressable>
-              ) : profile?.has_advanced_filters ? (
-                <Pressable
-                  disabled
-                  style={{
-                    marginTop: 16,
-                    backgroundColor: background,
-                    borderWidth: 1,
-                    borderColor: border,
-                    paddingVertical: 12,
-                    borderRadius: 12,
-                    alignItems: "center",
-                    opacity: 0.8,
-                  }}
-                >
-                  <Text
-                    style={{ color: text, fontWeight: "700", fontSize: 14 }}
-                  >
-                    Subscribed
-                  </Text>
-                </Pressable>
-              ) : (
-                <Pressable
-                  onPress={() =>
-                    handleAddonPurchase(
-                      "chahira_addon_filters_monthly",
-                      "Advanced Filters",
-                    )
-                  }
-                  style={({ pressed }) => ({
-                    marginTop: 16,
-                    backgroundColor: primary,
-                    paddingVertical: 12,
-                    borderRadius: 12,
-                    alignItems: "center",
-                    opacity: pressed ? 0.8 : 1,
-                  })}
-                >
-                  <Text
-                    style={{ color: "#FFF", fontWeight: "700", fontSize: 14 }}
-                  >
-                    Get Add-on
-                  </Text>
-                </Pressable>
-              )}
+                  Included with your account
+                </Text>
+              </Pressable>
             </View>
 
             {/* All Chat Rooms */}
