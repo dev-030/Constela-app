@@ -274,40 +274,205 @@ const waveformStyles = StyleSheet.create({
 
 // ─── MessageBubble ──────────────────────────────────────────────────────────
 
-function VoiceMessage({ audioUrl, duration, isMe }: { audioUrl: string; duration?: number | null; isMe: boolean }) {
+const VOICE_WAVEFORM_HEIGHTS = [
+  6, 12, 18, 10, 16, 22, 14, 8, 18, 24,
+  16, 10, 14, 20, 26, 18, 12, 8, 14, 22,
+  18, 12, 16, 20, 14, 8, 12, 6,
+];
+
+function VoiceMessage({
+  audioUrl,
+  duration,
+  isMe,
+  timestamp,
+  isRead,
+}: {
+  audioUrl: string;
+  duration?: number | null;
+  isMe: boolean;
+  timestamp: string;
+  isRead?: boolean;
+}) {
   const player = useAudioPlayer(audioUrl);
   const status = useAudioPlayerStatus(player);
   const shownDuration = status.duration || duration || 0;
 
   const togglePlayback = () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch {}
     if (status.playing) {
       player.pause();
       return;
     }
-    if (shownDuration && status.currentTime >= shownDuration) player.seekTo(0);
+    if (shownDuration && status.currentTime >= shownDuration) {
+      player.seekTo(0);
+    }
     player.play();
   };
 
   const progress = shownDuration > 0 ? Math.min(status.currentTime / shownDuration, 1) : 0;
 
+  const handleSeek = (e: any) => {
+    const { locationX } = e.nativeEvent;
+    const totalWaveWidth = 140;
+    const clampedX = Math.max(0, Math.min(locationX, totalWaveWidth));
+    const seekPercent = clampedX / totalWaveWidth;
+    if (shownDuration > 0) {
+      player.seekTo(seekPercent * shownDuration);
+    }
+  };
+
   return (
-    <View style={bubbleStyles.voiceRow}>
-      <Pressable onPress={togglePlayback} style={[bubbleStyles.voicePlay, { backgroundColor: isMe ? "rgba(255,255,255,0.2)" : "#FFFFFF" }]} accessibilityLabel={status.playing ? "Pause" : "Play"} accessibilityRole="button">
-        {status.playing ? <Pause size={16} color={isMe ? "#FFF" : "#0084ff"} fill={isMe ? "#FFF" : "#0084ff"} /> : <Play size={16} color={isMe ? "#FFF" : "#0084ff"} fill={isMe ? "#FFF" : "#0084ff"} style={{ marginLeft: 2 }} />}
+    <View style={voiceStyles.container}>
+      {/* Play/Pause circular button */}
+      <Pressable
+        onPress={togglePlayback}
+        style={({ pressed }) => [
+          voiceStyles.playBtn,
+          {
+            backgroundColor: isMe ? "#FFFFFF" : "#0084ff",
+          },
+          pressed && { transform: [{ scale: 0.92 }], opacity: 0.9 },
+        ]}
+        accessibilityLabel={status.playing ? "Pause voice message" : "Play voice message"}
+        accessibilityRole="button"
+      >
+        {status.playing ? (
+          <Pause
+            size={16}
+            color={isMe ? "#0084ff" : "#FFFFFF"}
+            fill={isMe ? "#0084ff" : "#FFFFFF"}
+          />
+        ) : (
+          <Play
+            size={16}
+            color={isMe ? "#0084ff" : "#FFFFFF"}
+            fill={isMe ? "#0084ff" : "#FFFFFF"}
+            style={{ marginLeft: 2 }}
+          />
+        )}
       </Pressable>
-      <View style={bubbleStyles.voiceDetails}>
-        <View style={[bubbleStyles.voiceTrack, { backgroundColor: isMe ? "rgba(255,255,255,0.3)" : "rgba(0,132,255,0.2)" }]}>
-          <View style={[bubbleStyles.voiceProgress, { backgroundColor: isMe ? "#FFFFFF" : "#0084ff", width: `${progress * 100}%` }]} />
-          <View style={[bubbleStyles.voiceThumb, { backgroundColor: isMe ? "#FFFFFF" : "#0084ff", left: `${progress * 100}%` }]} />
-        </View>
-        <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 6 }}>
-          <Text style={[bubbleStyles.voiceDuration, { color: isMe ? "rgba(255,255,255,0.85)" : "#4B5563" }]}>{formatDuration(status.currentTime)}</Text>
-          <Text style={[bubbleStyles.voiceDuration, { color: isMe ? "rgba(255,255,255,0.85)" : "#4B5563" }]}>{formatDuration(shownDuration)}</Text>
+
+      {/* Waveform + Duration & Time Row */}
+      <View style={voiceStyles.contentCol}>
+        {/* Audio Waveform */}
+        <Pressable onPress={handleSeek} style={voiceStyles.waveformRow}>
+          {VOICE_WAVEFORM_HEIGHTS.map((h, i) => {
+            const barFraction = i / (VOICE_WAVEFORM_HEIGHTS.length - 1);
+            const isPlayed = progress >= barFraction;
+            return (
+              <View
+                key={i}
+                style={[
+                  voiceStyles.waveformBar,
+                  {
+                    height: h,
+                    backgroundColor: isMe
+                      ? isPlayed
+                        ? "#FFFFFF"
+                        : "rgba(255, 255, 255, 0.42)"
+                      : isPlayed
+                      ? "#0084ff"
+                      : "rgba(0, 132, 255, 0.28)",
+                  },
+                ]}
+              />
+            );
+          })}
+        </Pressable>
+
+        {/* Bottom meta row: Duration on left, Time + ticks on right */}
+        <View style={voiceStyles.metaRow}>
+          <Text
+            style={[
+              voiceStyles.durationText,
+              { color: isMe ? "rgba(255, 255, 255, 0.9)" : "#4B5563" },
+            ]}
+          >
+            {formatDuration(status.playing ? status.currentTime : shownDuration)}
+          </Text>
+
+          <View style={voiceStyles.timeWrap}>
+            <Text
+              style={[
+                voiceStyles.timeText,
+                { color: isMe ? "rgba(255, 255, 255, 0.75)" : "#9CA3AF" },
+              ]}
+            >
+              {formatMessageTime(timestamp)}
+            </Text>
+            {isMe && (
+              <View style={{ marginLeft: 3 }}>
+                {isRead ? (
+                  <CheckCheck size={12} color="#FFFFFF" />
+                ) : (
+                  <Check size={12} color="rgba(255, 255, 255, 0.75)" />
+                )}
+              </View>
+            )}
+          </View>
         </View>
       </View>
     </View>
   );
 }
+
+const voiceStyles = StyleSheet.create({
+  container: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 2,
+    minWidth: 195,
+  },
+  playBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.12,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  contentCol: {
+    flex: 1,
+    justifyContent: "center",
+  },
+  waveformRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    height: 28,
+    gap: 2.5,
+    paddingVertical: 2,
+  },
+  waveformBar: {
+    width: 2.5,
+    borderRadius: 1.5,
+  },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 2,
+  },
+  durationText: {
+    fontSize: 11.5,
+    fontWeight: "600",
+    fontVariant: ["tabular-nums"],
+    letterSpacing: 0.2,
+  },
+  timeWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  timeText: {
+    fontSize: 10.5,
+  },
+});
 
 function MessageBubble({
   msg,
@@ -413,30 +578,41 @@ function MessageBubble({
             />
           )}
 
-          {msg.audio_url && <VoiceMessage audioUrl={msg.audio_url} duration={msg.audio_duration} isMe={isMe} />}
+          {/* Audio Message (WhatsApp-style) */}
+          {msg.audio_url ? (
+            <VoiceMessage
+              audioUrl={msg.audio_url}
+              duration={msg.audio_duration}
+              isMe={isMe}
+              timestamp={msg.timestamp}
+              isRead={!!msg.read_at}
+            />
+          ) : (
+            <>
+              {/* Text */}
+              {!!msg.content && (
+                <Text style={[bubbleStyles.text, isMe ? bubbleStyles.textRight : bubbleStyles.textLeft]}>
+                  {msg.content}
+                </Text>
+              )}
 
-          {/* Text */}
-          {!!msg.content && (
-            <Text style={[bubbleStyles.text, isMe ? bubbleStyles.textRight : bubbleStyles.textLeft]}>
-              {msg.content}
-            </Text>
-          )}
-
-          {/* Time + read tick */}
-          <View style={[bubbleStyles.footer, { justifyContent: isMe ? "flex-end" : "flex-start" }]}>
-            <Text style={[bubbleStyles.time, { color: isMe ? "rgba(255,255,255,0.65)" : "#9CA3AF" }]}>
-              {formatMessageTime(msg.timestamp)}
-            </Text>
-            {isMe && (
-              <View style={{ marginLeft: 4 }}>
-                {msg.read_at ? (
-                  <CheckCheck size={13} color="rgba(255,255,255,0.85)" />
-                ) : (
-                  <Check size={13} color="rgba(255,255,255,0.65)" />
+              {/* Time + read tick */}
+              <View style={[bubbleStyles.footer, { justifyContent: isMe ? "flex-end" : "flex-start" }]}>
+                <Text style={[bubbleStyles.time, { color: isMe ? "rgba(255,255,255,0.65)" : "#9CA3AF" }]}>
+                  {formatMessageTime(msg.timestamp)}
+                </Text>
+                {isMe && (
+                  <View style={{ marginLeft: 4 }}>
+                    {msg.read_at ? (
+                      <CheckCheck size={13} color="rgba(255,255,255,0.85)" />
+                    ) : (
+                      <Check size={13} color="rgba(255,255,255,0.65)" />
+                    )}
+                  </View>
                 )}
               </View>
-            )}
-          </View>
+            </>
+          )}
 
           {/* Reaction badge */}
           {msg.reaction && (
@@ -457,14 +633,14 @@ function MessageBubble({
 }
 
 const bubbleStyles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "flex-end", paddingHorizontal: 8, marginVertical: 1 },
+  row: { flexDirection: "row", alignItems: "flex-end", paddingHorizontal: 12, marginVertical: 2 },
   rowRight: { justifyContent: "flex-end" },
   rowLeft: { justifyContent: "flex-start" },
   avatarCol: { marginRight: 6, marginBottom: 2 },
   avatar: { width: 28, height: 28, borderRadius: 14 },
   bubble: {
-    maxWidth: "72%",
-    borderRadius: 20,
+    maxWidth: "78%",
+    borderRadius: 18,
     paddingHorizontal: 12,
     paddingVertical: 8,
     shadowColor: "#000",
@@ -517,13 +693,6 @@ const bubbleStyles = StyleSheet.create({
     left: 12,
   },
   image: { width: 200, height: 200, borderRadius: 14, marginBottom: 4 },
-  voiceRow: { width: 220, flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 4 },
-  voicePlay: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
-  voiceDetails: { flex: 1, justifyContent: "center" },
-  voiceTrack: { height: 4, borderRadius: 2, width: "100%", position: "relative" },
-  voiceProgress: { height: 4, borderRadius: 2, position: "absolute", left: 0, top: 0 },
-  voiceThumb: { width: 10, height: 10, borderRadius: 5, position: "absolute", top: -3, marginLeft: -5 },
-  voiceDuration: { fontSize: 11, fontWeight: "500", letterSpacing: 0.2 },
   text: { fontSize: 16, lineHeight: 22 },
   textRight: { color: "#FFFFFF" },
   textLeft: { color: "#111827" },
