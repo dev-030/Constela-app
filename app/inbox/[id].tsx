@@ -39,6 +39,7 @@ import {
   Play,
   Pause,
   Trash2,
+  ArrowUp,
 } from "lucide-react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as Haptics from "expo-haptics";
@@ -1209,7 +1210,7 @@ export default function ChatScreen() {
                 borderColor: border + "45",
                 minHeight: 48,
                 height: isRecording ? 48 : undefined,
-                paddingHorizontal: isRecording ? 8 : 6,
+                paddingHorizontal: isRecording ? 3 : 6,
               },
             ]}
           >
@@ -1304,6 +1305,8 @@ export default function ChatScreen() {
             >
               {isUploadingImage || isUploadingAudio ? (
                 <ActivityIndicator size="small" color="#FFF" />
+              ) : isRecording ? (
+                <ArrowUp size={22} color="#FFFFFF" strokeWidth={2.8} />
               ) : (
                 <Send size={20} color="#FFFFFF" strokeWidth={2.4} style={{ marginLeft: 2 }} />
               )}
@@ -1551,16 +1554,17 @@ const styles = StyleSheet.create({
     height: 44,
   },
   cancelBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 16,
+    height: 40,
+    paddingHorizontal: 16,
+    borderRadius: 20,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
     marginLeft: 2,
+    marginRight: 6,
   },
   cancelBtnText: {
-    fontSize: 13.5,
+    fontSize: 14,
     fontWeight: "700",
     letterSpacing: 0.2,
   },
