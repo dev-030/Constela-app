@@ -40,6 +40,7 @@ import {
   Pause,
   Trash2,
   ArrowUp,
+  Square,
 } from "lucide-react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as Haptics from "expo-haptics";
@@ -1306,7 +1307,7 @@ export default function ChatScreen() {
               {isUploadingImage || isUploadingAudio ? (
                 <ActivityIndicator size="small" color="#FFF" />
               ) : isRecording ? (
-                <ArrowUp size={22} color="#FFFFFF" strokeWidth={2.8} />
+                <Square size={16} color="#FFFFFF" fill="#FFFFFF" />
               ) : (
                 <Send size={20} color="#FFFFFF" strokeWidth={2.4} style={{ marginLeft: 2 }} />
               )}
