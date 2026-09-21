@@ -225,10 +225,10 @@ function LiveWaveform({ isRecording, color }: { isRecording: boolean; color: str
   }, [isRecording]);
 
   const bars = [
-    anim1, anim3, anim2, anim5, anim4,
-    anim2, anim1, anim4, anim3, anim5,
-    anim2, anim4, anim1, anim3, anim5,
-    anim4, anim2, anim1,
+    anim1, anim3, anim2, anim5, anim4, anim2, anim1, anim4,
+    anim3, anim5, anim2, anim4, anim1, anim3, anim5, anim4,
+    anim2, anim1, anim5, anim3, anim1, anim4, anim2, anim3,
+    anim5, anim2, anim1, anim3, anim4, anim2, anim5, anim1,
   ];
 
   return (
@@ -260,9 +260,9 @@ const waveformStyles = StyleSheet.create({
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 3,
-    paddingHorizontal: 6,
+    justifyContent: "space-between",
+    paddingLeft: 10,
+    paddingRight: 6,
     height: 30,
   },
   bar: {
@@ -1206,7 +1206,7 @@ export default function ChatScreen() {
               styles.inputPill,
               {
                 backgroundColor: card,
-                borderColor: isRecording ? primary + "55" : border + "45",
+                borderColor: border + "45",
                 minHeight: 48,
                 height: isRecording ? 48 : undefined,
                 paddingHorizontal: isRecording ? 8 : 6,
@@ -1223,15 +1223,15 @@ export default function ChatScreen() {
                     } catch {}
                     cancelRecording();
                   }}
-                  hitSlop={8}
+                  hitSlop={12}
                   style={({ pressed }) => [
                     styles.discardBtn,
-                    pressed && { opacity: 0.6, transform: [{ scale: 0.92 }] },
+                    pressed && { opacity: 0.4, transform: [{ scale: 0.9 }] },
                   ]}
                   accessibilityLabel="Cancel recording"
                   accessibilityRole="button"
                 >
-                  <Trash2 size={18} color="#EF4444" />
+                  <Trash2 size={20} color="#EF4444" />
                 </Pressable>
 
                 {/* Blinking Live Indicator + Monospace Timer */}
@@ -1547,19 +1547,17 @@ const styles = StyleSheet.create({
     height: 44,
   },
   discardBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: "rgba(239, 68, 68, 0.12)",
+    width: 32,
+    height: 32,
     alignItems: "center",
     justifyContent: "center",
+    marginLeft: 2,
   },
   recTimerWrap: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    marginLeft: 8,
-    marginRight: 4,
+    marginLeft: 4,
   },
   recDot: {
     width: 8,
@@ -1568,10 +1566,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#EF4444",
   },
   recTimerText: {
-    fontSize: 14.5,
-    fontWeight: "700",
+    fontSize: 15,
+    fontWeight: "600",
     fontVariant: ["tabular-nums"],
-    letterSpacing: 0.2,
+    letterSpacing: 0.3,
   },
   pillIconBtn: {
     width: 36,
@@ -1598,16 +1596,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
-    ...Platform.select({
-      ios: {
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
   },
   micBtn: {
     width: 46,
