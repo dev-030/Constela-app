@@ -41,6 +41,7 @@ import {
   Trash2,
   ArrowUp,
   Square,
+  Smile,
 } from "lucide-react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as Haptics from "expo-haptics";
@@ -66,6 +67,12 @@ import { useBlockUserMutation, useUnmatchMutation, useUnfriendMutation } from "@
 import { useReportUserMutation } from "@/api/settings";
 import type { DirectMessage } from "@/api/messages";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
+
+const QUICK_EMOJIS = [
+  "😀", "😂", "🤣", "❤️", "😍", "🔥", "👍", "🙌",
+  "🎉", "✨", "🥺", "🙏", "💯", "😎", "🥳", "👏",
+  "😉", "🤔", "👀", "💪", "🥰", "😭", "😊", "🤩",
+];
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
@@ -748,6 +755,7 @@ export default function ChatScreen() {
   }, [recipientId, setActiveRecipientId]);
 
   const [text, setText] = useState("");
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [replyingTo, setReplyingTo] = useState<DirectMessage | null>(null);
   const [reactingToMessage, setReactingToMessage] = useState<DirectMessage | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
@@ -1190,6 +1198,35 @@ export default function ChatScreen() {
           </View>
         )}
 
+        {/* ── Quick Emoji Bar ── */}
+        {showEmojiPicker && (
+          <View style={[styles.emojiBar, { backgroundColor: card, borderTopColor: border + "25" }]}>
+            <FlatList
+              data={QUICK_EMOJIS}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              keyExtractor={(item, index) => `${item}-${index}`}
+              contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 8, gap: 10 }}
+              renderItem={({ item }) => (
+                <Pressable
+                  onPress={() => {
+                    try {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    } catch {}
+                    handleTextChange(text + item);
+                  }}
+                  style={({ pressed }) => [
+                    styles.emojiItem,
+                    pressed && { transform: [{ scale: 1.25 }] },
+                  ]}
+                >
+                  <Text style={{ fontSize: 24 }}>{item}</Text>
+                </Pressable>
+              )}
+            />
+          </View>
+        )}
+
         {/* ── Input bar ── */}
         <View
           style={[
@@ -1253,14 +1290,39 @@ export default function ChatScreen() {
               </View>
             ) : (
               <>
+                {/* Emoji button */}
+                <Pressable
+                  onPress={() => {
+                    try {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    } catch {}
+                    setShowEmojiPicker((prev) => !prev);
+                  }}
+                  hitSlop={6}
+                  style={({ pressed }) => [
+                    styles.pillIconBtn,
+                    { backgroundColor: showEmojiPicker ? primary + "22" : border + "35" },
+                    pressed && { opacity: 0.6, transform: [{ scale: 0.94 }] },
+                  ]}
+                  accessibilityLabel="Choose emoji"
+                  accessibilityRole="button"
+                >
+                  <Smile size={18} color={showEmojiPicker ? primary : muted} />
+                </Pressable>
+
+                {/* Attach photo button */}
                 <Pressable
                   onPress={pickImage}
-                  hitSlop={8}
-                  style={({ pressed }) => [styles.pillIconBtn, pressed && { opacity: 0.6 }]}
+                  hitSlop={6}
+                  style={({ pressed }) => [
+                    styles.pillIconBtn,
+                    { backgroundColor: border + "35" },
+                    pressed && { opacity: 0.6, transform: [{ scale: 0.94 }] },
+                  ]}
                   accessibilityLabel="Attach photo from gallery"
                   accessibilityRole="button"
                 >
-                  <Paperclip size={20} color={muted} />
+                  <Paperclip size={18} color={muted} />
                 </Pressable>
 
                 <TextInput
@@ -1268,6 +1330,7 @@ export default function ChatScreen() {
                   style={[styles.input, { color: textColor }]}
                   value={text}
                   onChangeText={handleTextChange}
+                  onFocus={() => setShowEmojiPicker(false)}
                   placeholder="Message…"
                   placeholderTextColor={muted}
                   multiline
@@ -1275,17 +1338,20 @@ export default function ChatScreen() {
                   returnKeyType="default"
                 />
 
-                {!text.trim() && (
-                  <Pressable
-                    onPress={takePhoto}
-                    hitSlop={8}
-                    style={({ pressed }) => [styles.pillIconBtn, pressed && { opacity: 0.6 }]}
-                    accessibilityLabel="Take photo with camera"
-                    accessibilityRole="button"
-                  >
-                    <Camera size={20} color={muted} />
-                  </Pressable>
-                )}
+                {/* Camera button with transparent background */}
+                <Pressable
+                  onPress={takePhoto}
+                  hitSlop={6}
+                  style={({ pressed }) => [
+                    styles.pillIconBtn,
+                    { backgroundColor: border + "35" },
+                    pressed && { opacity: 0.6, transform: [{ scale: 0.94 }] },
+                  ]}
+                  accessibilityLabel="Take photo with camera"
+                  accessibilityRole="button"
+                >
+                  <Camera size={18} color={muted} />
+                </Pressable>
               </>
             )}
           </View>
@@ -1590,12 +1656,23 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   pillIconBtn: {
-    width: 36,
-    height: 36,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 18,
-    marginBottom: 1,
+    marginHorizontal: 2,
+    marginBottom: Platform.OS === "ios" ? 1 : 0,
+  },
+  emojiBar: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 4,
+  },
+  emojiItem: {
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    alignItems: "center",
+    justifyContent: "center",
   },
   input: {
     flex: 1,
