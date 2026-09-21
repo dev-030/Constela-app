@@ -34,8 +34,23 @@ import {
   Check,
   Image as ImageIcon,
   MoreVertical,
+  Camera,
+  Mic,
+  Play,
+  Pause,
+  Trash2,
 } from "lucide-react-native";
 import * as ImagePicker from "expo-image-picker";
+import * as Haptics from "expo-haptics";
+import {
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+  useAudioPlayer,
+  useAudioPlayerStatus,
+  useAudioRecorder,
+  useAudioRecorderState,
+} from "expo-audio";
 import { formatDistanceToNow, format, isToday, isYesterday } from "date-fns";
 
 import { Text } from "@/components/ui/text";
@@ -57,11 +72,17 @@ function formatMessageTime(timestamp: string): string {
   return format(date, "h:mm a");
 }
 
-function getReplyPreviewText(msg: { content?: string | null; image_url?: string | null }) {
+function getReplyPreviewText(msg: { content?: string | null; image_url?: string | null; audio_url?: string | null }) {
   if (msg.image_url) {
     return msg.content ? `📷 Photo: ${msg.content}` : "📷 Photo";
   }
+  if (msg.audio_url) return "🎤 Voice message";
   return msg.content || "";
+}
+
+function formatDuration(seconds: number) {
+  const wholeSeconds = Math.max(0, Math.round(seconds));
+  return `${Math.floor(wholeSeconds / 60)}:${String(wholeSeconds % 60).padStart(2, "0")}`;
 }
 
 function formatDayLabel(timestamp: string): string {
@@ -161,6 +182,41 @@ const typingStyles = StyleSheet.create({
 });
 
 // ─── MessageBubble ──────────────────────────────────────────────────────────
+
+function VoiceMessage({ audioUrl, duration, isMe }: { audioUrl: string; duration?: number | null; isMe: boolean }) {
+  const player = useAudioPlayer(audioUrl);
+  const status = useAudioPlayerStatus(player);
+  const shownDuration = status.duration || duration || 0;
+
+  const togglePlayback = () => {
+    if (status.playing) {
+      player.pause();
+      return;
+    }
+    if (shownDuration && status.currentTime >= shownDuration) player.seekTo(0);
+    player.play();
+  };
+
+  const progress = shownDuration > 0 ? Math.min(status.currentTime / shownDuration, 1) : 0;
+
+  return (
+    <View style={bubbleStyles.voiceRow}>
+      <Pressable onPress={togglePlayback} style={[bubbleStyles.voicePlay, { backgroundColor: isMe ? "rgba(255,255,255,0.2)" : "#FFFFFF" }]} accessibilityLabel={status.playing ? "Pause" : "Play"} accessibilityRole="button">
+        {status.playing ? <Pause size={16} color={isMe ? "#FFF" : "#0084ff"} fill={isMe ? "#FFF" : "#0084ff"} /> : <Play size={16} color={isMe ? "#FFF" : "#0084ff"} fill={isMe ? "#FFF" : "#0084ff"} style={{ marginLeft: 2 }} />}
+      </Pressable>
+      <View style={bubbleStyles.voiceDetails}>
+        <View style={[bubbleStyles.voiceTrack, { backgroundColor: isMe ? "rgba(255,255,255,0.3)" : "rgba(0,132,255,0.2)" }]}>
+          <View style={[bubbleStyles.voiceProgress, { backgroundColor: isMe ? "#FFFFFF" : "#0084ff", width: `${progress * 100}%` }]} />
+          <View style={[bubbleStyles.voiceThumb, { backgroundColor: isMe ? "#FFFFFF" : "#0084ff", left: `${progress * 100}%` }]} />
+        </View>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 6 }}>
+          <Text style={[bubbleStyles.voiceDuration, { color: isMe ? "rgba(255,255,255,0.85)" : "#4B5563" }]}>{formatDuration(status.currentTime)}</Text>
+          <Text style={[bubbleStyles.voiceDuration, { color: isMe ? "rgba(255,255,255,0.85)" : "#4B5563" }]}>{formatDuration(shownDuration)}</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
 
 function MessageBubble({
   msg,
@@ -266,6 +322,8 @@ function MessageBubble({
             />
           )}
 
+          {msg.audio_url && <VoiceMessage audioUrl={msg.audio_url} duration={msg.audio_duration} isMe={isMe} />}
+
           {/* Text */}
           {!!msg.content && (
             <Text style={[bubbleStyles.text, isMe ? bubbleStyles.textRight : bubbleStyles.textLeft]}>
@@ -368,6 +426,13 @@ const bubbleStyles = StyleSheet.create({
     left: 12,
   },
   image: { width: 200, height: 200, borderRadius: 14, marginBottom: 4 },
+  voiceRow: { width: 220, flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 4 },
+  voicePlay: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
+  voiceDetails: { flex: 1, justifyContent: "center" },
+  voiceTrack: { height: 4, borderRadius: 2, width: "100%", position: "relative" },
+  voiceProgress: { height: 4, borderRadius: 2, position: "absolute", left: 0, top: 0 },
+  voiceThumb: { width: 10, height: 10, borderRadius: 5, position: "absolute", top: -3, marginLeft: -5 },
+  voiceDuration: { fontSize: 11, fontWeight: "500", letterSpacing: 0.2 },
   text: { fontSize: 16, lineHeight: 22 },
   textRight: { color: "#FFFFFF" },
   textLeft: { color: "#111827" },
@@ -429,7 +494,27 @@ export default function ChatScreen() {
   const [replyingTo, setReplyingTo] = useState<DirectMessage | null>(null);
   const [reactingToMessage, setReactingToMessage] = useState<DirectMessage | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [isUploadingAudio, setIsUploadingAudio] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
   const [recipientTyping, setRecipientTyping] = useState(false);
+  const audioRecorder = useAudioRecorder(RecordingPresets.LOW_QUALITY);
+  const recorderState = useAudioRecorderState(audioRecorder);
+  const recordingStartedAt = useRef(0);
+  const recordingTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recordingDotOpacity = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (isRecording) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(recordingDotOpacity, { toValue: 0.2, duration: 500, useNativeDriver: true }),
+          Animated.timing(recordingDotOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
+        ])
+      ).start();
+    } else {
+      recordingDotOpacity.setValue(1);
+    }
+  }, [isRecording, recordingDotOpacity]);
 
   const { mutate: blockUser } = useBlockUserMutation();
   const { mutate: unmatchUser } = useUnmatchMutation();
@@ -541,7 +626,10 @@ export default function ChatScreen() {
   const handleSend = useCallback(() => {
     const trimmed = text.trim();
     if (!trimmed || !recipientId) return;
-    sendDirectMessage(recipientId, trimmed, undefined, replyingTo?.id);
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch {}
+    sendDirectMessage(recipientId, trimmed, undefined, undefined, undefined, replyingTo?.id);
     setText("");
     setReplyingTo(null);
     if (typingTimer.current) clearTimeout(typingTimer.current);
@@ -549,7 +637,29 @@ export default function ChatScreen() {
     sendTyping(recipientId, false);
   }, [text, recipientId, replyingTo, sendDirectMessage, sendTyping]);
 
+  const uploadAndSendImage = async (asset: ImagePicker.ImagePickerAsset) => {
+    const filename = asset.fileName || asset.uri.split("/").pop() || "photo.jpg";
+    const ext = /\.([a-zA-Z]+)$/.exec(filename)?.[1] ?? "jpeg";
+    const formData = new FormData();
+    formData.append("image", { uri: asset.uri, name: filename, type: `image/${ext}` } as any);
+    setIsUploadingImage(true);
+    try {
+      const res = await apiClient.post<{ image_url: string }>("/api/chat/upload-image/", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      sendDirectMessage(recipientId, "", res.data.image_url, undefined, undefined, replyingTo?.id);
+      setReplyingTo(null);
+    } catch {
+      Alert.alert("Upload Failed", "Couldn't upload image. Please try again.");
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
   const pickImage = async () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch {}
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
       Alert.alert("Permission needed", "We need gallery access to share photos.");
@@ -559,29 +669,93 @@ export default function ChatScreen() {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       quality: 0.7,
-      maxWidth: 1440,
-      maxHeight: 1440,
     });
     if (!result.canceled && result.assets?.length) {
-      const asset = result.assets[0];
-      const filename = asset.fileName || asset.uri.split("/").pop() || "photo.jpg";
-      const ext = /\.([a-zA-Z]+)$/.exec(filename)?.[1] ?? "jpeg";
-      const formData = new FormData();
-      formData.append("image", { uri: asset.uri, name: filename, type: `image/${ext}` } as any);
-      setIsUploadingImage(true);
-      try {
-        const res = await apiClient.post<{ image_url: string }>("/api/chat/upload-image/", formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
-        sendDirectMessage(recipientId, "", res.data.image_url, replyingTo?.id);
-        setReplyingTo(null);
-      } catch {
-        Alert.alert("Upload Failed", "Couldn't upload image. Please try again.");
-      } finally {
-        setIsUploadingImage(false);
-      }
+      await uploadAndSendImage(result.assets[0]);
     }
   };
+
+  const takePhoto = async () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch {}
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert("Permission needed", "We need camera access to take photos.");
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      quality: 0.7,
+    });
+    if (!result.canceled && result.assets?.length) {
+      await uploadAndSendImage(result.assets[0]);
+    }
+  };
+
+  const cancelRecording = useCallback(async () => {
+    if (recordingTimeout.current) clearTimeout(recordingTimeout.current);
+    setIsRecording(false);
+    try {
+      await audioRecorder.stop();
+      await setAudioModeAsync({ allowsRecording: false });
+    } catch {}
+  }, [audioRecorder]);
+
+  const stopAndSendVoice = useCallback(async () => {
+    if (recordingTimeout.current) clearTimeout(recordingTimeout.current);
+    setIsRecording(false);
+    try {
+      await audioRecorder.stop();
+      const uri = audioRecorder.uri;
+      const duration = Math.max(1, Math.round((Date.now() - recordingStartedAt.current) / 1000));
+      await setAudioModeAsync({ allowsRecording: false });
+      if (!uri) throw new Error("Recording file unavailable");
+
+      const formData = new FormData();
+      formData.append("audio", { uri, name: "voice-message.m4a", type: "audio/mp4" } as any);
+      setIsUploadingAudio(true);
+      const res = await apiClient.post<{ audio_url: string }>("/api/chat/upload-audio/", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      sendDirectMessage(recipientId, "", undefined, res.data.audio_url, duration, replyingTo?.id);
+      setReplyingTo(null);
+    } catch {
+      Alert.alert("Voice message failed", "Couldn't send the recording. Please try again.");
+    } finally {
+      setIsUploadingAudio(false);
+    }
+  }, [audioRecorder, recipientId, replyingTo, sendDirectMessage]);
+
+  const handleMicPress = async () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } catch {}
+    if (isRecording) {
+      await stopAndSendVoice();
+      return;
+    }
+    const permission = await requestRecordingPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert("Permission needed", "Allow microphone access to send voice messages.");
+      return;
+    }
+    try {
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      await audioRecorder.prepareToRecordAsync();
+      recordingStartedAt.current = Date.now();
+      audioRecorder.record();
+      setIsRecording(true);
+      recordingTimeout.current = setTimeout(() => { void stopAndSendVoice(); }, 5 * 60 * 1000);
+    } catch {
+      await setAudioModeAsync({ allowsRecording: false });
+      Alert.alert("Recording failed", "Couldn't start the microphone. Please try again.");
+    }
+  };
+
+  useEffect(() => () => {
+    if (recordingTimeout.current) clearTimeout(recordingTimeout.current);
+  }, []);
 
   // Build the flat-list data
   const rawMessages = useMemo(() => historyQuery.data ?? [], [historyQuery.data]);
@@ -679,7 +853,7 @@ export default function ChatScreen() {
           </View>
         ) : historyQuery.isError ? (
           <View style={styles.centered}>
-            <Text style={{ color: muted, marginBottom: 12 }}>Couldn't load messages.</Text>
+            <Text style={{ color: muted, marginBottom: 12 }}>Couldn&apos;t load messages.</Text>
             <Pressable onPress={() => historyQuery.refetch()}>
               <Text style={{ color: primary, fontWeight: "700" }}>Retry</Text>
             </Pressable>
@@ -724,10 +898,21 @@ export default function ChatScreen() {
 
         {/* ── Reply preview bar ── */}
         {replyingTo && (
-          <View style={[styles.replyBar, { backgroundColor: card, borderTopColor: border + "44" }]}>
-            <Reply size={16} color={primary} style={{ marginRight: 8 }} />
-            <View style={{ flex: 1, justifyContent: "center" }}>
-              <Text style={[styles.replyPreview, { color: muted }]} numberOfLines={2}>
+          <View
+            style={[
+              styles.replyBar,
+              {
+                backgroundColor: card,
+                borderLeftColor: primary,
+                borderColor: border + "35",
+              },
+            ]}
+          >
+            <View style={{ flex: 1, paddingRight: 6 }}>
+              <Text style={[styles.replyUser, { color: primary }]}>
+                Replying to {replyingTo.sender === recipientId ? recipientUsername : "You"}
+              </Text>
+              <Text style={[styles.replyPreview, { color: muted }]} numberOfLines={1}>
                 {getReplyPreviewText(replyingTo)}
               </Text>
             </View>
@@ -737,8 +922,13 @@ export default function ChatScreen() {
                 style={styles.replyThumbnail}
               />
             )}
-            <Pressable onPress={() => setReplyingTo(null)} hitSlop={10} style={{ marginLeft: 8 }}>
-              <X size={18} color={muted} />
+            <Pressable
+              onPress={() => setReplyingTo(null)}
+              hitSlop={8}
+              style={styles.replyCloseBtn}
+              accessibilityLabel="Cancel reply"
+            >
+              <X size={16} color={muted} />
             </Pressable>
           </View>
         )}
@@ -749,42 +939,115 @@ export default function ChatScreen() {
             styles.inputBar,
             {
               backgroundColor: background,
-              borderTopColor: border + "33",
-              paddingBottom: insets.bottom > 0 ? insets.bottom : 12,
+              borderTopColor: border + "28",
+              paddingBottom: Math.max(insets.bottom, 10),
             },
           ]}
         >
-          <View style={[styles.inputPill, { backgroundColor: card, borderColor: border + "55" }]}>
-            <Pressable onPress={pickImage} hitSlop={8} style={styles.pillIcon}>
-              <Paperclip size={20} color={muted} />
-            </Pressable>
-
-            <TextInput
-              ref={inputRef}
-              style={[styles.input, { color: textColor }]}
-              value={text}
-              onChangeText={handleTextChange}
-              placeholder="Message…"
-              placeholderTextColor={muted}
-              maxLength={2000}
-              returnKeyType="default"
-            />
-          </View>
-
-          <Pressable
-            onPress={handleSend}
-            disabled={!text.trim() && !isUploadingImage}
+          {/* Main Input Capsule */}
+          <View
             style={[
-              styles.sendBtn,
-              { backgroundColor: text.trim() ? "#0084ff" : card, borderColor: border + "55" },
+              styles.inputPill,
+              {
+                backgroundColor: card,
+                borderColor: border + "45",
+              },
             ]}
           >
-            {isUploadingImage ? (
-              <ActivityIndicator size="small" color="#FFF" />
+            {isRecording ? (
+              <View style={{ flex: 1, flexDirection: "row", alignItems: "center", paddingHorizontal: 12 }}>
+                <Pressable
+                  onPress={cancelRecording}
+                  hitSlop={8}
+                  style={({ pressed }) => [styles.pillIconBtn, pressed && { opacity: 0.6 }]}
+                  accessibilityLabel="Cancel recording"
+                  accessibilityRole="button"
+                >
+                  <Trash2 size={22} color={muted} />
+                </Pressable>
+                <Animated.View style={{ opacity: recordingDotOpacity, width: 8, height: 8, borderRadius: 4, backgroundColor: "#ef4444", marginLeft: 14, marginRight: 8 }} />
+                <Text style={{ color: textColor, fontWeight: "600", fontSize: 16, flex: 1 }}>{formatDuration(recorderState.durationMillis / 1000)}</Text>
+                <Text style={{ color: muted, fontSize: 14, marginRight: 4 }}>Slide to cancel</Text>
+                <ChevronLeft size={16} color={muted} />
+              </View>
             ) : (
-              <Send size={18} color={text.trim() ? "#FFF" : muted} />
+              <>
+                <Pressable
+                  onPress={pickImage}
+                  hitSlop={8}
+                  style={({ pressed }) => [styles.pillIconBtn, pressed && { opacity: 0.6 }]}
+                  accessibilityLabel="Attach photo from gallery"
+                  accessibilityRole="button"
+                >
+                  <Paperclip size={20} color={muted} />
+                </Pressable>
+
+                <TextInput
+                  ref={inputRef}
+                  style={[styles.input, { color: textColor }]}
+                  value={text}
+                  onChangeText={handleTextChange}
+                  placeholder="Message…"
+                  placeholderTextColor={muted}
+                  multiline
+                  maxLength={2000}
+                  returnKeyType="default"
+                />
+
+                {!text.trim() && (
+                  <Pressable
+                    onPress={takePhoto}
+                    hitSlop={8}
+                    style={({ pressed }) => [styles.pillIconBtn, pressed && { opacity: 0.6 }]}
+                    accessibilityLabel="Take photo with camera"
+                    accessibilityRole="button"
+                  >
+                    <Camera size={20} color={muted} />
+                  </Pressable>
+                )}
+              </>
             )}
-          </Pressable>
+          </View>
+
+          {/* Action button: Vibrant Primary Send if text/uploading, Tactile Mic if empty */}
+          {text.trim() || isUploadingImage || isUploadingAudio || isRecording ? (
+            <Pressable
+              onPress={isRecording ? stopAndSendVoice : handleSend}
+              disabled={isUploadingImage || isUploadingAudio}
+              style={({ pressed }) => [
+                styles.sendBtn,
+                {
+                  backgroundColor: primary,
+                  shadowColor: primary,
+                },
+                pressed && { transform: [{ scale: 0.94 }] },
+              ]}
+              accessibilityLabel="Send message"
+              accessibilityRole="button"
+            >
+              {isUploadingImage || isUploadingAudio ? (
+                <ActivityIndicator size="small" color="#FFF" />
+              ) : (
+                <Send size={18} color="#FFFFFF" style={{ marginLeft: 2 }} />
+              )}
+            </Pressable>
+          ) : (
+            <Pressable
+              onPress={handleMicPress}
+              style={({ pressed }) => [
+                styles.micBtn,
+                {
+                  backgroundColor: card,
+                  borderColor: border + "45",
+                },
+                pressed && { opacity: 0.7, transform: [{ scale: 0.94 }] },
+              ]}
+              accessibilityLabel="Record voice message"
+              accessibilityRole="button"
+            >
+              <Mic size={20} color={primary} />
+            </Pressable>
+          )}
         </View>
       </KeyboardAvoidingView>
 
@@ -969,17 +1232,25 @@ const styles = StyleSheet.create({
   replyBar: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderTopWidth: StyleSheet.hairlineWidth,
+    marginHorizontal: 12,
+    marginBottom: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderLeftWidth: 3.5,
   },
-  replyUser: { fontSize: 13, fontWeight: "700", marginBottom: 1 },
+  replyUser: { fontSize: 13, fontWeight: "700", marginBottom: 2 },
   replyPreview: { fontSize: 13 },
+  replyCloseBtn: {
+    padding: 4,
+    marginLeft: 6,
+  },
   // Input
   inputBar: {
     flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 10,
+    alignItems: "flex-end",
+    paddingHorizontal: 12,
     paddingTop: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
     gap: 8,
@@ -987,25 +1258,44 @@ const styles = StyleSheet.create({
   inputPill: {
     flex: 1,
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-end",
     borderRadius: 24,
     borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 0,
-    height: 44,
+    paddingHorizontal: 6,
+    paddingVertical: Platform.OS === "ios" ? 5 : 4,
+    minHeight: 46,
+    maxHeight: 120,
   },
-  pillIcon: { paddingRight: 6 },
+  pillIconBtn: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 18,
+    marginBottom: 1,
+  },
   input: {
     flex: 1,
-    fontSize: 16,
-    lineHeight: 22,
-    paddingVertical: 0,
-    paddingHorizontal: 4,
-    paddingTop: 0,
-    paddingBottom: 0,
+    fontSize: 15.5,
+    lineHeight: 20,
+    paddingHorizontal: 8,
+    paddingTop: Platform.OS === "ios" ? 8 : 6,
+    paddingBottom: Platform.OS === "ios" ? 8 : 6,
     textAlignVertical: "center",
+    maxHeight: 110,
   },
   sendBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.28,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  micBtn: {
     width: 44,
     height: 44,
     borderRadius: 22,
