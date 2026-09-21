@@ -181,6 +181,97 @@ const typingStyles = StyleSheet.create({
   dot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#9CA3AF" },
 });
 
+
+// ─── LiveWaveform (Recording Visualizer) ──────────────────────────────────
+
+function LiveWaveform({ isRecording, color }: { isRecording: boolean; color: string }) {
+  const anim1 = useRef(new Animated.Value(0.3)).current;
+  const anim2 = useRef(new Animated.Value(0.6)).current;
+  const anim3 = useRef(new Animated.Value(0.2)).current;
+  const anim4 = useRef(new Animated.Value(0.85)).current;
+  const anim5 = useRef(new Animated.Value(0.45)).current;
+
+  useEffect(() => {
+    if (!isRecording) return;
+    const makeLoop = (val: Animated.Value, high: number, low: number, duration: number) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(val, { toValue: high, duration, useNativeDriver: false }),
+          Animated.timing(val, { toValue: low, duration: duration * 0.9, useNativeDriver: false }),
+          Animated.timing(val, { toValue: (high + low) * 0.6, duration: duration * 0.75, useNativeDriver: false }),
+          Animated.timing(val, { toValue: low * 1.3, duration: duration * 1.1, useNativeDriver: false }),
+        ])
+      );
+
+    const a1 = makeLoop(anim1, 1.0, 0.2, 280);
+    const a2 = makeLoop(anim2, 0.9, 0.15, 340);
+    const a3 = makeLoop(anim3, 0.85, 0.25, 220);
+    const a4 = makeLoop(anim4, 0.95, 0.18, 300);
+    const a5 = makeLoop(anim5, 0.75, 0.22, 260);
+
+    a1.start();
+    a2.start();
+    a3.start();
+    a4.start();
+    a5.start();
+
+    return () => {
+      a1.stop();
+      a2.stop();
+      a3.stop();
+      a4.stop();
+      a5.stop();
+    };
+  }, [isRecording]);
+
+  const bars = [
+    anim1, anim3, anim2, anim5, anim4,
+    anim2, anim1, anim4, anim3, anim5,
+    anim2, anim4, anim1, anim3, anim5,
+    anim4, anim2, anim1,
+  ];
+
+  return (
+    <View style={waveformStyles.wrap}>
+      {bars.map((anim, idx) => {
+        const barH = anim.interpolate({
+          inputRange: [0, 1],
+          outputRange: [4, 22],
+        });
+        return (
+          <Animated.View
+            key={idx}
+            style={[
+              waveformStyles.bar,
+              {
+                height: barH,
+                backgroundColor: color,
+              },
+            ]}
+          />
+        );
+      })}
+    </View>
+  );
+}
+
+const waveformStyles = StyleSheet.create({
+  wrap: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 3,
+    paddingHorizontal: 6,
+    height: 30,
+  },
+  bar: {
+    width: 2.5,
+    borderRadius: 1.5,
+    opacity: 0.85,
+  },
+});
+
 // ─── MessageBubble ──────────────────────────────────────────────────────────
 
 function VoiceMessage({ audioUrl, duration, isMe }: { audioUrl: string; duration?: number | null; isMe: boolean }) {
@@ -941,6 +1032,7 @@ export default function ChatScreen() {
               backgroundColor: background,
               borderTopColor: border + "28",
               paddingBottom: Math.max(insets.bottom, 10),
+              alignItems: isRecording ? "center" : "flex-end",
             },
           ]}
         >
@@ -950,25 +1042,44 @@ export default function ChatScreen() {
               styles.inputPill,
               {
                 backgroundColor: card,
-                borderColor: border + "45",
+                borderColor: isRecording ? primary + "55" : border + "45",
+                minHeight: 48,
+                height: isRecording ? 48 : undefined,
+                paddingHorizontal: isRecording ? 8 : 6,
               },
             ]}
           >
             {isRecording ? (
-              <View style={{ flex: 1, flexDirection: "row", alignItems: "center", paddingHorizontal: 12 }}>
+              <View style={styles.recordingRow}>
+                {/* Discard button */}
                 <Pressable
-                  onPress={cancelRecording}
+                  onPress={() => {
+                    try {
+                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                    } catch {}
+                    cancelRecording();
+                  }}
                   hitSlop={8}
-                  style={({ pressed }) => [styles.pillIconBtn, pressed && { opacity: 0.6 }]}
+                  style={({ pressed }) => [
+                    styles.discardBtn,
+                    pressed && { opacity: 0.6, transform: [{ scale: 0.92 }] },
+                  ]}
                   accessibilityLabel="Cancel recording"
                   accessibilityRole="button"
                 >
-                  <Trash2 size={22} color={muted} />
+                  <Trash2 size={18} color="#EF4444" />
                 </Pressable>
-                <Animated.View style={{ opacity: recordingDotOpacity, width: 8, height: 8, borderRadius: 4, backgroundColor: "#ef4444", marginLeft: 14, marginRight: 8 }} />
-                <Text style={{ color: textColor, fontWeight: "600", fontSize: 16, flex: 1 }}>{formatDuration(recorderState.durationMillis / 1000)}</Text>
-                <Text style={{ color: muted, fontSize: 14, marginRight: 4 }}>Slide to cancel</Text>
-                <ChevronLeft size={16} color={muted} />
+
+                {/* Blinking Live Indicator + Monospace Timer */}
+                <View style={styles.recTimerWrap}>
+                  <Animated.View style={[styles.recDot, { opacity: recordingDotOpacity }]} />
+                  <Text style={[styles.recTimerText, { color: textColor }]}>
+                    {formatDuration(recorderState.durationMillis / 1000)}
+                  </Text>
+                </View>
+
+                {/* Animated soundwave visualizer */}
+                <LiveWaveform isRecording={isRecording} color={primary} />
               </View>
             ) : (
               <>
@@ -1009,26 +1120,24 @@ export default function ChatScreen() {
             )}
           </View>
 
-          {/* Action button: Vibrant Primary Send if text/uploading, Tactile Mic if empty */}
+          {/* Action button: Vibrant Primary Send if text/uploading/recording, Tactile Mic if empty */}
           {text.trim() || isUploadingImage || isUploadingAudio || isRecording ? (
             <Pressable
               onPress={isRecording ? stopAndSendVoice : handleSend}
               disabled={isUploadingImage || isUploadingAudio}
               style={({ pressed }) => [
                 styles.sendBtn,
-                {
-                  backgroundColor: primary,
-                  shadowColor: primary,
-                },
-                pressed && { transform: [{ scale: 0.94 }] },
+                { backgroundColor: primary },
+                Platform.OS === "ios" && { shadowColor: primary },
+                pressed && { transform: [{ scale: 0.94 }], opacity: 0.92 },
               ]}
-              accessibilityLabel="Send message"
+              accessibilityLabel={isRecording ? "Send voice message" : "Send message"}
               accessibilityRole="button"
             >
               {isUploadingImage || isUploadingAudio ? (
                 <ActivityIndicator size="small" color="#FFF" />
               ) : (
-                <Send size={18} color="#FFFFFF" style={{ marginLeft: 2 }} />
+                <Send size={18} color="#FFFFFF" style={{ marginLeft: 1 }} />
               )}
             </Pressable>
           ) : (
@@ -1258,13 +1367,47 @@ const styles = StyleSheet.create({
   inputPill: {
     flex: 1,
     flexDirection: "row",
-    alignItems: "flex-end",
+    alignItems: "center",
     borderRadius: 24,
     borderWidth: 1,
     paddingHorizontal: 6,
-    paddingVertical: Platform.OS === "ios" ? 5 : 4,
-    minHeight: 46,
+    paddingVertical: Platform.OS === "ios" ? 4 : 2,
+    minHeight: 48,
     maxHeight: 120,
+  },
+  recordingRow: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 4,
+    height: 44,
+  },
+  discardBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "rgba(239, 68, 68, 0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  recTimerWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginLeft: 8,
+    marginRight: 4,
+  },
+  recDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#EF4444",
+  },
+  recTimerText: {
+    fontSize: 14.5,
+    fontWeight: "700",
+    fontVariant: ["tabular-nums"],
+    letterSpacing: 0.2,
   },
   pillIconBtn: {
     width: 36,
@@ -1285,20 +1428,27 @@ const styles = StyleSheet.create({
     maxHeight: 110,
   },
   sendBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     alignItems: "center",
     justifyContent: "center",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.28,
-    shadowRadius: 4,
-    elevation: 3,
+    overflow: "hidden",
+    ...Platform.select({
+      ios: {
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   micBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
