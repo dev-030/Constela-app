@@ -1215,7 +1215,7 @@ export default function ChatScreen() {
           >
             {isRecording ? (
               <View style={styles.recordingRow}>
-                {/* Discard button */}
+                {/* Big Cancel Button with slight borders */}
                 <Pressable
                   onPress={() => {
                     try {
@@ -1223,15 +1223,19 @@ export default function ChatScreen() {
                     } catch {}
                     cancelRecording();
                   }}
-                  hitSlop={12}
+                  hitSlop={8}
                   style={({ pressed }) => [
-                    styles.discardBtn,
-                    pressed && { opacity: 0.4, transform: [{ scale: 0.9 }] },
+                    styles.cancelBtn,
+                    {
+                      borderColor: border + "85",
+                      backgroundColor: background,
+                    },
+                    pressed && { opacity: 0.6, transform: [{ scale: 0.95 }] },
                   ]}
                   accessibilityLabel="Cancel recording"
                   accessibilityRole="button"
                 >
-                  <Trash2 size={20} color="#EF4444" />
+                  <Text style={[styles.cancelBtnText, { color: "#EF4444" }]}>Cancel</Text>
                 </Pressable>
 
                 {/* Blinking Live Indicator + Monospace Timer */}
@@ -1301,7 +1305,7 @@ export default function ChatScreen() {
               {isUploadingImage || isUploadingAudio ? (
                 <ActivityIndicator size="small" color="#FFF" />
               ) : (
-                <Send size={18} color="#FFFFFF" style={{ marginLeft: 1 }} />
+                <Send size={20} color="#FFFFFF" strokeWidth={2.4} style={{ marginLeft: 2 }} />
               )}
             </Pressable>
           ) : (
@@ -1546,12 +1550,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     height: 44,
   },
-  discardBtn: {
-    width: 32,
-    height: 32,
+  cancelBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 16,
+    borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
     marginLeft: 2,
+  },
+  cancelBtnText: {
+    fontSize: 13.5,
+    fontWeight: "700",
+    letterSpacing: 0.2,
   },
   recTimerWrap: {
     flexDirection: "row",
@@ -1595,7 +1606,6 @@ const styles = StyleSheet.create({
     borderRadius: 23,
     alignItems: "center",
     justifyContent: "center",
-    overflow: "hidden",
   },
   micBtn: {
     width: 46,
