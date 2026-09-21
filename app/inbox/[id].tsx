@@ -1210,7 +1210,7 @@ export default function ChatScreen() {
                 borderColor: border + "45",
                 minHeight: 48,
                 height: isRecording ? 48 : undefined,
-                paddingHorizontal: isRecording ? 3 : 6,
+                paddingHorizontal: isRecording ? 0 : 6,
               },
             ]}
           >
@@ -1550,17 +1550,19 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 4,
-    height: 44,
+    paddingLeft: 0,
+    paddingRight: 6,
+    height: 48,
   },
   cancelBtn: {
     height: 40,
-    paddingHorizontal: 16,
+    paddingLeft: 18,
+    paddingRight: 14,
     borderRadius: 20,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
-    marginLeft: 2,
+    marginLeft: 4,
     marginRight: 6,
   },
   cancelBtnText: {
