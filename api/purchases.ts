@@ -3,12 +3,19 @@ import Purchases, {
   PurchasesOfferings,
   CustomerInfo,
   PurchasesPackage,
+  UpgradeInfo,
 } from "react-native-purchases";
 import { NativeModules } from "react-native";
+import { useProfileStore } from "@/store/profileStore";
+import { useAuthStore } from "@/store/authStore";
+import { apiClient } from "./client";
+import type { UserProfile } from "./profile";
 
 const RC_KEY = process.env.EXPO_PUBLIC_REVENUECAT_KEY ?? "";
 
 let initialized = false;
+let identityQueue: Promise<void> = Promise.resolve();
+let purchaseInProgress = false;
 
 // Check if the native RevenueCat module is actually compiled in (fails on Expo Go)
 export function isNativeModuleAvailable(): boolean {
@@ -19,22 +26,52 @@ export function isNativeModuleAvailable(): boolean {
   }
 }
 
-export function initializePurchases(userId: string) {
-  if (!RC_KEY) {
-    console.warn("[Purchases] EXPO_PUBLIC_REVENUECAT_KEY is not set. RevenueCat disabled.");
-    return;
+export function initializePurchases(userId: string): Promise<void> {
+  const run = identityQueue.catch(() => {}).then(async () => {
+    if (!RC_KEY || !isNativeModuleAvailable()) throw new Error("Store purchases are unavailable in this build.");
+    if (!useAuthStore.getState().isAuthenticated || useProfileStore.getState().profile?.id !== userId) {
+      throw new Error("Your account changed. Please try again.");
+    }
+    if (!initialized) {
+      Purchases.configure({ apiKey: RC_KEY, appUserID: userId });
+      initialized = true;
+    } else if (await Purchases.getAppUserID() !== userId) {
+      if (purchaseInProgress) throw new Error("A purchase is still in progress.");
+      await Purchases.logIn(userId);
+    }
+  });
+  identityQueue = run;
+  return run;
+}
+
+async function ensureIdentity() {
+  const id = useProfileStore.getState().profile?.id;
+  if (!id) throw new Error("Please sign in before making a purchase.");
+  await initializePurchases(id);
+  return id;
+}
+
+export async function syncSubscription(): Promise<UserProfile> {
+  const id = useProfileStore.getState().profile?.id;
+  if (!id || !useAuthStore.getState().isAuthenticated) throw new Error("Please sign in.");
+  const { data } = await apiClient.post<UserProfile>('/api/subscription/sync/');
+  if (!useAuthStore.getState().isAuthenticated || useProfileStore.getState().profile?.id !== id || data.id !== id) {
+    throw new Error("Your account changed. Please try again.");
   }
-  if (!isNativeModuleAvailable()) {
-    console.warn("[Purchases] Native RevenueCat module is not available (running in Expo Go?). Custom sandbox mock flow will be used.");
-    return;
-  }
-  if (initialized) return;
+  useProfileStore.getState().setProfile(data);
+  return data;
+}
+
+export async function restorePurchases(): Promise<CustomerInfo> {
+  const id = await ensureIdentity();
+  if (purchaseInProgress) throw new Error("A purchase is still in progress.");
+  purchaseInProgress = true;
   try {
-    Purchases.configure({ apiKey: RC_KEY, appUserID: userId });
-    initialized = true;
-    console.log("[Purchases] RevenueCat initialized for user:", userId);
-  } catch (e) {
-    console.error("[Purchases] Failed to configure Purchases:", e);
+    const info = await Purchases.restorePurchases();
+    if (useProfileStore.getState().profile?.id !== id || !useAuthStore.getState().isAuthenticated) throw new Error("Your account changed.");
+    return info;
+  } finally {
+    purchaseInProgress = false;
   }
 }
 
@@ -48,7 +85,9 @@ export function initializePurchases(userId: string) {
 export async function getOfferings(): Promise<PurchasesOffering[] | null> {
   if (!RC_KEY || !isNativeModuleAvailable()) return null;
   try {
+    const id = await ensureIdentity();
     const offerings: PurchasesOfferings = await Purchases.getOfferings();
+    if (useProfileStore.getState().profile?.id !== id || !useAuthStore.getState().isAuthenticated) return null;
     const currentId = offerings.current?.identifier;
     const all = Object.values(offerings.all ?? {});
     if (!currentId) return all;
@@ -60,26 +99,38 @@ export async function getOfferings(): Promise<PurchasesOffering[] | null> {
   }
 }
 
-export async function purchasePackage(pkg: PurchasesPackage): Promise<CustomerInfo | null> {
+export async function purchasePackage(
+  pkg: PurchasesPackage,
+  upgradeInfo?: UpgradeInfo | null
+): Promise<CustomerInfo | null> {
   if (!RC_KEY || !isNativeModuleAvailable()) {
     console.warn("[Purchases] RevenueCat not available — skipping purchase.");
     return null;
   }
+  const id = await ensureIdentity();
+  if (purchaseInProgress) throw new Error("A purchase is still in progress.");
+  purchaseInProgress = true;
   try {
-    const { customerInfo } = await Purchases.purchasePackage(pkg);
+    const { customerInfo } = await Purchases.purchasePackage(pkg, upgradeInfo);
+    if (useProfileStore.getState().profile?.id !== id || !useAuthStore.getState().isAuthenticated) throw new Error("Your account changed.");
     return customerInfo;
   } catch (e: any) {
     if (!e.userCancelled) {
-      console.error("[Purchases] Purchase failed:", e);
+      throw e;
     }
     return null;
+  } finally {
+    purchaseInProgress = false;
   }
 }
 
 export async function getCustomerInfo(): Promise<CustomerInfo | null> {
   if (!RC_KEY || !isNativeModuleAvailable()) return null;
   try {
-    return await Purchases.getCustomerInfo();
+    const id = await ensureIdentity();
+    const info = await Purchases.getCustomerInfo();
+    if (useProfileStore.getState().profile?.id !== id || !useAuthStore.getState().isAuthenticated) return null;
+    return info;
   } catch (e) {
     console.error("[Purchases] Failed to get customer info:", e);
     return null;

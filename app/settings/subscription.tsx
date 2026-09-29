@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { Text } from "@/components/ui/text";
 import { useColor } from "@/hooks/useColor";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   ChevronLeft,
@@ -20,9 +20,12 @@ import {
   X,
   Zap,
 } from "lucide-react-native";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import * as Haptics from "expo-haptics";
+import { toast } from "sonner-native";
 import {
   Alert,
+  AppState,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -38,7 +41,6 @@ import {
 } from "react-native-safe-area-context";
 import {
   SubscriptionTier,
-  useUpgradeSubscriptionMutation,
 } from "@/api/settings";
 import { useProfileStore } from "@/store/profileStore";
 import {
@@ -46,10 +48,14 @@ import {
   purchasePackage,
   isNativeModuleAvailable,
   getCustomerInfo,
+  syncSubscription,
+  restorePurchases,
 } from "@/api/purchases";
 import Purchases, {
   type CustomerInfo,
   type PurchasesPackage,
+  type UpgradeInfo,
+  PRORATION_MODE,
 } from "react-native-purchases";
 import VerificationOverlay from "@/components/VerificationOverlay";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
@@ -70,20 +76,20 @@ const PLAN_DURATION_LABEL: Record<LightPlanChoice, string> = {
 
 // Explicit identifiers for each plan, in priority order. The first match wins.
 // `premium_plus:*` / `premium_light:*` are the canonical identifiers
-// configured in RevenueCat; `$rc_*` are the legacy fallback identifiers.
+// configured in RevenueCat. Generic $rc_* package names cannot identify a tier.
 const PLUS_PACKAGE_IDS: Record<PlusPlanChoice, string[]> = {
-  "1m": ["premium_plus:monthly", "$rc_monthly"],
-  "3m": ["premium_plus:quarterly", "$rc_three_month"],
-  "6m": ["premium_plus:semiannual", "$rc_six_month"],
-  "1yr": ["premium_plus:annual", "$rc_annual"],
+  "1m": ["premium_plus:monthly", "premium_plus"],
+  "3m": ["premium_plus:quarterly"],
+  "6m": ["premium_plus:semiannual"],
+  "1yr": ["premium_plus:annual"],
   lifetime: ["premium_plus:lifetime"],
 };
 
 const LIGHT_PACKAGE_IDS: Record<LightPlanChoice, string[]> = {
-  "1m": ["premium_light:monthly", "$rc_monthly"],
-  "3m": ["premium_light:quarterly", "$rc_three_month"],
-  "6m": ["premium_light:semiannual", "$rc_six_month"],
-  "1yr": ["premium_light:annual", "$rc_annual"],
+  "1m": ["premium_light:monthly", "premium_light"],
+  "3m": ["premium_light:quarterly"],
+  "6m": ["premium_light:semiannual"],
+  "1yr": ["premium_light:annual"],
   lifetime: ["premium_light:lifetime"],
 };
 
@@ -147,6 +153,11 @@ function durationLabel(raw: string): string {
     return "1 MONTH";
   if (/lifetime|forever/.test(s)) return "LIFETIME";
 
+  // Unknown — if it's just the tier name, return empty string so fallback kicks in
+  if (/^premium_(light|plus)$/i.test(s)) {
+    return "";
+  }
+
   // Unknown — return a readable version of whatever RC gave us.
   return raw.replace(/_/g, " ").toUpperCase();
 }
@@ -184,6 +195,18 @@ function FeatureRow({
       </Text>
     </View>
   );
+}
+
+function dailyLimitLabel(limit: number | null | undefined, label: string) {
+  if (limit === undefined) return "Loading plan limit…";
+  return limit === null ? `Unlimited ${label}` : `${limit} ${label} per day`;
+}
+
+function roomLimitLabel(limit: number | null | undefined) {
+  if (limit === undefined) return "Loading room access…";
+  if (limit === null) return "Access to all chat rooms";
+  if (limit === 0) return "No chat room access";
+  return `Access to ${limit} chat ${limit === 1 ? "room" : "rooms"}`;
 }
 
 function PriceChip({
@@ -275,11 +298,13 @@ function SegmentedControl({
   onChange,
   isCurrentPlanActive,
   primaryColor,
+  labels,
 }: {
   activeTab: string;
   onChange: (value: string) => void;
   isCurrentPlanActive: (tab: string) => boolean;
   primaryColor: string;
+  labels: Record<string, string>;
 }) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -381,7 +406,7 @@ function SegmentedControl({
                 },
               ]}
             >
-              {tab}
+              {labels[tab] ?? tab}
             </Text>
             {isCurrentPlanActive(tab) && (
               <View
@@ -447,6 +472,35 @@ export default function SubscriptionScreen() {
   const { profile, fetchProfile } = useProfileStore();
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
+  const tierRules = profile?.access?.tier_rules ?? {
+    freemium: {
+      name: "Freemium",
+      daily_likes_limit: undefined,
+      daily_personal_messages_limit: undefined,
+      daily_community_messages_limit: undefined,
+      community_room_limit: 0,
+      can_see_likes: false,
+      can_undo_swipes: false,
+    },
+    light: {
+      name: "Premium Light",
+      daily_likes_limit: undefined,
+      daily_personal_messages_limit: undefined,
+      daily_community_messages_limit: undefined,
+      community_room_limit: 3,
+      can_see_likes: true,
+      can_undo_swipes: true,
+    },
+    plus: {
+      name: "Premium Plus",
+      daily_likes_limit: undefined,
+      daily_personal_messages_limit: undefined,
+      daily_community_messages_limit: undefined,
+      community_room_limit: null,
+      can_see_likes: true,
+      can_undo_swipes: true,
+    },
+  };
 
   const initialTab =
     profile?.subscription_tier === "plus"
@@ -472,25 +526,39 @@ export default function SubscriptionScreen() {
   // underlying App Store / Play Store SKU instead of the RC package id.
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
 
-  const upgradeMutation = useUpgradeSubscriptionMutation();
 
-  const currentProductId = profile?.subscription_product_id;
-  const currentTier: SubscriptionTier =
-    (profile?.subscription_tier as SubscriptionTier | undefined) ?? "freemium";
+  // Live active entitlements & tier. Evaluated immediately from RevenueCat
+  // customerInfo (and falling back to backend profile) so that UI updates
+  // on the exact same frame as purchase completion with zero delay or lag.
+  const activeEntitlements = customerInfo?.entitlements?.active ?? {};
+  const primaryEntitlement =
+    activeEntitlements.premium_plus ?? activeEntitlements.premium_light;
 
+  const currentTier: SubscriptionTier = activeEntitlements.premium_plus
+    ? "plus"
+    : activeEntitlements.premium_light
+      ? "light"
+      : (profile?.subscription_tier as SubscriptionTier | undefined) ?? "freemium";
+
+  const currentProductId =
+    primaryEntitlement?.productIdentifier || profile?.subscription_product_id;
+
+  const hasMatchAnalysis = Boolean(
+    activeEntitlements.add_on_match_analysis ||
+    profile?.has_match_analysis ||
+    profile?.access?.has_match_analysis
+  );
+
+  // 1. Initial offerings on mount
   useEffect(() => {
     getOfferings().then((all) => {
       console.log("Fetched offerings:", all);
       if (!all) return;
-      // Flatten every package across every offering, then dedupe by package
-      // identifier so a product present in multiple offerings isn't shown
-      // twice. Order is preserved (current offering first) so the first
-      // match wins.
       const seen = new Set<string>();
       const flat: PurchasesPackage[] = [];
       for (const offering of all) {
         for (const pkg of offering.availablePackages) {
-          const key = `${pkg.identifier}::${pkg.product.identifier}`;
+          const key = `${offering.identifier}::${pkg.identifier}::${pkg.product.identifier}`;
           if (seen.has(key)) continue;
           seen.add(key);
           flat.push(pkg);
@@ -498,21 +566,61 @@ export default function SubscriptionScreen() {
       }
       setPackages(flat);
     });
+  }, []);
+
+  const refreshCustomerState = useCallback(async () => {
     fetchProfile();
     if (isNativeModuleAvailable()) {
-      getCustomerInfo().then((info) => {
-        console.log(info);
-        setCustomerInfo(info);
-        setManagementURL(info?.managementURL ?? null);
-      });
+      try {
+        const info = await getCustomerInfo();
+        if (info) {
+          setCustomerInfo(info);
+          setManagementURL(info?.managementURL ?? null);
+        }
+      } catch (e) {
+        console.warn("[Subscription] Failed to refresh customer state:", e);
+      }
     }
   }, [fetchProfile]);
+
+  // 2. Refresh customer state on screen focus
+  useFocusEffect(
+    useCallback(() => {
+      void refreshCustomerState();
+    }, [refreshCustomerState])
+  );
+
+  // 3. Auto-detect when user returns to app from Google Play / Play Store Subscriptions!
+  useEffect(() => {
+    const handleAppStateChange = (nextState: string) => {
+      if (nextState === "active") {
+        void refreshCustomerState();
+      }
+    };
+    const sub = AppState.addEventListener("change", handleAppStateChange);
+    return () => sub.remove();
+  }, [refreshCustomerState]);
+
+  // 4. Live RevenueCat listener for active customer updates
+  useEffect(() => {
+    if (!isNativeModuleAvailable()) return;
+    const listener = (info: CustomerInfo) => {
+      setCustomerInfo(info);
+      setManagementURL(info?.managementURL ?? null);
+    };
+    Purchases.addCustomerInfoUpdateListener(listener);
+    return () => {
+      Purchases.removeCustomerInfoUpdateListener(listener);
+    };
+  }, []);
 
   const findPackage = (identifier: string): PurchasesPackage | undefined => {
     return packages.find(
       (p) => p.identifier === identifier || p.product.identifier === identifier,
     );
   };
+
+  const matchAnalysisPackage = findPackage("perfect_match");
 
   const findPackageForChoice = (
     tier: SubscriptionTier,
@@ -526,8 +634,16 @@ export default function SubscriptionScreen() {
     // identifiers changed.
     const ids =
       tier === "light" ? LIGHT_PACKAGE_IDS[plan] : PLUS_PACKAGE_IDS[plan];
+    const offeringId = tier === "light" ? "premium_light" : "premium_plus";
 
     for (const id of ids) {
+      const tierMatch = packages.find(
+        (p) =>
+          p.offeringIdentifier === offeringId &&
+          (p.identifier === id || p.product.identifier === id),
+      );
+      if (tierMatch) return tierMatch;
+
       const match = packages.find(
         (p) => p.identifier === id || p.product.identifier === id,
       );
@@ -554,11 +670,10 @@ export default function SubscriptionScreen() {
   const handlePurchase = async (
     tier: SubscriptionTier,
     plan: LightPlanChoice | PlusPlanChoice,
-    label: string,
   ) => {
     const pkg = findPackageForChoice(tier, plan);
     const rcPackageId =
-      pkg?.identifier ?? pkg?.product.identifier ?? `chahira_${tier}_${plan}`;
+      pkg?.product.identifier ?? "";
 
     if (pkg && rcPackageId === currentProductId) {
       Alert.alert(
@@ -568,192 +683,106 @@ export default function SubscriptionScreen() {
       return;
     }
 
-    const redundantAddons = [];
-    if (tier === "plus") {
-      if (profile?.has_advanced_filters)
-        redundantAddons.push("Advanced Filters");
-      if (profile?.has_all_chat_rooms) redundantAddons.push("All Chat Rooms");
-    } else if (tier === "light") {
-      if (profile?.has_advanced_filters)
-        redundantAddons.push("Advanced Filters");
-    }
-
     const executePurchase = async () => {
+      if (isPurchasing) return;
+      if (!pkg) {
+        toast.error("This plan is not configured in the store yet.");
+        return;
+      }
       setIsPurchasing(true);
-
-      const handleBackendUpgrade = (rcSuccess: boolean = false) => {
-        if (rcSuccess) {
-          // PRODUCTION MODE: RevenueCat succeeded!
-          // We optimistically update the UI. The secure Webhook handles the database.
-          setIsPurchasing(false);
-          useProfileStore.setState((state) => ({
-            profile: state.profile
-              ? {
-                  ...state.profile,
-                  subscription_tier: tier,
-                  subscription_product_id: rcPackageId,
-                }
-              : null,
-          }));
-          // Re-fetch the live customer info so the active-plan card reflects
-          // the new product identifier immediately (instead of waiting for
-          // the webhook to round-trip through the backend).
-          if (isNativeModuleAvailable()) {
-            getCustomerInfo().then((info) => {
-              setCustomerInfo(info);
-              setManagementURL(info?.managementURL ?? null);
-            });
-          }
-          queryClient.invalidateQueries({ queryKey: ["chatRooms"] });
-          Alert.alert("Subscription updated", `You are now on ${label}.`);
-        } else {
-          // FALLBACK MODE: No RevenueCat connected. We use the insecure mock endpoint.
-          // Best-effort: forward the RC package's price so the backend logs match
-          // what the user saw. If unavailable, send 0 — this path is dev-only.
-          const fallbackAmount = pkg?.product.price ?? 0;
-          upgradeMutation.mutate(
-            { tier, amount: fallbackAmount },
-            {
-              onSuccess: (updatedProfile) => {
-                setIsPurchasing(false);
-                useProfileStore.setState((state) => ({
-                  profile: state.profile
-                    ? {
-                        ...state.profile,
-                        ...updatedProfile,
-                        subscription_product_id: rcPackageId,
-                      }
-                    : null,
-                }));
-                queryClient.invalidateQueries({ queryKey: ["chatRooms"] });
-                Alert.alert(
-                  "Subscription updated",
-                  `You are now on ${label}. (Fallback Mode)`,
-                  [{ text: "OK", onPress: () => fetchProfile() }],
-                );
-              },
-              onError: (err: any) => {
-                setIsPurchasing(false);
-                const message =
-                  err?.response?.data?.error ||
-                  err?.response?.data?.message ||
-                  "We couldn’t process your upgrade. Please try again.";
-                Alert.alert("Upgrade failed", message);
-              },
-            },
-          );
+      let purchased = false;
+      try {
+        let upgradeInfo: UpgradeInfo | null = null;
+        if (
+          Platform.OS === "android" &&
+          currentProductId &&
+          currentProductId !== rcPackageId &&
+          (currentTier === "light" || currentTier === "plus")
+        ) {
+          upgradeInfo = {
+            oldSKU: currentProductId,
+            prorationMode: PRORATION_MODE.IMMEDIATE_WITH_TIME_PRORATION,
+          };
         }
-      };
 
-      if (pkg) {
-        const customerInfo = await purchasePackage(pkg);
-        if (customerInfo) {
-          handleBackendUpgrade(true);
-        } else {
-          // RC purchase flow returned nothing — either it failed mid-purchase
-          // or was cancelled. Surface that instead of silently re-enabling
-          // the button.
+        const info = await purchasePackage(pkg, upgradeInfo);
+        if (!info) {
           setIsPurchasing(false);
-          Alert.alert(
-            "Purchase did not complete",
-            "The store couldn't finish the purchase. Please try again.",
-          );
+          return; // User cancelled; no error or artificial access grant.
         }
-      } else {
-        handleBackendUpgrade(false);
+        purchased = true;
+        // 1. Immediately dismiss button spinner so UI has zero lag
+        setIsPurchasing(false);
+        // 2. Immediate tactile celebration!
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        // 3. Update customer info & management URL immediately
+        setCustomerInfo(info);
+        setManagementURL(info.managementURL ?? null);
+        // 4. Sleek in-app celebration toast
+        const tierTitle = tier === "plus" ? tierRules.plus.name : tierRules.light.name;
+        toast.success(`Welcome to ${tierTitle}! 🎉`, {
+          description: "Your verified subscription is now active.",
+        });
+        // 5. Background sync with backend & invalidate queries
+        void syncSubscription()
+          .then((verified) => {
+            void queryClient.invalidateQueries();
+            if (verified.subscription_tier !== tier && verified.subscription_tier !== "plus") {
+              toast.info("Store verification in progress. Access will update shortly.");
+            }
+          })
+          .catch(() => {
+            void queryClient.invalidateQueries();
+          });
+      } catch (error: any) {
+        setIsPurchasing(false);
+        const isCancel = error?.userCancelled || error?.code === "1";
+        if (purchased) {
+          toast.info("Purchase recorded. Use Restore Purchases if benefits delay.");
+        } else if (!isCancel) {
+          toast.error(error?.message || "The store could not complete your purchase.");
+        }
       }
     };
-
-    if (redundantAddons.length > 0) {
-      Alert.alert(
-        "Heads Up!",
-        `Upgrading to ${label} gives you access to ${redundantAddons.join(" and ")}! After upgrading, please remember to cancel your active add-on subscriptions in your device settings to avoid being double-billed.`,
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Continue & Upgrade",
-            onPress: executePurchase,
-            style: "default",
-          },
-        ],
-      );
-      return;
-    }
 
     await executePurchase();
   };
 
-  const handleAddonPurchase = async (rcPackageId: string, label: string) => {
-    const pkg = findPackage(rcPackageId);
-
-    console.log(`handleAddonPurchase: ${rcPackageId} (${label})`);
-
+  const handleAddonPurchase = async (label: string) => {
+    if (isPurchasing) return;
+    const pkg = matchAnalysisPackage;
+    if (!pkg) {
+      toast.error(label + " is not configured in the store yet.");
+      return;
+    }
     setIsPurchasing(true);
-    if (pkg) {
-      const customerInfo = await purchasePackage(pkg);
-      if (customerInfo) {
-        // Use whichever identifier actually came back from RC, falling back to
-        // the legacy `chahira_addon_*` strings so the backend can still match.
-        const resolvedId = pkg.identifier ?? rcPackageId;
-        let backendTier = "";
-        if (
-          resolvedId.includes("addon_filters") ||
-          resolvedId.includes("add_on_filters") ||
-          resolvedId.includes("filters_monthly")
-        )
-          backendTier = "add_on_filters";
-        else if (
-          resolvedId.includes("addon_chatrooms") ||
-          resolvedId.includes("add_on_chatrooms") ||
-          resolvedId.includes("chatrooms_monthly")
-        )
-          backendTier = "add_on_chatrooms";
-        else if (
-          resolvedId.includes("addon_match") ||
-          resolvedId.includes("add_on_perfect_match") ||
-          resolvedId.includes("match_analysis")
-        )
-          backendTier = "add_on_perfect_match";
-
-        // PRODUCTION MODE: RevenueCat succeeded.
-        // We optimistically update the UI. The secure Webhook handles the database.
+    let purchased = false;
+    try {
+      const info = await purchasePackage(pkg);
+      if (!info) {
         setIsPurchasing(false);
-        useProfileStore.setState((state) => ({
-          profile: state.profile
-            ? {
-                ...state.profile,
-                has_advanced_filters:
-                  backendTier === "add_on_filters"
-                    ? true
-                    : state.profile.has_advanced_filters,
-                has_all_chat_rooms:
-                  backendTier === "add_on_chatrooms"
-                    ? true
-                    : state.profile.has_all_chat_rooms,
-                has_match_analysis:
-                  backendTier === "add_on_perfect_match"
-                    ? true
-                    : state.profile.has_match_analysis,
-              }
-            : null,
-        }));
-        Alert.alert(
-          "Add-on activated!",
-          `${label} is now active on your account.`,
-        );
-      } else {
-        setIsPurchasing(false);
+        return;
       }
-    } else {
+      purchased = true;
       setIsPurchasing(false);
-      Alert.alert(
-        "Coming Soon",
-        `${label} will be available when connected to the store.`,
-      );
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setCustomerInfo(info);
+      toast.success("Match Analysis Unlocked! 🔬", {
+        description: "Your top 5 compatible profiles are now ready to view.",
+      });
+      void syncSubscription()
+        .then(() => queryClient.invalidateQueries())
+        .catch(() => queryClient.invalidateQueries());
+    } catch (error: any) {
+      setIsPurchasing(false);
+      const isCancel = error?.userCancelled || error?.code === "1";
+      if (!isCancel) {
+        toast.error(error?.message || "Could not complete purchase. Please try again.");
+      }
     }
   };
 
-  const isUpgrading = isPurchasing || upgradeMutation.isPending;
+  const isUpgrading = isPurchasing;
 
   const getActivePlanDetails = () => {
     // Mirror revenuecat-debug.tsx: read the live customerInfo and pick the
@@ -762,45 +791,66 @@ export default function SubscriptionScreen() {
     // subscription_product_id — that can lag the webhook or be the
     // underlying store SKU instead of the RC package id, which is why
     // this card previously always said "1 YEAR".
-    const activeEntitlements = Object.values(
-      customerInfo?.entitlements?.active ?? {},
-    );
+    const activeEntitlements = customerInfo?.entitlements?.active ?? {};
+    const primary = activeEntitlements.premium_plus ?? activeEntitlements.premium_light;
+    const targetIdentifier = primary?.productIdentifier || profile?.subscription_product_id || "";
 
-    if (activeEntitlements.length === 0) {
-      // No live entitlement. Fall back to whatever the backend tier says,
-      // so we're not blank if the SDK hasn't loaded yet.
-      const tierName =
-        currentTier === "plus"
-          ? "Premium Plus"
-          : currentTier === "light"
-            ? "Premium Light"
-            : "Freemium";
-      return { tierName, duration: "—", price: "" };
+    const tierName =
+      currentTier === "plus"
+        ? tierRules.plus.name
+        : currentTier === "light"
+          ? tierRules.light.name
+          : tierRules.freemium.name;
+
+    if (currentTier === "freemium") {
+      return { tierName, duration: "", price: "", expiresText: "" };
     }
 
-    const primary = activeEntitlements[0];
-    const { tier, duration } = formatProductIdentifier(
-      primary.productIdentifier,
-    );
+    let duration = "";
+    if (targetIdentifier) {
+      duration = formatProductIdentifier(targetIdentifier).duration;
+    }
 
-    // Look up the matching package so we can show the store-localized
-    // price. We resolve (tier, plan) from the identifier for lookup, but
-    // fall back to no price if we can't — the label is still useful.
+    // If duration is empty or just generic, match against known keywords
+    if (!duration || /^premium/i.test(duration)) {
+      const matchTarget = `${targetIdentifier} ${profile?.subscription_product_id || ""}`.toLowerCase();
+      if (/semi|6m|six/i.test(matchTarget)) duration = "6 MONTHS";
+      else if (/annual|year|12m|1y/i.test(matchTarget)) duration = "1 YEAR";
+      else if (/quarter|3m|three/i.test(matchTarget)) duration = "3 MONTHS";
+      else if (/month|1m/i.test(matchTarget)) duration = "1 MONTH";
+      else if (/lifetime/i.test(matchTarget)) duration = "LIFETIME";
+      else duration = "1 MONTH"; // Fallback for bare identifiers
+    }
+
+    // Expiration or renewal text
+    let expiresText = "";
+    const rawExp = primary?.expirationDate || profile?.subscription_expires;
+    if (rawExp) {
+      try {
+        const expDate = new Date(rawExp);
+        const willRenew = primary ? primary.willRenew : true;
+        if (willRenew) {
+          expiresText = `Renews: ${expDate.toLocaleDateString()}`;
+        } else {
+          expiresText = `Expires: ${expDate.toLocaleDateString()} (Auto-renew off)`;
+        }
+      } catch (e) {}
+    }
+
+    // Look up the matching package so we can show the store-localized price
     let price = "";
-    const activeTier: SubscriptionTier =
-      primary.identifier === "premium_light" ? "light" : "plus";
-
+    const activeTier: SubscriptionTier = currentTier;
     const planMaps = activeTier === "light" ? LIGHT_PACKAGE_IDS : PLUS_PACKAGE_IDS;
     for (const plan of Object.keys(planMaps) as (LightPlanChoice | PlusPlanChoice)[]) {
       const ids = planMaps[plan];
-      if (ids.includes(primary.productIdentifier)) {
+      if (ids.some((id) => targetIdentifier.includes(id) || (profile?.subscription_product_id && profile.subscription_product_id.includes(id)))) {
         const pkg = findPackageForChoice(activeTier, plan);
         price = pkg?.product.priceString ?? "";
         break;
       }
     }
 
-    return { tierName: tier, duration, price };
+    return { tierName, duration, price, expiresText };
   };
 
   /**
@@ -816,51 +866,51 @@ export default function SubscriptionScreen() {
 
   const handleRestore = async () => {
     if (!isNativeModuleAvailable()) {
-      Alert.alert(
-        "Restore Purchases",
-        "Restore is only available in a production build. Please use your device's App Store / Play Store subscriptions page.",
-      );
+      toast.info("Restore is available in the store production build.");
       return;
     }
     try {
       setIsPurchasing(true);
-      await Purchases.restorePurchases();
-      await fetchProfile();
-      // Refresh customer info so the active-plan card reflects the restored
-      // product, not whatever the backend had cached before the restore.
-      const info = await getCustomerInfo();
+      const info = await restorePurchases();
+      const verified = await syncSubscription();
+      await queryClient.invalidateQueries();
       setCustomerInfo(info);
       setManagementURL(info?.managementURL ?? null);
       setIsPurchasing(false);
-      Alert.alert("Success", "Your purchases have been restored.");
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (verified.subscription_tier !== "freemium" || verified.has_match_analysis) {
+        toast.success("Purchases Restored! ✅", {
+          description: "Your active subscriptions have been restored.",
+        });
+      } else {
+        toast.info("No active purchases found for this account.");
+      }
     } catch (e: any) {
       setIsPurchasing(false);
-      Alert.alert(
-        "Restore Failed",
-        e.message || "We couldn't restore your purchases.",
-      );
+      toast.error(e.message || "We couldn't restore your purchases.");
     }
   };
 
   const isProductActive = (tier: "light" | "plus", plan: string) => {
-    // Walk the same identifiers the price chips use and check whether any
-    // of them match the live SDK's productIdentifier for the active
-    // entitlement on this tier. This is what the debug screen effectively
-    // does when it shows "ACTIVE SUBSCRIPTION" — it displays the raw
-    // productIdentifier, which is the source of truth.
     const entitlementId = tier === "plus" ? "premium_plus" : "premium_light";
     const ent = customerInfo?.entitlements?.active?.[entitlementId];
-    if (ent) {
-      const ids =
-        tier === "light"
-          ? LIGHT_PACKAGE_IDS[plan as LightPlanChoice]
-          : PLUS_PACKAGE_IDS[plan as PlusPlanChoice];
-      if (ids?.includes(ent.productIdentifier)) return true;
+    
+    const ids =
+      tier === "light"
+        ? LIGHT_PACKAGE_IDS[plan as LightPlanChoice]
+        : PLUS_PACKAGE_IDS[plan as PlusPlanChoice];
+
+    // Check RevenueCat active entitlement productIdentifier first (instant live state)
+    if (ent && ids?.some((id) => ent.productIdentifier === id || ent.productIdentifier?.includes(id))) {
+      return true;
     }
 
-    // Fallback for dev/Expo Go (no native module): trust the backend
-    // tier and highlight 1yr so the UI still shows something attached.
-    return currentTier === tier && plan === "1yr";
+    // Check backend profile's subscription_product_id as fallback
+    if (currentTier === tier && profile?.subscription_product_id && ids?.some((id) => profile.subscription_product_id === id || profile.subscription_product_id?.includes(id))) {
+      return true;
+    }
+
+    return false;
   };
 
   const isCurrentPlanActive = (tab: string) => {
@@ -951,13 +1001,15 @@ export default function SubscriptionScreen() {
                   }}
                 >
                   {getActivePlanDetails().tierName}
-                </Text>
-                <Text style={{ fontSize: 13, color: muted }}>
-                  {getActivePlanDetails().duration}
-                  {getActivePlanDetails().price
-                    ? ` • ${getActivePlanDetails().price}`
+                  {getActivePlanDetails().duration
+                    ? ` • ${getActivePlanDetails().duration}`
                     : ""}
                 </Text>
+                {getActivePlanDetails().expiresText ? (
+                  <Text style={{ fontSize: 12, color: muted, marginTop: 2 }}>
+                    {getActivePlanDetails().expiresText}
+                  </Text>
+                ) : null}
               </View>
               <Pressable
                 onPress={async () => {
@@ -1004,6 +1056,11 @@ export default function SubscriptionScreen() {
             onChange={setActiveTab}
             isCurrentPlanActive={isCurrentPlanActive}
             primaryColor={primary}
+            labels={{
+              Freemium: tierRules.freemium.name,
+              "Premium Light": tierRules.light.name,
+              "Premium Plus": tierRules.plus.name,
+            }}
           />
 
           {activeTab === "Freemium" && (
@@ -1016,7 +1073,7 @@ export default function SubscriptionScreen() {
                   marginBottom: 4,
                 }}
               >
-                Freemium Access
+                {tierRules.freemium.name}
               </Text>
               <Text style={{ fontSize: 14, color: muted, marginBottom: 24 }}>
                 The basic experience.
@@ -1030,13 +1087,27 @@ export default function SubscriptionScreen() {
                   text={text}
                 />
                 <FeatureRow
-                  label="28 likes per day"
+                  label={dailyLimitLabel(tierRules.freemium.daily_likes_limit, "likes")}
                   muted={muted}
                   primary={primary}
                   text={text}
                 />
                 <FeatureRow
-                  label="1 free message/match to new profiles"
+                  label="See who liked you"
+                  available={tierRules.freemium.can_see_likes}
+                  muted={muted}
+                  primary={primary}
+                  text={text}
+                />
+                <FeatureRow
+                  label="Rewind swipes"
+                  available={tierRules.freemium.can_undo_swipes}
+                  muted={muted}
+                  primary={primary}
+                  text={text}
+                />
+                <FeatureRow
+                  label={dailyLimitLabel(tierRules.freemium.daily_personal_messages_limit, "personal messages")}
                   muted={muted}
                   primary={primary}
                   text={text}
@@ -1048,15 +1119,14 @@ export default function SubscriptionScreen() {
                   text={text}
                 />
                 <FeatureRow
-                  label="Basic filters only"
-                  available={false}
+                  label={dailyLimitLabel(tierRules.freemium.daily_community_messages_limit, "community messages")}
                   muted={muted}
                   primary={primary}
                   text={text}
                 />
                 <FeatureRow
-                  label="No chat room access"
-                  available={false}
+                  label={roomLimitLabel(tierRules.freemium.community_room_limit)}
+                  available={tierRules.freemium.community_room_limit === null || (tierRules.freemium.community_room_limit ?? 0) > 0}
                   muted={muted}
                   primary={primary}
                   text={text}
@@ -1075,7 +1145,7 @@ export default function SubscriptionScreen() {
                   marginBottom: 4,
                 }}
               >
-                Premium Light
+                {tierRules.light.name}
               </Text>
               <Text style={{ fontSize: 14, color: muted, marginBottom: 24 }}>
                 For serious, intentional browsing.
@@ -1084,30 +1154,39 @@ export default function SubscriptionScreen() {
               <View style={{ gap: 12, marginBottom: 32 }}>
                 <FeatureRow
                   label="See who liked you"
+                  available={tierRules.light.can_see_likes}
                   muted={muted}
                   primary={primary}
                   text={text}
                 />
                 <FeatureRow
-                  label="50 likes per day"
+                  label="Rewind swipes"
+                  available={tierRules.light.can_undo_swipes}
                   muted={muted}
                   primary={primary}
                   text={text}
                 />
                 <FeatureRow
-                  label="3 free messages/match to new profiles"
+                  label={dailyLimitLabel(tierRules.light.daily_likes_limit, "likes")}
                   muted={muted}
                   primary={primary}
                   text={text}
                 />
                 <FeatureRow
-                  label="Access to 3 themed chat rooms"
+                  label={dailyLimitLabel(tierRules.light.daily_personal_messages_limit, "personal messages")}
                   muted={muted}
                   primary={primary}
                   text={text}
                 />
                 <FeatureRow
-                  label="Advanced search filters"
+                  label={dailyLimitLabel(tierRules.light.daily_community_messages_limit, "community messages")}
+                  muted={muted}
+                  primary={primary}
+                  text={text}
+                />
+                <FeatureRow
+                  label={roomLimitLabel(tierRules.light.community_room_limit)}
+                  available={tierRules.light.community_room_limit === null || (tierRules.light.community_room_limit ?? 0) > 0}
                   muted={muted}
                   primary={primary}
                   text={text}
@@ -1177,7 +1256,11 @@ export default function SubscriptionScreen() {
                       findPackageForChoice("light", "6m")?.product
                         .priceString ?? ""
                     }
-                    badge={undefined}
+                    badge={
+                      isProductActive("light", "6m")
+                        ? "CURRENT PLAN"
+                        : undefined
+                    }
                     badgeColor={primary}
                     selected={lightPlan === "6m"}
                     onPress={() => setLightPlan("6m")}
@@ -1248,7 +1331,7 @@ export default function SubscriptionScreen() {
                   marginBottom: 4,
                 }}
               >
-                Premium Plus
+                {tierRules.plus.name}
               </Text>
               <Text style={{ fontSize: 14, color: muted, marginBottom: 24 }}>
                 The complete experience with total freedom.
@@ -1256,25 +1339,40 @@ export default function SubscriptionScreen() {
 
               <View style={{ gap: 12, marginBottom: 32 }}>
                 <FeatureRow
-                  label="Unlimited Likes & Messages"
+                  label={dailyLimitLabel(tierRules.plus.daily_likes_limit, "likes")}
                   muted={muted}
                   primary={primary}
                   text={text}
                 />
                 <FeatureRow
-                  label="Access to ALL Chat Rooms"
+                  label={dailyLimitLabel(tierRules.plus.daily_personal_messages_limit, "personal messages")}
                   muted={muted}
                   primary={primary}
                   text={text}
                 />
                 <FeatureRow
-                  label="See all received likes"
+                  label={dailyLimitLabel(tierRules.plus.daily_community_messages_limit, "community messages")}
                   muted={muted}
                   primary={primary}
                   text={text}
                 />
                 <FeatureRow
-                  label="Full Advanced Filter toolkit"
+                  label={roomLimitLabel(tierRules.plus.community_room_limit)}
+                  available={tierRules.plus.community_room_limit === null || (tierRules.plus.community_room_limit ?? 0) > 0}
+                  muted={muted}
+                  primary={primary}
+                  text={text}
+                />
+                <FeatureRow
+                  label="See who liked you"
+                  available={tierRules.plus.can_see_likes}
+                  muted={muted}
+                  primary={primary}
+                  text={text}
+                />
+                <FeatureRow
+                  label="Rewind swipes"
+                  available={tierRules.plus.can_undo_swipes}
                   muted={muted}
                   primary={primary}
                   text={text}
@@ -1346,7 +1444,11 @@ export default function SubscriptionScreen() {
                       findPackageForChoice("plus", "6m")?.product.priceString ??
                       ""
                     }
-                    badge={undefined}
+                    badge={
+                      isProductActive("plus", "6m")
+                        ? "CURRENT PLAN"
+                        : undefined
+                    }
                     badgeColor={primary}
                     selected={plusPlan === "6m"}
                     onPress={() => setPlusPlan("6m")}
@@ -1456,7 +1558,7 @@ export default function SubscriptionScreen() {
                     Deep compatibility insights.
                   </Text>
                 </View>
-                {profile?.has_match_analysis ? (
+                {hasMatchAnalysis ? (
                   <View
                     style={{
                       backgroundColor: "rgba(255,255,255,0.15)",
@@ -1488,7 +1590,7 @@ export default function SubscriptionScreen() {
                     <Text
                       style={{ color: "#FFF", fontWeight: "700", fontSize: 13 }}
                     >
-                      $14.99
+                      {matchAnalysisPackage?.product.priceString ?? "Unavailable"}
                     </Text>
                   </View>
                 )}
@@ -1496,7 +1598,7 @@ export default function SubscriptionScreen() {
               <View
                 style={{
                   gap: 6,
-                  marginBottom: profile?.has_perfect_match ? 0 : 16,
+                  marginBottom: 16,
                 }}
               >
                 <View
@@ -1544,20 +1646,21 @@ export default function SubscriptionScreen() {
                   </Text>
                 </View>
               </View>
-              {!profile?.has_match_analysis ? (
+              {!hasMatchAnalysis ? (
                 <Pressable
+                  disabled={!matchAnalysisPackage || isPurchasing}
+                  accessibilityState={{
+                    disabled: !matchAnalysisPackage || isPurchasing,
+                  }}
                   onPress={() =>
-                    handleAddonPurchase(
-                      "chahira_addon_match_analysis",
-                      "Perfect Match Analysis",
-                    )
+                    handleAddonPurchase("Perfect Match Analysis")
                   }
                   style={({ pressed }) => ({
-                    backgroundColor: "#FFF",
+                    backgroundColor: matchAnalysisPackage ? "#FFF" : "#D8DEDA",
                     paddingVertical: 12,
                     borderRadius: 12,
                     alignItems: "center",
-                    opacity: pressed ? 0.8 : 1,
+                    opacity: !matchAnalysisPackage ? 0.6 : pressed ? 0.8 : 1,
                   })}
                 >
                   <Text
@@ -1567,7 +1670,7 @@ export default function SubscriptionScreen() {
                       fontSize: 14,
                     }}
                   >
-                    Get Add-on
+                    {matchAnalysisPackage ? "Get Add-on" : "Currently unavailable"}
                   </Text>
                 </Pressable>
               ) : (
@@ -1594,274 +1697,6 @@ export default function SubscriptionScreen() {
               )}
             </View>
 
-            {/* Advanced Filters */}
-            <View
-              style={{
-                backgroundColor: card,
-                borderRadius: 16,
-                padding: 16,
-                marginBottom: 16,
-                borderWidth: 1,
-                borderColor: border,
-              }}
-            >
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <View
-                  style={{
-                    flex: 1,
-                    flexDirection: "row",
-                    alignItems: "center",
-                  }}
-                >
-                  <Icon
-                    name={Filter}
-                    size={20}
-                    color={text}
-                    style={{ marginRight: 10 }}
-                  />
-                  <View>
-                    <Text
-                      style={{ fontSize: 15, fontWeight: "700", color: text }}
-                    >
-                      Advanced Filters
-                    </Text>
-                    <Text style={{ fontSize: 13, color: muted, marginTop: 2 }}>
-                      Including anonymous profile.
-                    </Text>
-                  </View>
-                </View>
-                <View
-                  style={{
-                    backgroundColor: primary + "20",
-                    paddingHorizontal: 10,
-                    paddingVertical: 4,
-                    borderRadius: 8,
-                  }}
-                >
-                  <Text
-                    style={{
-                      color: primary,
-                      fontWeight: "800",
-                      fontSize: 10,
-                      letterSpacing: 0.5,
-                    }}
-                  >
-                    AVAILABLE TO ALL
-                  </Text>
-                </View>
-              </View>
-              <Pressable
-                disabled
-                style={{
-                  marginTop: 16,
-                  backgroundColor: background,
-                  borderWidth: 1,
-                  borderColor: border,
-                  paddingVertical: 12,
-                  borderRadius: 12,
-                  alignItems: "center",
-                  opacity: 0.8,
-                }}
-              >
-                <Text
-                  style={{ color: text, fontWeight: "700", fontSize: 14 }}
-                >
-                  Included with your account
-                </Text>
-              </Pressable>
-            </View>
-
-            {/* All Chat Rooms */}
-            <View
-              style={{
-                backgroundColor: card,
-                borderRadius: 16,
-                padding: 16,
-                marginBottom: 16,
-                borderWidth: 1,
-                borderColor: border,
-              }}
-            >
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <View
-                  style={{
-                    flex: 1,
-                    flexDirection: "row",
-                    alignItems: "center",
-                  }}
-                >
-                  <Icon
-                    name={MessageSquare}
-                    size={20}
-                    color={text}
-                    style={{ marginRight: 10 }}
-                  />
-                  <View>
-                    <Text
-                      style={{ fontSize: 15, fontWeight: "700", color: text }}
-                    >
-                      All Chat Rooms
-                    </Text>
-                    <Text style={{ fontSize: 13, color: muted, marginTop: 2 }}>
-                      Access all chat rooms.
-                    </Text>
-                  </View>
-                </View>
-                {activeTab === "Premium Plus" ? (
-                  <View
-                    style={{
-                      backgroundColor: primary + "20",
-                      paddingHorizontal: 10,
-                      paddingVertical: 4,
-                      borderRadius: 8,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        color: primary,
-                        fontWeight: "800",
-                        fontSize: 10,
-                        letterSpacing: 0.5,
-                      }}
-                    >
-                      INCLUDED
-                    </Text>
-                  </View>
-                ) : currentTier === "plus" || profile?.has_all_chat_rooms ? (
-                  <View
-                    style={{
-                      backgroundColor: background,
-                      paddingHorizontal: 10,
-                      paddingVertical: 4,
-                      borderRadius: 8,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        color: text,
-                        fontWeight: "800",
-                        fontSize: 10,
-                        letterSpacing: 0.5,
-                        opacity: 0.7,
-                      }}
-                    >
-                      SUBSCRIBED
-                    </Text>
-                  </View>
-                ) : (
-                  <View
-                    style={{
-                      backgroundColor: background,
-                      paddingHorizontal: 12,
-                      paddingVertical: 6,
-                      borderRadius: 12,
-                    }}
-                  >
-                    <Text
-                      style={{ color: text, fontWeight: "700", fontSize: 13 }}
-                    >
-                      $3.99/mo
-                    </Text>
-                  </View>
-                )}
-              </View>
-              {activeTab === "Premium Plus" ? (
-                <Pressable
-                  disabled
-                  style={{
-                    marginTop: 16,
-                    backgroundColor: background,
-                    borderWidth: 1,
-                    borderColor: border,
-                    paddingVertical: 12,
-                    borderRadius: 12,
-                    alignItems: "center",
-                    opacity: 0.8,
-                  }}
-                >
-                  <Text
-                    style={{ color: text, fontWeight: "700", fontSize: 14 }}
-                  >
-                    Included in {activeTab}
-                  </Text>
-                </Pressable>
-              ) : currentTier === "plus" ? (
-                <Pressable
-                  disabled
-                  style={{
-                    marginTop: 16,
-                    backgroundColor: background,
-                    borderWidth: 1,
-                    borderColor: border,
-                    paddingVertical: 12,
-                    borderRadius: 12,
-                    alignItems: "center",
-                    opacity: 0.8,
-                  }}
-                >
-                  <Text
-                    style={{ color: text, fontWeight: "700", fontSize: 14 }}
-                  >
-                    Included in your plan
-                  </Text>
-                </Pressable>
-              ) : profile?.has_all_chat_rooms ? (
-                <Pressable
-                  disabled
-                  style={{
-                    marginTop: 16,
-                    backgroundColor: background,
-                    borderWidth: 1,
-                    borderColor: border,
-                    paddingVertical: 12,
-                    borderRadius: 12,
-                    alignItems: "center",
-                    opacity: 0.8,
-                  }}
-                >
-                  <Text
-                    style={{ color: text, fontWeight: "700", fontSize: 14 }}
-                  >
-                    Subscribed
-                  </Text>
-                </Pressable>
-              ) : (
-                <Pressable
-                  onPress={() =>
-                    handleAddonPurchase(
-                      "chahira_addon_chatrooms_monthly",
-                      "All Chat Rooms",
-                    )
-                  }
-                  style={({ pressed }) => ({
-                    marginTop: 16,
-                    backgroundColor: primary,
-                    paddingVertical: 12,
-                    borderRadius: 12,
-                    alignItems: "center",
-                    opacity: pressed ? 0.8 : 1,
-                  })}
-                >
-                  <Text
-                    style={{ color: "#FFF", fontWeight: "700", fontSize: 14 }}
-                  >
-                    Get Add-on
-                  </Text>
-                </Pressable>
-              )}
-            </View>
           </View>
 
           {/* Compliance Footer */}
@@ -1941,9 +1776,9 @@ export default function SubscriptionScreen() {
                 if (selectedProductIsActive) return;
 
                 if (activeTab === "Premium Light" && lightPlan) {
-                  handlePurchase("light", lightPlan, "Premium Light");
+                  handlePurchase("light", lightPlan);
                 } else if (activeTab === "Premium Plus" && plusPlan) {
-                  handlePurchase("plus", plusPlan, "Premium Plus");
+                  handlePurchase("plus", plusPlan);
                 }
               }}
               disabled={isUpgrading || !!selectedProductIsActive}
@@ -1958,13 +1793,13 @@ export default function SubscriptionScreen() {
                 ? "Current Plan"
                 : activeTab === "Premium Light"
                   ? currentTier === "plus"
-                    ? "Downgrade to Light"
+                    ? `Downgrade to ${tierRules.light.name}`
                     : currentTier === "light"
                       ? "Change Plan"
-                      : "Upgrade to Light"
+                      : `Upgrade to ${tierRules.light.name}`
                   : currentTier === "plus"
                     ? "Change Plan"
-                    : "Go Premium Plus"}
+                    : `Go ${tierRules.plus.name}`}
             </Button>
             <Text
               style={{
