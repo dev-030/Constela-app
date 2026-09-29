@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator } from "react-native";
+import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import {
@@ -88,10 +88,9 @@ export default function OnboardingEmotionalScreen() {
         "Going Out": "casual",
       };
       if (data.lookingFor && data.lookingFor.length > 0) {
-        const mappedLookingFor = data.lookingFor.map(
-          (v) => lookingForMap[v] || v
-        );
-        formData.append("looking_for", mappedLookingFor.join(","));
+        const selected = data.lookingFor[0];
+        const mappedLookingFor = lookingForMap[selected] || selected.toLowerCase();
+        formData.append("looking_for", mappedLookingFor);
       }
 
       if (data.hasChildren)
@@ -113,6 +112,10 @@ export default function OnboardingEmotionalScreen() {
       if (data.sport) formData.append("sport", data.sport);
       if (data.eatingHabits && data.eatingHabits.length > 0)
         formData.append("eating_habits", data.eatingHabits[0]);
+      if (data.qualities && data.qualities.length > 0)
+        formData.append("qualities", JSON.stringify(data.qualities));
+      if (data.interests && data.interests.length > 0)
+        formData.append("interests", JSON.stringify(data.interests));
 
       if (!isSkipping) {
         if (rechargeMethods.length > 0)
@@ -155,8 +158,23 @@ export default function OnboardingEmotionalScreen() {
       await updateMyProfile(formData);
       await fetchProfile();
       router.push("/onboarding/verification-prompt");
-    } catch (err) {
+    } catch (err: any) {
       console.log("Failed to save onboarding data:", err);
+      let errMsg = "Failed to save profile. Please check your information.";
+      if (err?.response?.data) {
+        if (typeof err.response.data === "string") {
+          errMsg = err.response.data;
+        } else if (typeof err.response.data === "object") {
+          const firstKey = Object.keys(err.response.data)[0];
+          const val = err.response.data[firstKey];
+          if (Array.isArray(val) && val.length > 0) {
+            errMsg = `${firstKey}: ${val[0]}`;
+          } else if (typeof val === "string") {
+            errMsg = `${firstKey}: ${val}`;
+          }
+        }
+      }
+      Alert.alert("Submission Failed", errMsg);
     } finally {
       setIsSubmitting(false);
     }

@@ -1,19 +1,15 @@
-import React from "react";
-import { View, StyleSheet, ScrollView, Image, Pressable, Dimensions } from "react-native";
+import React, { useState, useMemo } from "react";
+import { View, StyleSheet, ScrollView, Pressable, Dimensions } from "react-native";
+import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { useGetProfileDetailsQuery } from "@/api/profile";
+import { useProfileStore } from "@/store/profileStore";
+import { Alert } from "react-native";
 import { useSwipeActionMutation } from "@/api/matching";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  MoreHorizontal,
   X,
-  Star,
-  Heart,
-  Gamepad2,
-  Palette,
-  Rocket,
-  Coffee,
   Lightbulb,
   VolumeX,
   CheckCircle2,
@@ -21,19 +17,24 @@ import {
 
 import { Text } from "@/components/ui/text";
 import { Icon } from "@/components/ui/icon";
-import { FilterPill } from "@/components/ui/filter-pill";
 import { useColor } from "@/hooks/useColor";
+import { useColorScheme } from "@/hooks/useColorScheme";
 import { BottomSheet, useBottomSheet } from "@/components/ui/bottom-sheet";
 import { ActionButtons } from "@/components/matches/action-buttons";
 import ManageProfileScreen from "../manage-profile";
 import { Button } from "@/components/ui/button";
-import { Avatar } from "@/components/ui/avatar";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
 
 export default function ProfileDetailScreen() {
-  const { id, name, age, photo } = useLocalSearchParams<{ id: string; name?: string; age?: string; photo?: string }>();
+  const { id, name, age, photo, is_verified } = useLocalSearchParams<{
+    id: string;
+    name?: string;
+    age?: string;
+    photo?: string;
+    is_verified?: string;
+  }>();
 
-  // Secondary fetch for heavy data
+  // Profile details cached with 5min staleTime
   const { data: fullProfile, isLoading: isLoadingFull } = useGetProfileDetailsQuery(id as string);
   const insets = useSafeAreaInsets();
   useAndroidBack();
@@ -42,16 +43,63 @@ export default function ProfileDetailScreen() {
   const muted = useColor("textMuted");
   const primary = useColor("primary");
   const cardColor = useColor("card");
+  const isDark = useColorScheme() === "dark";
   const { isVisible, open, close } = useBottomSheet();
   const swipeMutation = useSwipeActionMutation();
   const queryClient = useQueryClient();
 
-  const handleAction = (action: 'liked' | 'disliked' | 'superliked') => {
-    swipeMutation.mutate({ targetId: id as string, action: action as any }, {
-      onSuccess: () => {
-        router.back();
+  const [activePhotoIndex, setActivePhotoIndex] = useState(0);
+  const imageWidth = Dimensions.get("window").width - 40;
+
+  // Stable photos list — always keep first item stable so React never unmounts the primary image
+  const photos = useMemo(() => {
+    if (fullProfile?.photos && fullProfile.photos.length > 0) {
+      const sorted = [...fullProfile.photos].sort((a: any, b: any) => (b.is_main ? 1 : 0) - (a.is_main ? 1 : 0));
+      return sorted.map((p: any) => (typeof p === "string" ? p : p.image));
+    }
+    const fallback = photo || (fullProfile as any)?.face_selfie;
+    return fallback ? [fallback] : [];
+  }, [fullProfile?.photos, (fullProfile as any)?.face_selfie, photo]);
+
+  const handleAction = (action: "liked" | "disliked" | "superliked") => {
+    if (action !== "disliked") {
+      const currentQuota = useProfileStore.getState().profile?.access?.quotas.likes;
+      const isQuotaDepleted =
+        currentQuota?.remaining != null &&
+        currentQuota.remaining <= 0 &&
+        (!currentQuota.resets_at || new Date(currentQuota.resets_at).getTime() > Date.now());
+      if (isQuotaDepleted) {
+        Alert.alert(
+          "Daily Limit Reached",
+          "You've reached your daily like limit. Upgrade your subscription or wait until midnight to like more profiles."
+        );
+        return;
       }
-    });
+    }
+
+    swipeMutation.mutate(
+      { targetId: id as string, action: action as any },
+      {
+        onSuccess: () => {
+          router.back();
+        },
+        onError: (err: any) => {
+          const status = err?.response?.status;
+          const message =
+            err?.response?.data?.error ||
+            err?.response?.data?.message ||
+            "Something went wrong. Please try again.";
+          
+          if (status === 429 || status === 403) {
+            Alert.alert("Limit Reached", message);
+          } else if (status === 404) {
+            Alert.alert("Already decided", "You've already responded to this profile.");
+          } else {
+            Alert.alert("Action failed", message);
+          }
+        }
+      }
+    );
   };
 
   const SectionHeader = ({ title }: { title: string }) => (
@@ -62,47 +110,132 @@ export default function ProfileDetailScreen() {
     <View style={[styles.container, { backgroundColor: background }]}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <Pressable onPress={() => router.back()}>
-          <Icon name={X} size={20} color={text} />
+        <Pressable
+          style={({ pressed }) => [
+            styles.closeButton,
+            {
+              backgroundColor: isDark ? "rgba(255, 255, 255, 0.12)" : "rgba(0, 0, 0, 0.05)",
+              borderColor: isDark ? "rgba(255, 255, 255, 0.16)" : "rgba(0, 0, 0, 0.06)",
+              transform: [{ scale: pressed ? 0.92 : 1 }],
+            },
+          ]}
+          hitSlop={8}
+          onPress={() => router.back()}
+        >
+          <Icon name={X} size={18} color={text} />
         </Pressable>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+
+        <View style={styles.headerTitleWrap}>
           <Text style={styles.headerName}>
-            {fullProfile?.name || name}{(fullProfile?.age || age) ? `, ${fullProfile?.age || age}` : ""}
+            {fullProfile?.name || name}
+            {fullProfile?.age || age ? `, ${fullProfile?.age || age}` : ""}
           </Text>
-          {fullProfile?.is_verified && <CheckCircle2 size={24} color="#3B82F6" />}
+          {(fullProfile?.is_verified ?? is_verified === "true") && (
+            <CheckCircle2 size={22} color="#3B82F6" />
+          )}
         </View>
-        <View />
+
+        {/* Symmetrical spacer to ensure title stays centered */}
+        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Hero Images */}
+        {/* Hero Images - Stable container so expo-image uses memory cache with zero flicker */}
         <View style={styles.heroImageContainer}>
-          {fullProfile?.photos && fullProfile.photos.length > 0 ? (
-            <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}>
-              {fullProfile.photos.map((p: any) => (
-                <Image
-                  key={p.id}
-                  source={{ uri: p.image }}
-                  style={{ width: Dimensions.get('window').width - 40, height: Dimensions.get('window').width - 40, borderRadius: 24 }}
-                  resizeMode="cover"
+          <ScrollView
+            horizontal
+            pagingEnabled
+            nestedScrollEnabled
+            showsHorizontalScrollIndicator={false}
+            scrollEnabled={photos.length > 1}
+            onMomentumScrollEnd={(e) => {
+              const idx = Math.round(e.nativeEvent.contentOffset.x / imageWidth);
+              setActivePhotoIndex(idx);
+            }}
+            style={styles.imageScroll}
+          >
+            {photos.map((uri: string, index: number) => (
+              <Image
+                key={index === 0 ? "hero-main-photo" : `photo-${index}-${uri}`}
+                source={{ uri }}
+                style={{ width: imageWidth, height: imageWidth, borderRadius: 24 }}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                priority={index === 0 ? "high" : "normal"}
+              />
+            ))}
+          </ScrollView>
+
+          {/* Carousel Segment Indicators (story-style) */}
+          {photos.length > 1 && (
+            <View style={styles.carouselIndicators} pointerEvents="none">
+              {photos.map((_, idx) => (
+                <View
+                  key={idx}
+                  style={[
+                    styles.indicatorBar,
+                    idx === activePhotoIndex && styles.indicatorBarActive,
+                  ]}
                 />
               ))}
-            </ScrollView>
-          ) : (
-            <Image
-              source={{ uri: photo || fullProfile?.face_selfie || 'https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=800&auto=format&fit=crop' }}
-              style={{ width: Dimensions.get('window').width - 40, height: Dimensions.get('window').width - 40, borderRadius: 24 }}
-              resizeMode="cover"
-            />
+            </View>
           )}
         </View>
 
-        {isLoadingFull && (
-          <View style={{ padding: 20, alignItems: "center" }}>
-            <Text style={{ color: muted }}>Loading complete profile...</Text>
+        {/* Loading Skeleton Placeholder when not yet cached */}
+        {isLoadingFull && !fullProfile && (
+          <View style={styles.skeletonContainer}>
+            <View
+              style={[
+                styles.skeletonHeader,
+                { backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)" },
+              ]}
+            />
+            <View
+              style={[
+                styles.skeletonText,
+                { width: "45%", backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)" },
+              ]}
+            />
+
+            <View
+              style={[
+                styles.skeletonHeader,
+                { backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)", marginTop: 24 },
+              ]}
+            />
+            <View style={styles.skeletonPillRow}>
+              {[88, 130, 96, 115].map((w, i) => (
+                <View
+                  key={i}
+                  style={[
+                    styles.skeletonPill,
+                    { width: w, backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)" },
+                  ]}
+                />
+              ))}
+            </View>
+
+            <View
+              style={[
+                styles.skeletonHeader,
+                { backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)", marginTop: 24 },
+              ]}
+            />
+            <View style={styles.skeletonPillRow}>
+              {[105, 95, 140].map((w, i) => (
+                <View
+                  key={i}
+                  style={[
+                    styles.skeletonPill,
+                    { width: w, backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)" },
+                  ]}
+                />
+              ))}
+            </View>
           </View>
         )}
 
@@ -116,7 +249,7 @@ export default function ProfileDetailScreen() {
                   <Text style={[styles.pillText, { color: "#006064" }]}>{label}</Text>
                 </View>
               ))}
-              {fullProfile.is_neurodivergent && (
+              {(fullProfile as any)?.is_neurodivergent && (
                 <View style={[styles.pill, { backgroundColor: "#B2DFDB" }]}>
                   <Text style={[styles.pillText, { color: "#004D40" }]}>i'm neurodivergent</Text>
                 </View>
@@ -125,8 +258,7 @@ export default function ProfileDetailScreen() {
           </>
         )}
 
-        {/* Bio */}
-        {/* Note: Bio doesn't exist on the backend yet, but we can show looking_for or relationship goals */}
+        {/* Bio / Looking For */}
         {fullProfile?.looking_for && (
           <>
             <SectionHeader title="LOOKING FOR" />
@@ -192,8 +324,8 @@ export default function ProfileDetailScreen() {
                   <Icon name={VolumeX} size={20} color={text} />
                   <Text style={[styles.sensoryText, { color: text }]}>{trigger}</Text>
                 </View>
-                <View style={[styles.checkCircle, { backgroundColor: '#FFEBEE' }]}>
-                  <Text style={[styles.checkIcon, { color: '#C62828' }]}>✕</Text>
+                <View style={[styles.checkCircle, { backgroundColor: "#FFEBEE" }]}>
+                  <Text style={[styles.checkIcon, { color: "#C62828" }]}>✕</Text>
                 </View>
               </View>
             ))}
@@ -204,7 +336,7 @@ export default function ProfileDetailScreen() {
       </ScrollView>
 
       {/* Floating Action Buttons */}
-      {(fullProfile?.connection_status === 'match' || fullProfile?.connection_status === 'friend') ? (
+      {fullProfile?.connection_status === "match" || fullProfile?.connection_status === "friend" ? (
         <View
           style={[styles.fabContainer, { paddingBottom: insets.bottom || 24, backgroundColor: background }]}
         >
@@ -213,9 +345,9 @@ export default function ProfileDetailScreen() {
       ) : (
         <View style={[styles.fabContainer, { paddingBottom: insets.bottom, backgroundColor: background }]}>
           <ActionButtons
-            onReject={() => handleAction('disliked')}
-            onSuper={() => handleAction('superliked')}
-            onLike={() => handleAction('liked')}
+            onReject={() => handleAction("disliked")}
+            onSuper={() => handleAction("superliked")}
+            onLike={() => handleAction("liked")}
             disabled={swipeMutation.isPending}
             likePending={swipeMutation.isPending}
           />
@@ -242,12 +374,28 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingBottom: 16,
   },
+  closeButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+  },
+  headerTitleWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
   headerName: {
-    fontSize: 24,
-    fontWeight: "bold",
+    fontSize: 22,
+    fontWeight: "700",
+  },
+  headerSpacer: {
+    width: 38,
   },
   scrollContent: {
     paddingHorizontal: 20,
@@ -256,14 +404,36 @@ const styles = StyleSheet.create({
   heroImageContainer: {
     width: "100%",
     aspectRatio: 1,
-    marginBottom: 24,
+    marginBottom: 20,
+    position: "relative",
+  },
+  imageScroll: {
+    borderRadius: 24,
+  },
+  carouselIndicators: {
+    position: "absolute",
+    top: 12,
+    left: 14,
+    right: 14,
+    flexDirection: "row",
+    gap: 6,
+    zIndex: 10,
+  },
+  indicatorBar: {
+    flex: 1,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: "rgba(255, 255, 255, 0.4)",
+  },
+  indicatorBarActive: {
+    backgroundColor: "#FFFFFF",
   },
   sectionTitle: {
     fontSize: 12,
     fontWeight: "bold",
     letterSpacing: 1,
     marginBottom: 12,
-    marginTop: 24,
+    marginTop: 22,
   },
   pillRow: {
     flexDirection: "row",
@@ -327,6 +497,28 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "bold",
   },
+  skeletonContainer: {
+    paddingTop: 8,
+  },
+  skeletonHeader: {
+    width: 90,
+    height: 12,
+    borderRadius: 6,
+    marginBottom: 12,
+  },
+  skeletonText: {
+    height: 20,
+    borderRadius: 6,
+  },
+  skeletonPillRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  skeletonPill: {
+    height: 34,
+    borderRadius: 18,
+  },
   fabContainer: {
     position: "absolute",
     bottom: 0,
@@ -336,25 +528,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     gap: 16,
-    // Gradient overlay could go here, but transparent background for now
-  },
-  fab: {
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  fabSmall: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-  },
-  fabLarge: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
   },
 });

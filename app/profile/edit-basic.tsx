@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, TextInput, Alert, ActivityIndicator, Platform } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, TextInput, Alert, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ChevronLeft, Camera, X } from 'lucide-react-native';
@@ -12,10 +12,11 @@ import { Button } from '@/components/ui/button';
 import { FilterPill } from '@/components/ui/filter-pill';
 import { useColor } from '@/hooks/useColor';
 import { useProfileStore } from '@/store/profileStore';
-import { updateMyProfile, checkUsernameAvailability, uploadProfilePhoto, deleteProfilePhoto } from '@/api/profile';
+import { updateMyProfile } from '@/api/profile';
 import { useCheckUsernameQuery } from '@/api/auth';
 import { useAuthStore } from '@/store/authStore';
 import { useAndroidBack } from '@/hooks/useAndroidBack';
+import { API_URL } from '@/constants/config';
 
 const reverseGenderMap: Record<string, string> = {
   woman: "Woman",
@@ -55,7 +56,7 @@ export default function EditBasicScreen() {
   const primary = useColor('primary');
   const border = useColor('border');
 
-  const { profile, fetchProfile } = useProfileStore();
+  const { profile, fetchProfile, setProfile } = useProfileStore();
 
   useEffect(() => {
     if (!profile) fetchProfile();
@@ -159,8 +160,6 @@ export default function EditBasicScreen() {
       allowsEditing: true,
       aspect: [4, 5],
       quality: 0.7,
-      maxWidth: 1080,
-      maxHeight: 1350,
     });
     if (!result.canceled && result.assets && result.assets.length > 0) {
       if (indexToReplace !== undefined) {
@@ -212,13 +211,9 @@ export default function EditBasicScreen() {
 
       if (deletedPhotos.length > 0) {
         const { accessToken } = useAuthStore.getState();
-        const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
-        const baseUrl = API_URL.includes('localhost') && Platform.OS === 'android' 
-          ? API_URL.replace('localhost', '10.0.2.2')
-          : API_URL;
-          
+
         await Promise.all(deletedPhotos.map(photoId => 
-          fetch(`${baseUrl}/api/photos/${photoId}/`, {
+          fetch(`${API_URL}/api/photos/${photoId}/`, {
             method: 'DELETE',
             headers: {
               'Authorization': `Bearer ${accessToken}`,
@@ -240,10 +235,13 @@ export default function EditBasicScreen() {
         }
       });
 
-      await updateMyProfile(formData);
-      await fetchProfile();
+      const updated = await updateMyProfile(formData);
+      if (updated) {
+        setProfile(updated);
+      }
+      fetchProfile().catch(console.error);
       router.back();
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
             let errMsg = "Failed to save profile";
       if (error?.response?.data && typeof error.response.data === "object") {
@@ -342,6 +340,23 @@ export default function EditBasicScreen() {
           ) : null}
         </View>
 
+        <View style={styles.formGroup}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <Text style={[styles.inputLabel, { marginBottom: 0 }]}>Email</Text>
+            <Pressable onPress={() => router.push('/settings/email')} hitSlop={8}>
+              <Text style={{ fontSize: 13, color: primary, fontWeight: '600' }}>Change Email</Text>
+            </Pressable>
+          </View>
+          <View style={[styles.inputContainer, { borderColor: border, backgroundColor: cardColor, opacity: 0.8 }]}>
+            <TextInput
+              style={[styles.inputValue, { color: muted }]}
+              value={profile?.user?.email || (profile as any)?.email || ''}
+              editable={false}
+              placeholderTextColor={muted}
+            />
+          </View>
+        </View>
+
         <View style={{ flexDirection: 'row', gap: 12 }}>
           <View style={[styles.formGroup, { flex: 1 }]}>
             <Text style={styles.inputLabel}>Age *</Text>
@@ -383,21 +398,21 @@ export default function EditBasicScreen() {
         <Text style={styles.inputLabel}>Gender *</Text>
         <View style={styles.pillRow}>
           {['Non-Binary', 'Man', 'Woman', 'Other'].map(item => (
-            <FilterPill key={item} label={item} selected={gender === item} onPress={() => setGender(item)} style={gender !== item && { backgroundColor: 'transparent', borderWidth: 1, borderColor: border }} />
+            <FilterPill key={item} label={item} selected={gender === item} onPress={() => setGender(item)} />
           ))}
         </View>
 
         <Text style={[styles.inputLabel, { marginTop: 16 }]}>Looking for *</Text>
         <View style={styles.pillRow}>
           {['Friendship', 'Serious Relationship', 'We\'ll See', 'Going Out'].map(item => (
-            <FilterPill key={item} label={item} selected={lookingFor === item} onPress={() => setLookingFor(item)} style={lookingFor !== item && { backgroundColor: 'transparent', borderWidth: 1, borderColor: border }} />
+            <FilterPill key={item} label={item} selected={lookingFor === item} onPress={() => setLookingFor(item)} />
           ))}
         </View>
 
         <Text style={[styles.inputLabel, { marginTop: 16 }]}>Marital Status *</Text>
         <View style={styles.pillRow}>
           {['single', 'married', 'divorced', 'widowed'].map(item => (
-            <FilterPill key={item} label={item} selected={maritalStatus === item} onPress={() => setMaritalStatus(item)} style={maritalStatus !== item && { backgroundColor: 'transparent', borderWidth: 1, borderColor: border }} />
+            <FilterPill key={item} label={item} selected={maritalStatus === item} onPress={() => setMaritalStatus(item)} />
           ))}
         </View>
 
@@ -421,7 +436,7 @@ export default function EditBasicScreen() {
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom || 24, backgroundColor: background }]}>
-        <Button onPress={handleSave} style={[styles.saveBtn, !canSave && { opacity: 0.5 }]} disabled={isSaving || !canSave}>
+        <Button onPress={handleSave} style={[styles.saveBtn, ...(!canSave ? [{ opacity: 0.5 }] : [])]} disabled={isSaving || !canSave}>
           {isSaving ? <ActivityIndicator color="#FFF" /> : "Save Changes"}
         </Button>
       </View>

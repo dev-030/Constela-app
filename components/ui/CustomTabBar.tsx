@@ -3,16 +3,14 @@ import {
   View,
   Pressable,
   StyleSheet,
-  Dimensions,
-  Platform,
   Text,
+  useWindowDimensions,
 } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColor } from '@/hooks/useColor';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
-const { width } = Dimensions.get('window');
 const SCREEN_CORNER_RADIUS = 44;
 const GAP = 4;
 
@@ -23,6 +21,9 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
 
   const primary = useColor('primary');
   const inactiveColor = useColor('tabIconDefault');
+  const { width } = useWindowDimensions();
+  const isCompact = width < 375;
+  const iconCircleSize = isCompact ? 44 : 52;
 
   // Active icon circle background — matches reference image exactly
   const activeCircleBg = isDark ? '#3A3A3C' : '#F0F0F0';
@@ -55,7 +56,7 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
       ]}
     >
       {/* Tab icons + labels row */}
-      <View style={styles.tabRow}>
+      <View style={[styles.tabRow, isCompact && styles.compactTabRow]}>
         {state.routes.map((route, index) => {
           const { options } = descriptors[route.key];
           const label =
@@ -90,26 +91,27 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
               accessibilityRole="button"
               accessibilityState={isFocused ? { selected: true } : {}}
               accessibilityLabel={options.tabBarAccessibilityLabel}
-              testID={options.tabBarTestID}
               onPress={onPress}
               onLongPress={onLongPress}
-              style={styles.tab}
+              style={[styles.tab, isCompact && styles.compactTab]}
             >
               {/* Circle highlight only for active tab */}
               <View
                 style={[
                   styles.iconCircle,
+                  { width: iconCircleSize, height: iconCircleSize, borderRadius: iconCircleSize / 2 },
                   isFocused && { backgroundColor: activeCircleBg },
                 ]}
               >
                 {options.tabBarIcon &&
-                  options.tabBarIcon({ focused: isFocused, color: iconColor, size: 24 })}
+                  options.tabBarIcon({ focused: isFocused, color: iconColor, size: isCompact ? 21 : 24 })}
               </View>
               <Text
                 style={[
                   styles.label,
                   { color: labelColor },
                   isFocused && styles.labelActive,
+                  isCompact && styles.compactLabel,
                 ]}
                 numberOfLines={1}
               >
@@ -144,6 +146,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 5,
   },
+  compactTabRow: {
+    paddingTop: 7,
+    paddingBottom: 7,
+  },
+  compactTab: {
+    gap: 3,
+  },
   // Perfect circle — width === height, borderRadius = half
   iconCircle: {
     width: 52,
@@ -159,5 +168,8 @@ const styles = StyleSheet.create({
   },
   labelActive: {
     fontWeight: '700',
+  },
+  compactLabel: {
+    fontSize: 10,
   },
 });

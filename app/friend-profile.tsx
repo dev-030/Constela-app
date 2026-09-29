@@ -1,5 +1,5 @@
 import React from "react";
-import { View, StyleSheet, ScrollView, Image, Pressable, Dimensions } from "react-native";
+import { View, StyleSheet, ScrollView, Image, Pressable, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import {
@@ -33,6 +33,8 @@ export default function FriendProfileScreen() {
   const muted = useColor("textMuted");
   const primary = useColor("primary");
   const { isVisible, open, close } = useBottomSheet();
+  const { width } = useWindowDimensions();
+  const heroSize = Math.max(0, width - 40);
 
   const SectionHeader = ({ title }: { title: string }) => (
     <Text style={styles.sectionTitle}>{title}</Text>
@@ -57,7 +59,7 @@ export default function FriendProfileScreen() {
       >
         {/* Hero Image */}
         <View style={styles.heroImageContainer}>
-          <Avatar uri={null} size={Dimensions.get('window').width - 40} style={{ borderRadius: 24 }} />
+          <Avatar uri={null} size={heroSize} style={{ borderRadius: 24 }} />
         </View>
 
         {/* Neurotype */}
@@ -137,7 +139,10 @@ export default function FriendProfileScreen() {
       <View
         style={[styles.fabContainer, { paddingBottom: insets.bottom || 24, backgroundColor: background }]}
       >
-        <Button onPress={() => router.push("/inbox/12")}>Message</Button>
+        <Button onPress={() => router.push({
+          pathname: "/inbox/[id]",
+          params: { id: "12" },
+        })}>Message</Button>
         <Button>Add Friend</Button>
       </View>
 

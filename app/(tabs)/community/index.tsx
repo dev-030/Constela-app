@@ -7,13 +7,31 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  TextInput,
   View,
   Alert,
 } from "react-native";
 import { useColorScheme } from "@/hooks/useColorScheme";
-import { useEffect, useState } from "react";
-import { Search, Zap, Lock, Users } from "lucide-react-native";
+import { useEffect, useRef, useState } from "react";
+import {
+  Zap,
+  Lock,
+  Users,
+  Sparkles,
+  MessageCircle,
+  Film,
+  Cloud,
+  Compass,
+  Gamepad2,
+  Music,
+  Palette,
+  BookOpen,
+  Coffee,
+  Dumbbell,
+  Heart,
+  Leaf,
+  Brain,
+} from "lucide-react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { LinearGradient } from "expo-linear-gradient";
 import Header from "../../../components/header";
 import VerificationOverlay from "@/components/VerificationOverlay";
@@ -23,10 +41,10 @@ import {
   isPremiumRequiredError,
   useChatRoomsQuery,
   useJoinRoomMutation,
-  useLeaveRoomMutation,
 } from "@/api/chat";
-
-const SEARCH_DEBOUNCE_MS = 300;
+import { canAccessCommunity } from "@/api/profile";
+import { syncSubscription } from "@/api/purchases";
+import { useProfileStore } from "@/store/profileStore";
 
 // Cycle accent palettes so each room card has a distinctive visual identity.
 // Mirrors the per-card backgrounds/borders/accent/badge styling in the original mock.
@@ -35,25 +53,37 @@ const ROOM_PALETTES = [
     background: "#F5EFFD",
     border: "#E4D8FF",
     accent: "#7545E8",
-    badge: "#B069CB",
+    badge: "#7545E8",
   },
   {
     background: "#F0FAF7",
-    border: "#DCD8FF",
-    accent: "#2E735F",
-    badge: "#DFF7F0",
+    border: "#BCEBDC",
+    accent: "#0D7A5F",
+    badge: "#0D7A5F",
   },
   {
     background: "#FFF9EF",
-    border: "#EBD6FF",
-    accent: "#A14600",
-    badge: "#FFF2CD",
+    border: "#FDE68A",
+    accent: "#C25E00",
+    badge: "#D97706",
   },
   {
-    background: "#F7FCF3",
-    border: "#E1D1FF",
-    accent: "#2E735F",
-    badge: "#B069CB",
+    background: "#FFF1F2",
+    border: "#FECDD3",
+    accent: "#E11D48",
+    badge: "#E11D48",
+  },
+  {
+    background: "#F0F9FF",
+    border: "#BAE6FD",
+    accent: "#0284C7",
+    badge: "#0284C7",
+  },
+  {
+    background: "#F5F3FF",
+    border: "#DDD6FE",
+    accent: "#6D28D9",
+    badge: "#6D28D9",
   },
 ];
 
@@ -65,46 +95,236 @@ function formatMemberCount(count: number): string {
   return String(count);
 }
 
+function getRoomIcon(name: string) {
+  const upper = name.toUpperCase();
+
+  // Gaming, Coding & Tech
+  if (
+    upper.includes("GAME") ||
+    upper.includes("PLAY") ||
+    upper.includes("PIXEL") ||
+    upper.includes("ARCADE") ||
+    upper.includes("CODE") ||
+    upper.includes("TECH") ||
+    upper.includes("GEEK") ||
+    upper.includes("NERD") ||
+    upper.includes("CONSOLE") ||
+    upper.includes("DEV")
+  ) {
+    return <Gamepad2 size={20} color="#FFFFFF" strokeWidth={2.4} />;
+  }
+
+  // Music, Sound & Instruments
+  if (
+    upper.includes("MUSIC") ||
+    upper.includes("SONG") ||
+    upper.includes("BEAT") ||
+    upper.includes("AUDIO") ||
+    upper.includes("BAND") ||
+    upper.includes("JAZZ") ||
+    upper.includes("ROCK") ||
+    upper.includes("MELODY") ||
+    upper.includes("TUNE") ||
+    upper.includes("RHYTHM") ||
+    upper.includes("SOUND")
+  ) {
+    return <Music size={20} color="#FFFFFF" strokeWidth={2.4} />;
+  }
+
+  // Art, Crafting & Design
+  if (
+    upper.includes("ART") ||
+    upper.includes("DRAW") ||
+    upper.includes("PAINT") ||
+    upper.includes("DESIGN") ||
+    upper.includes("CRAFT") ||
+    upper.includes("SKETCH") ||
+    upper.includes("COLOR") ||
+    upper.includes("CREATIVE") ||
+    upper.includes("STUDIO")
+  ) {
+    return <Palette size={20} color="#FFFFFF" strokeWidth={2.4} />;
+  }
+
+  // Books, Reading, Writing & Poetry
+  if (
+    upper.includes("BOOK") ||
+    upper.includes("READ") ||
+    upper.includes("WRITE") ||
+    upper.includes("NOVEL") ||
+    upper.includes("STORY") ||
+    upper.includes("POEM") ||
+    upper.includes("POET") ||
+    upper.includes("LIBRARY") ||
+    upper.includes("LIT") ||
+    upper.includes("STUDY")
+  ) {
+    return <BookOpen size={20} color="#FFFFFF" strokeWidth={2.4} />;
+  }
+
+  // Food, Drinks, Cooking & Coffee
+  if (
+    upper.includes("COFFEE") ||
+    upper.includes("TEA") ||
+    upper.includes("CAFE") ||
+    upper.includes("FOOD") ||
+    upper.includes("COOK") ||
+    upper.includes("BAKE") ||
+    upper.includes("EAT") ||
+    upper.includes("RECIPE") ||
+    upper.includes("BREW") ||
+    upper.includes("KITCHEN")
+  ) {
+    return <Coffee size={20} color="#FFFFFF" strokeWidth={2.4} />;
+  }
+
+  // Fitness, Gym, Sports & Movement
+  if (
+    upper.includes("FIT") ||
+    upper.includes("GYM") ||
+    upper.includes("SPORT") ||
+    upper.includes("WORKOUT") ||
+    upper.includes("RUN") ||
+    upper.includes("YOGA") ||
+    upper.includes("HEALTH") ||
+    upper.includes("HIKE") ||
+    upper.includes("ATHLET")
+  ) {
+    return <Dumbbell size={20} color="#FFFFFF" strokeWidth={2.4} />;
+  }
+
+  // Movies, TV, Cinema & Shows
+  if (
+    upper.includes("FILM") ||
+    upper.includes("MOVIE") ||
+    upper.includes("CINEMA") ||
+    upper.includes("PEDIA") ||
+    upper.includes("ANIME") ||
+    upper.includes("SHOW") ||
+    upper.includes("SERIES") ||
+    upper.includes("WATCH") ||
+    upper.includes("TV") ||
+    upper.includes("STREAM")
+  ) {
+    return <Film size={20} color="#FFFFFF" strokeWidth={2.4} />;
+  }
+
+  // Nature, Plants, Flowers & Outdoors
+  if (
+    upper.includes("FLOWER") ||
+    upper.includes("GARDEN") ||
+    upper.includes("NATURE") ||
+    upper.includes("PLANT") ||
+    upper.includes("FOREST") ||
+    upper.includes("GREEN") ||
+    upper.includes("TREE") ||
+    upper.includes("EARTH") ||
+    upper.includes("BOTANY")
+  ) {
+    return <Leaf size={20} color="#FFFFFF" strokeWidth={2.4} />;
+  }
+
+  // Calm, Relaxation, Sleep & Sanctuary
+  if (
+    upper.includes("SANCTUARY") ||
+    upper.includes("CALM") ||
+    upper.includes("ZEN") ||
+    upper.includes("PEACE") ||
+    upper.includes("REST") ||
+    upper.includes("SLEEP") ||
+    upper.includes("SOOTHE") ||
+    upper.includes("COZY") ||
+    upper.includes("MEDITAT") ||
+    upper.includes("RECHARGE") ||
+    upper.includes("BREATHE")
+  ) {
+    return <Cloud size={20} color="#FFFFFF" fill="#FFFFFF" strokeWidth={2.4} />;
+  }
+
+  // Neurodiversity, Psychology & Mind
+  if (
+    upper.includes("ADHD") ||
+    upper.includes("AUTIS") ||
+    upper.includes("AUDHD") ||
+    upper.includes("ASPIE") ||
+    upper.includes("NEURO") ||
+    upper.includes("BRAIN") ||
+    upper.includes("MIND") ||
+    upper.includes("PSYCH") ||
+    upper.includes("HPI") ||
+    upper.includes("HSP") ||
+    upper.includes("SENSORY") ||
+    upper.includes("MASK")
+  ) {
+    return <Brain size={20} color="#FFFFFF" strokeWidth={2.4} />;
+  }
+
+  // Friendship, Love, Dating & Support
+  if (
+    upper.includes("LOVE") ||
+    upper.includes("DATE") ||
+    upper.includes("HEART") ||
+    upper.includes("FRIEND") ||
+    upper.includes("BOND") ||
+    upper.includes("CARE") ||
+    upper.includes("SAFE") ||
+    upper.includes("WARM") ||
+    upper.includes("SUPPORT")
+  ) {
+    return <Heart size={20} color="#FFFFFF" fill="#FFFFFF" strokeWidth={2.4} />;
+  }
+
+  // Socializing, Talking & Chatting
+  if (
+    upper.includes("CHAT") ||
+    upper.includes("TALK") ||
+    upper.includes("BOX") ||
+    upper.includes("SPEAK") ||
+    upper.includes("LOUNGE") ||
+    upper.includes("VOICE") ||
+    upper.includes("CORNER") ||
+    upper.includes("HUB") ||
+    upper.includes("CONVERS") ||
+    upper.includes("MEET")
+  ) {
+    return <MessageCircle size={20} color="#FFFFFF" fill="#FFFFFF" strokeWidth={2.4} />;
+  }
+
+  // Magic, Stars & Special Interests
+  if (
+    upper.includes("SPARK") ||
+    upper.includes("MAGIC") ||
+    upper.includes("STAR") ||
+    upper.includes("COSMIC") ||
+    upper.includes("ASTRO") ||
+    upper.includes("CONSTELA") ||
+    upper.includes("SPACE") ||
+    upper.includes("GALAXY") ||
+    upper.includes("FANTASY")
+  ) {
+    return <Sparkles size={20} color="#FFFFFF" fill="#FFFFFF" strokeWidth={2.4} />;
+  }
+
+  // Exploration, Travel & Quest
+  if (
+    upper.includes("THINK") ||
+    upper.includes("IDEA") ||
+    upper.includes("JOURNEY") ||
+    upper.includes("COMPASS") ||
+    upper.includes("QUEST") ||
+    upper.includes("EXPLOR") ||
+    upper.includes("DISCOVER")
+  ) {
+    return <Compass size={20} color="#FFFFFF" strokeWidth={2.4} />;
+  }
+
+  // Universal Fallback
+  return <Zap size={20} color="#FFFFFF" fill="#FFFFFF" strokeWidth={2.4} />;
+}
+
 function GroupBadge({ name, badge }: { name: string; badge: string }) {
   const colorScheme = useColorScheme();
   const borderColor = colorScheme === "dark" ? "#121212" : "#FFFFFF";
-
-  // Derive a simple icon hint from the room name. Falls back to the Zap glyph.
-  const upper = name.toUpperCase();
-  if (upper.includes("SANCTUARY")) {
-    return (
-      <View
-        style={[
-          styles.badgeCircle,
-          { backgroundColor: badge, borderColor },
-        ]}
-      >
-        <Text style={styles.sanctuaryIcon}>☁</Text>
-        <Text style={styles.badgeTinyText}>SANCTUARY</Text>
-      </View>
-    );
-  }
-  if (upper.includes("HPI")) {
-    return (
-      <View
-        style={[
-          styles.badgeCircle,
-          { backgroundColor: badge, borderColor },
-        ]}
-      >
-        <Text style={styles.hpiIcon}>◉</Text>
-        <Text style={styles.badgeTinyText}>HPI COMMUNITY</Text>
-      </View>
-    );
-  }
-
-  // Default — extract a short acronym (up to 5 chars) for the badge label.
-  const acronym = name
-    .split(/\s+/)
-    .map((word) => word[0])
-    .join("")
-    .slice(0, 5)
-    .toUpperCase();
 
   return (
     <View
@@ -113,10 +333,7 @@ function GroupBadge({ name, badge }: { name: string; badge: string }) {
         { backgroundColor: badge, borderColor },
       ]}
     >
-      <View style={styles.badgeInner}>
-        <Zap size={17} color="#F6F0FF" fill="#F6F0FF" strokeWidth={2.4} />
-        <Text style={styles.badgeTinyText}>{acronym || "ROOM"}</Text>
-      </View>
+      {getRoomIcon(name)}
     </View>
   );
 }
@@ -125,23 +342,19 @@ function GroupCard({
   room,
   index,
   onJoin,
-  onLeave,
   onOpen,
   joinPending,
-  leavePending,
 }: {
   room: ChatRoom;
   index: number;
   onJoin: (id: string) => void;
-  onLeave: (id: string) => void;
   onOpen: (room: ChatRoom) => void;
   joinPending: boolean;
-  leavePending: boolean;
 }) {
   const colorScheme = useColorScheme();
   const palette = ROOM_PALETTES[index % ROOM_PALETTES.length];
   const avatars = room.member_avatars.slice(0, 3);
-  const isToggling = joinPending || leavePending;
+  const isToggling = joinPending;
 
   return (
     <Pressable
@@ -178,7 +391,7 @@ function GroupCard({
           ))}
         </View>
         <View style={styles.memberCount}>
-          <Zap size={13} color={palette.accent} />
+          <Users size={13} color={palette.accent} />
           <Text style={[styles.memberText, { color: palette.accent }]}>
             {formatMemberCount(room.member_count)}
           </Text>
@@ -189,7 +402,7 @@ function GroupCard({
         onPress={(e) => {
           e.stopPropagation();
           if (room.is_joined) {
-            onLeave(room.id);
+            onOpen(room);
           } else {
             onJoin(room.id);
           }
@@ -210,7 +423,7 @@ function GroupCard({
             { color: room.is_joined ? palette.accent : "#FFFFFF" },
           ]}
         >
-          {room.is_joined ? "Joined" : joinPending ? "Joining…" : "Join"}
+          {room.is_joined ? "Open chat" : joinPending ? "Joining…" : "Join"}
         </Text>
       </Pressable>
     </Pressable>
@@ -244,30 +457,86 @@ function PremiumUpsell() {
 export default function CommunityScreen() {
   const background = useColor("background");
   const text = useColor("text");
+  const primary = useColor("primary");
   const colorScheme = useColorScheme();
+  const { profile, fetchProfile } = useProfileStore();
+  const hasCommunityAccess = canAccessCommunity(profile);
 
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-
-  useEffect(() => {
-    const handle = setTimeout(() => {
-      setDebouncedSearch(search.trim());
-    }, SEARCH_DEBOUNCE_MS);
-    return () => clearTimeout(handle);
-  }, [search]);
-
-  const roomsQuery = useChatRoomsQuery(debouncedSearch);
+  const roomsQuery = useChatRoomsQuery("", Boolean(profile && hasCommunityAccess));
   const joinMutation = useJoinRoomMutation();
-  const leaveMutation = useLeaveRoomMutation();
+  const { refetch: refetchRooms } = roomsQuery;
 
   const isPremiumBlocked = roomsQuery.isError && isPremiumRequiredError(roomsQuery.error);
   const isGenericError = roomsQuery.isError && !isPremiumBlocked;
-  const isRefreshing = roomsQuery.isFetching;
+  const accessRetryAttempted = useRef(false);
+  const [isVerifyingAccess, setIsVerifyingAccess] = useState(false);
+  const [accessVerificationFailed, setAccessVerificationFailed] = useState(false);
+
+  useEffect(() => {
+    if (!isPremiumBlocked) {
+      accessRetryAttempted.current = false;
+      setAccessVerificationFailed(false);
+      return;
+    }
+    if (accessRetryAttempted.current) return;
+
+    accessRetryAttempted.current = true;
+    setIsVerifyingAccess(true);
+    void (async () => {
+      try {
+        await syncSubscription();
+        const result = await refetchRooms();
+        if (result.isError && !isPremiumRequiredError(result.error)) {
+          setAccessVerificationFailed(true);
+        }
+      } catch {
+        setAccessVerificationFailed(true);
+      } finally {
+        setIsVerifyingAccess(false);
+      }
+    })();
+  }, [isPremiumBlocked, refetchRooms]);
+
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await fetchProfile();
+      if (canAccessCommunity(useProfileStore.getState().profile)) {
+        await refetchRooms();
+      }
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const retryAccessVerification = async () => {
+    setIsVerifyingAccess(true);
+    accessRetryAttempted.current = true;
+    setAccessVerificationFailed(false);
+    try {
+      await syncSubscription();
+      const result = await refetchRooms();
+      setAccessVerificationFailed(result.isError && !isPremiumRequiredError(result.error));
+    } catch {
+      setAccessVerificationFailed(true);
+    } finally {
+      setIsVerifyingAccess(false);
+    }
+  };
+
+  const isResolvingPremiumBlock =
+    isPremiumBlocked && (!accessRetryAttempted.current || isVerifyingAccess);
 
   const handleOpen = (room: ChatRoom) => {
     router.push({
       pathname: "/community-chat",
-      params: { roomId: room.id, title: room.name },
+      params: {
+        roomId: room.id,
+        title: room.name,
+        isJoined: room.is_joined ? "1" : "0",
+        memberCount: String(room.member_count),
+      },
     });
   };
 
@@ -283,14 +552,6 @@ export default function CommunityScreen() {
     });
   };
 
-  const handleLeave = (roomId: string) => {
-    leaveMutation.mutate(roomId, {
-      onError: () => {
-        Alert.alert("Couldn't leave", "Please try again in a moment.");
-      },
-    });
-  };
-
   return (
     <VerificationOverlay>
       <View style={[styles.container, { backgroundColor: background }]}>
@@ -301,57 +562,74 @@ export default function CommunityScreen() {
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
-            onRefresh={() => roomsQuery.refetch()}
-            tintColor={colorScheme === "dark" ? "#FFF" : "#222222"}
+            onRefresh={handleRefresh}
+            tintColor={primary}
           />
         }
       >
         <LinearGradient
-          colors={colorScheme === "dark" ? ["#1C382F", "#0B1813"] : ["#E9F9F3", "#D1F4E4"]}
+          colors={colorScheme === "dark" ? ["#0F291E", "#0B1D15"] : ["#ECFDF5", "#D1FAE5"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={[styles.hero, colorScheme === "dark" && styles.heroDark]}
         >
-          <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 12 }}>
-            <View style={{ flex: 1 }}>
-              <Text
-                style={[
-                  styles.heroTitle,
-                  colorScheme === "dark" && { color: "#F8FAFC" },
-                ]}
-              >
-                Find your community
-              </Text>
-              <Text
-                style={[
-                  styles.heroBody,
-                  colorScheme === "dark" && { color: "#A7F3D0" },
-                ]}
-              >
-                A low-pressure space to connect with people who share your neurotype
-                and sensory preferences.
+          <View style={styles.heroTopRow}>
+            <View style={[styles.heroTag, colorScheme === "dark" && { backgroundColor: "rgba(52, 211, 153, 0.15)" }]}>
+              <Text style={[styles.heroTagText, colorScheme === "dark" && { color: "#6EE7B7" }]}>
+                SAFE SPACES
               </Text>
             </View>
-            <View style={[styles.heroIconContainer, colorScheme === "dark" && { backgroundColor: "rgba(74, 222, 128, 0.15)" }]}>
-              <Users size={28} color={colorScheme === "dark" ? "#4ADE80" : "#3E6F63"} />
+            <View style={[styles.heroIconContainer, colorScheme === "dark" && { backgroundColor: "rgba(52, 211, 153, 0.15)", borderColor: "rgba(52, 211, 153, 0.25)" }]}>
+              <Ionicons name="planet" size={23} color={colorScheme === "dark" ? "#6EE7B7" : "#059669"} />
             </View>
           </View>
+
+          <Text
+            style={[
+              styles.heroTitle,
+              colorScheme === "dark" && { color: "#F0FDF4" },
+            ]}
+          >
+            Find your community
+          </Text>
+          <Text
+            style={[
+              styles.heroBody,
+              colorScheme === "dark" && { color: "#A7F3D0" },
+            ]}
+          >
+            A low-pressure space to connect with people who share your neurotype
+            and sensory preferences.
+          </Text>
         </LinearGradient>
 
-        <Text
-          style={[
-            styles.exploreTitle,
-            colorScheme === "dark" && { color: "#8591A0" },
-          ]}
-        >
+        <Text style={[styles.exploreTitle, { color: text }]}>
           Explore Groups
         </Text>
 
-        {isPremiumBlocked ? (
+        {!profile ? (
+          <View style={styles.centered}>
+            <ActivityIndicator color={primary} />
+          </View>
+        ) : !hasCommunityAccess ? (
+          <PremiumUpsell />
+        ) : isResolvingPremiumBlock ? (
+          <View style={styles.centered}>
+            <ActivityIndicator color={primary} />
+            <Text style={{ color: text }}>Checking your subscription…</Text>
+          </View>
+        ) : accessVerificationFailed ? (
+          <View style={styles.centered}>
+            <Text style={{ color: text }}>Couldn&apos;t verify your subscription.</Text>
+            <Pressable onPress={retryAccessVerification}>
+              <Text style={styles.retryText}>Retry</Text>
+            </Pressable>
+          </View>
+        ) : isPremiumBlocked ? (
           <PremiumUpsell />
         ) : roomsQuery.isLoading ? (
           <View style={styles.centered}>
-            <ActivityIndicator color={colorScheme === "dark" ? "#FFF" : "#222222"} />
+            <ActivityIndicator color={primary} />
           </View>
         ) : isGenericError ? (
           <View style={styles.centered}>
@@ -362,9 +640,7 @@ export default function CommunityScreen() {
           </View>
         ) : (roomsQuery.data ?? []).length === 0 ? (
           <Text style={styles.emptyText}>
-            {debouncedSearch
-              ? "No rooms match your search."
-              : "No community rooms available yet."}
+            No community rooms available yet.
           </Text>
         ) : (
           <View style={styles.groupGrid}>
@@ -374,13 +650,9 @@ export default function CommunityScreen() {
                 room={room}
                 index={index}
                 onJoin={handleJoin}
-                onLeave={handleLeave}
                 onOpen={handleOpen}
                 joinPending={
                   joinMutation.isPending && joinMutation.variables === room.id
-                }
-                leavePending={
-                  leaveMutation.isPending && leaveMutation.variables === room.id
                 }
               />
             ))}
@@ -402,34 +674,68 @@ const styles = StyleSheet.create({
     paddingBottom: 118,
   },
   hero: {
-    backgroundColor: "#E9F9F3",
-    borderRadius: 10,
-    padding: 16,
-    marginBottom: 16,
+    borderRadius: 22,
+    padding: 18,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#A7F3D0",
+    shadowColor: "#059669",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
   },
   heroDark: {
     backgroundColor: "transparent",
     borderWidth: 1,
-    borderColor: "#1C382F",
+    borderColor: "rgba(52, 211, 153, 0.2)",
+    shadowOpacity: 0,
+  },
+  heroTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  heroTag: {
+    backgroundColor: "rgba(5, 150, 105, 0.12)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  heroTagText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#059669",
+    letterSpacing: 0.6,
   },
   heroTitle: {
-    color: "#9A3B00",
+    color: "#064E3B",
     fontSize: 22,
     fontWeight: "800",
-    marginBottom: 8,
+    marginBottom: 6,
+    letterSpacing: -0.4,
   },
   heroBody: {
-    color: "#604F47",
-    fontSize: 15,
-    lineHeight: 22,
+    color: "#047857",
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "500",
   },
   heroIconContainer: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: "rgba(62, 111, 99, 0.1)",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "rgba(5, 150, 105, 0.15)",
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: "#059669",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 2,
   },
   sectionHeader: {
     flexDirection: "row",
@@ -480,34 +786,19 @@ const styles = StyleSheet.create({
     paddingBottom: 15,
   },
   badgeCircle: {
-    width: 49,
-    height: 49,
-    borderRadius: 25,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     borderWidth: 3,
     borderColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 7,
-  },
-  badgeInner: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  badgeTinyText: {
-    fontSize: 4,
-    color: "#FFFFFF",
-    fontWeight: "800",
-    marginTop: -1,
-  },
-  sanctuaryIcon: {
-    color: "#61B7A5",
-    fontSize: 16,
-    lineHeight: 15,
-  },
-  hpiIcon: {
-    color: "#F0B42A",
-    fontSize: 19,
-    lineHeight: 20,
+    marginBottom: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
   groupTitle: {
     color: "#222222",
@@ -519,6 +810,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    minHeight: 22,
     marginBottom: 12,
   },
   avatarStack: {

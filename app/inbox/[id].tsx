@@ -9,20 +9,21 @@ import {
   View,
   StyleSheet,
   Pressable,
-  Image,
   ActivityIndicator,
   Alert,
   TextInput,
   FlatList,
   Platform,
-  Keyboard,
   Animated,
   Modal,
   TouchableWithoutFeedback,
+  useColorScheme,
 } from "react-native";
+import { Image } from "expo-image";
 import { Swipeable } from "react-native-gesture-handler";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, router } from "expo-router";
 import {
   ChevronLeft,
@@ -42,9 +43,11 @@ import {
   ArrowUp,
   Square,
   Smile,
+  Lock,
 } from "lucide-react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as Haptics from "expo-haptics";
+import { File } from "expo-file-system";
 import {
   RecordingPresets,
   requestRecordingPermissionsAsync,
@@ -52,7 +55,6 @@ import {
   useAudioPlayer,
   useAudioPlayerStatus,
   useAudioRecorder,
-  useAudioRecorderState,
 } from "expo-audio";
 import { formatDistanceToNow, format, isToday, isYesterday } from "date-fns";
 
@@ -63,6 +65,7 @@ import { useGetProfileDetailsQuery } from "@/api/profile";
 import { useProfileStore } from "@/store/profileStore";
 import { useChatSocket } from "@/api/ChatSocketProvider";
 import { apiClient } from "@/api/client";
+import { API_URL } from "@/constants/config";
 import { useBlockUserMutation, useUnmatchMutation, useUnfriendMutation } from "@/api/matching";
 import { useReportUserMutation } from "@/api/settings";
 import type { DirectMessage } from "@/api/messages";
@@ -74,6 +77,8 @@ const QUICK_EMOJIS = [
   "😉", "🤔", "👀", "💪", "🥰", "😭", "😊", "🤩",
 ];
 
+const HISTORY_PAGE_SIZE = 50;
+
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
 function formatMessageTime(timestamp: string): string {
@@ -81,16 +86,20 @@ function formatMessageTime(timestamp: string): string {
   return format(date, "h:mm a");
 }
 
+function absoluteMediaUrl(url: string) {
+  return /^(https?|file):/i.test(url) ? url : `${API_URL}${url}`;
+}
+
 function getReplyPreviewText(msg: { content?: string | null; image_url?: string | null; audio_url?: string | null }) {
   if (msg.image_url) {
     return msg.content ? `📷 Photo: ${msg.content}` : "📷 Photo";
   }
-  if (msg.audio_url) return "🎤 Voice message";
+  if (msg.audio_url) return "Voice message";
   return msg.content || "";
 }
 
 function formatDuration(seconds: number) {
-  const wholeSeconds = Math.max(0, Math.round(seconds));
+  const wholeSeconds = Math.max(0, Math.floor(seconds));
   return `${Math.floor(wholeSeconds / 60)}:${String(wholeSeconds % 60).padStart(2, "0")}`;
 }
 
@@ -106,9 +115,7 @@ function groupMessagesByDay(messages: DirectMessage[]) {
   const groups: { label: string; data: DirectMessage[] }[] = [];
   let lastLabel = "";
   // messages are newest-first; reverse to oldest-first for grouping
-  const sorted = [...messages].sort(
-    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-  );
+  const sorted = [...messages].reverse();
   for (const msg of sorted) {
     const label = formatDayLabel(msg.timestamp);
     if (label !== lastLabel) {
@@ -121,13 +128,11 @@ function groupMessagesByDay(messages: DirectMessage[]) {
   // Flatten back to a render-list (newest at index 0 for inverted FlatList)
   const items: Array<DirectMessage | { type: "day"; label: string }> = [];
   for (const g of groups.reverse()) {
-    // Only push day separator if it is NOT "Today"
-    if (g.label !== "Today") {
-      items.push({ type: "day", label: g.label });
-    }
     for (const msg of g.data.reverse()) {
       items.push(msg);
     }
+    // In an inverted list, appending the separator makes it render above its day.
+    if (g.label !== "Today") items.push({ type: "day", label: g.label });
   }
   return items;
 }
@@ -138,6 +143,9 @@ function TypingDots({ recipientPhoto }: { recipientPhoto: string }) {
   const dot1 = useRef(new Animated.Value(0)).current;
   const dot2 = useRef(new Animated.Value(0)).current;
   const dot3 = useRef(new Animated.Value(0)).current;
+  const isDark = useColorScheme() === "dark";
+  const bubbleBg = isDark ? "#262626" : "#E5E7EB";
+  const dotColor = isDark ? "#9CA3AF" : "#6B7280";
 
   useEffect(() => {
     const anim = (dot: Animated.Value, delay: number) =>
@@ -158,15 +166,21 @@ function TypingDots({ recipientPhoto }: { recipientPhoto: string }) {
   return (
     <View style={typingStyles.row}>
       {recipientPhoto ? (
-        <Image source={{ uri: recipientPhoto }} style={typingStyles.avatar} />
+        <Image
+          source={{ uri: recipientPhoto }}
+          style={typingStyles.avatar}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={0}
+        />
       ) : (
-        <View style={[typingStyles.avatar, { backgroundColor: "#E5E7EB" }]} />
+        <View style={[typingStyles.avatar, { backgroundColor: bubbleBg }]} />
       )}
-      <View style={typingStyles.bubble}>
+      <View style={[typingStyles.bubble, { backgroundColor: bubbleBg }]}>
         {[dot1, dot2, dot3].map((dot, i) => (
           <Animated.View
             key={i}
-            style={[typingStyles.dot, { transform: [{ translateY: dot }] }]}
+            style={[typingStyles.dot, { backgroundColor: dotColor, transform: [{ translateY: dot }] }]}
           />
         ))}
       </View>
@@ -181,80 +195,42 @@ const typingStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "#E5E7EB",
     borderRadius: 18,
     borderBottomLeftRadius: 4,
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
-  dot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#9CA3AF" },
+  dot: { width: 7, height: 7, borderRadius: 3.5 },
 });
 
 
 // ─── LiveWaveform (Recording Visualizer) ──────────────────────────────────
 
-function LiveWaveform({ isRecording, color }: { isRecording: boolean; color: string }) {
-  const anim1 = useRef(new Animated.Value(0.3)).current;
-  const anim2 = useRef(new Animated.Value(0.6)).current;
-  const anim3 = useRef(new Animated.Value(0.2)).current;
-  const anim4 = useRef(new Animated.Value(0.85)).current;
-  const anim5 = useRef(new Animated.Value(0.45)).current;
+const LIVE_WAVEFORM_PEAKS = [
+  0.45, 0.8, 0.6, 1, 0.7, 0.5, 0.85, 0.65,
+  0.55, 0.95, 0.7, 0.5, 0.8, 0.6, 1, 0.7,
+  0.5, 0.85, 0.65, 0.55, 0.95, 0.7, 0.5, 0.8,
+  0.6, 1, 0.7, 0.5, 0.85, 0.65, 0.55, 0.9,
+];
 
-  useEffect(() => {
-    if (!isRecording) return;
-    const makeLoop = (val: Animated.Value, high: number, low: number, duration: number) =>
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(val, { toValue: high, duration, useNativeDriver: false }),
-          Animated.timing(val, { toValue: low, duration: duration * 0.9, useNativeDriver: false }),
-          Animated.timing(val, { toValue: (high + low) * 0.6, duration: duration * 0.75, useNativeDriver: false }),
-          Animated.timing(val, { toValue: low * 1.3, duration: duration * 1.1, useNativeDriver: false }),
-        ])
-      );
-
-    const a1 = makeLoop(anim1, 1.0, 0.2, 280);
-    const a2 = makeLoop(anim2, 0.9, 0.15, 340);
-    const a3 = makeLoop(anim3, 0.85, 0.25, 220);
-    const a4 = makeLoop(anim4, 0.95, 0.18, 300);
-    const a5 = makeLoop(anim5, 0.75, 0.22, 260);
-
-    a1.start();
-    a2.start();
-    a3.start();
-    a4.start();
-    a5.start();
-
-    return () => {
-      a1.stop();
-      a2.stop();
-      a3.stop();
-      a4.stop();
-      a5.stop();
-    };
-  }, [isRecording]);
-
-  const bars = [
-    anim1, anim3, anim2, anim5, anim4, anim2, anim1, anim4,
-    anim3, anim5, anim2, anim4, anim1, anim3, anim5, anim4,
-    anim2, anim1, anim5, anim3, anim1, anim4, anim2, anim3,
-    anim5, anim2, anim1, anim3, anim4, anim2, anim5, anim1,
-  ];
+function LiveWaveform({ level, color }: { level: Animated.Value; color: string }) {
 
   return (
     <View style={waveformStyles.wrap}>
-      {bars.map((anim, idx) => {
-        const barH = anim.interpolate({
-          inputRange: [0, 1],
-          outputRange: [4, 22],
-        });
+      {LIVE_WAVEFORM_PEAKS.map((peak, idx) => {
         return (
           <Animated.View
             key={idx}
             style={[
               waveformStyles.bar,
               {
-                height: barH,
                 backgroundColor: color,
+                transform: [{
+                  scaleY: level.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0.12, peak],
+                  }),
+                }],
               },
             ]}
           />
@@ -276,6 +252,7 @@ const waveformStyles = StyleSheet.create({
   },
   bar: {
     width: 2.5,
+    height: 22,
     borderRadius: 1.5,
     opacity: 0.85,
   },
@@ -289,24 +266,55 @@ const VOICE_WAVEFORM_HEIGHTS = [
   18, 12, 16, 20, 14, 8, 12, 6,
 ];
 
+const VOICE_RECORDING_OPTIONS = {
+  ...RecordingPresets.HIGH_QUALITY,
+  sampleRate: 22050,
+  numberOfChannels: 1,
+  bitRate: 32000,
+  isMeteringEnabled: true,
+};
+
 function VoiceMessage({
+  messageId,
   audioUrl,
+  audioUrlExpiresAt,
   duration,
   isMe,
   timestamp,
   isRead,
 }: {
+  messageId: string;
   audioUrl: string;
+  audioUrlExpiresAt?: string | null;
   duration?: number | null;
   isMe: boolean;
   timestamp: string;
   isRead?: boolean;
 }) {
-  const player = useAudioPlayer(audioUrl);
+  const isDark = useColorScheme() === "dark";
+
+  // Ensure the audio URL is absolute, but ignore local file:// paths
+  const fullAudioUrl = absoluteMediaUrl(audioUrl);
+  const currentExpiry = useRef(audioUrlExpiresAt);
+  const lastPropUrl = useRef(fullAudioUrl);
+  const refreshingRef = useRef(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Stream voice messages instead of retaining every recording in Expo's disk cache.
+  const player = useAudioPlayer(fullAudioUrl);
   const status = useAudioPlayerStatus(player);
+
+  useEffect(() => {
+    currentExpiry.current = audioUrlExpiresAt;
+    if (lastPropUrl.current !== fullAudioUrl) {
+      lastPropUrl.current = fullAudioUrl;
+      player.replace(fullAudioUrl);
+    }
+  }, [audioUrlExpiresAt, fullAudioUrl, player]);
+
   const shownDuration = status.duration || duration || 0;
 
-  const togglePlayback = () => {
+  const togglePlayback = async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch {}
@@ -314,6 +322,29 @@ function VoiceMessage({
       player.pause();
       return;
     }
+
+    const expiresAt = currentExpiry.current ? Date.parse(currentExpiry.current) : NaN;
+    if (Number.isFinite(expiresAt) && Date.now() >= expiresAt - 5 * 60 * 1000) {
+      if (refreshingRef.current) return;
+      refreshingRef.current = true;
+      setIsRefreshing(true);
+      try {
+        const response = await apiClient.get<DirectMessage>(`/api/chat/direct/${messageId}/`);
+        if (!response.data.audio_url) throw new Error("Voice message is unavailable");
+        const refreshedUrl = absoluteMediaUrl(response.data.audio_url);
+        currentExpiry.current = response.data.audio_url_expires_at;
+        player.replace(refreshedUrl);
+      } catch {
+        Alert.alert("Playback failed", "Couldn't refresh this voice message. Please try again.");
+        return;
+      } finally {
+        refreshingRef.current = false;
+        setIsRefreshing(false);
+      }
+    }
+    // Ensure that audio plays even if the hardware silent switch is on (iOS)
+    setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
+
     if (shownDuration && status.currentTime >= shownDuration) {
       player.seekTo(0);
     }
@@ -332,6 +363,9 @@ function VoiceMessage({
     }
   };
 
+  const accentColor = isDark ? "#0A84FF" : "#0084ff";
+  const playedWaveColor = isDark ? "#38BDF8" : "#0084ff";
+
   return (
     <View style={voiceStyles.container}>
       {/* Play/Pause circular button */}
@@ -340,24 +374,26 @@ function VoiceMessage({
         style={({ pressed }) => [
           voiceStyles.playBtn,
           {
-            backgroundColor: isMe ? "#FFFFFF" : "#0084ff",
+            backgroundColor: isMe ? "#FFFFFF" : accentColor,
           },
           pressed && { transform: [{ scale: 0.92 }], opacity: 0.9 },
         ]}
         accessibilityLabel={status.playing ? "Pause voice message" : "Play voice message"}
         accessibilityRole="button"
       >
-        {status.playing ? (
+        {isRefreshing ? (
+          <ActivityIndicator size="small" color={isMe ? accentColor : "#FFFFFF"} />
+        ) : status.playing ? (
           <Pause
             size={16}
-            color={isMe ? "#0084ff" : "#FFFFFF"}
-            fill={isMe ? "#0084ff" : "#FFFFFF"}
+            color={isMe ? accentColor : "#FFFFFF"}
+            fill={isMe ? accentColor : "#FFFFFF"}
           />
         ) : (
           <Play
             size={16}
-            color={isMe ? "#0084ff" : "#FFFFFF"}
-            fill={isMe ? "#0084ff" : "#FFFFFF"}
+            color={isMe ? accentColor : "#FFFFFF"}
+            fill={isMe ? accentColor : "#FFFFFF"}
             style={{ marginLeft: 2 }}
           />
         )}
@@ -382,7 +418,9 @@ function VoiceMessage({
                         ? "#FFFFFF"
                         : "rgba(255, 255, 255, 0.42)"
                       : isPlayed
-                      ? "#0084ff"
+                      ? playedWaveColor
+                      : isDark
+                      ? "rgba(255, 255, 255, 0.22)"
                       : "rgba(0, 132, 255, 0.28)",
                   },
                 ]}
@@ -396,7 +434,13 @@ function VoiceMessage({
           <Text
             style={[
               voiceStyles.durationText,
-              { color: isMe ? "rgba(255, 255, 255, 0.9)" : "#4B5563" },
+              {
+                color: isMe
+                  ? "rgba(255, 255, 255, 0.9)"
+                  : isDark
+                  ? "rgba(255, 255, 255, 0.85)"
+                  : "#374151",
+              },
             ]}
           >
             {formatDuration(status.playing ? status.currentTime : shownDuration)}
@@ -406,7 +450,13 @@ function VoiceMessage({
             <Text
               style={[
                 voiceStyles.timeText,
-                { color: isMe ? "rgba(255, 255, 255, 0.75)" : "#9CA3AF" },
+                {
+                  color: isMe
+                    ? "rgba(255, 255, 255, 0.75)"
+                    : isDark
+                    ? "rgba(255, 255, 255, 0.52)"
+                    : "#9CA3AF",
+                },
               ]}
             >
               {formatMessageTime(timestamp)}
@@ -424,6 +474,62 @@ function VoiceMessage({
         </View>
       </View>
     </View>
+  );
+}
+
+function ChatMessageImage({
+  messageId,
+  imageUrl,
+  imageUrlExpiresAt,
+  style,
+  transition = 100,
+}: {
+  messageId: string;
+  imageUrl: string;
+  imageUrlExpiresAt?: string | null;
+  style: any;
+  transition?: number;
+}) {
+  const fullImageUrl = absoluteMediaUrl(imageUrl);
+  const [sourceUrl, setSourceUrl] = useState(fullImageUrl);
+  const refreshingRef = useRef(false);
+  const retriedRef = useRef(false);
+
+  const refreshImage = useCallback(async () => {
+    if (refreshingRef.current || retriedRef.current) return;
+    refreshingRef.current = true;
+    retriedRef.current = true;
+    try {
+      const response = await apiClient.get<DirectMessage>(`/api/chat/direct/${messageId}/`);
+      if (response.data.image_url) setSourceUrl(absoluteMediaUrl(response.data.image_url));
+    } catch {
+      // Keep the existing source; the user can retry by reopening the conversation.
+    } finally {
+      refreshingRef.current = false;
+    }
+  }, [messageId]);
+
+  useEffect(() => {
+    setSourceUrl(fullImageUrl);
+    retriedRef.current = false;
+  }, [fullImageUrl]);
+
+  useEffect(() => {
+    const expiresAt = imageUrlExpiresAt ? Date.parse(imageUrlExpiresAt) : NaN;
+    if (Number.isFinite(expiresAt) && Date.now() >= expiresAt - 5 * 60 * 1000) {
+      void refreshImage();
+    }
+  }, [imageUrlExpiresAt, refreshImage]);
+
+  return (
+    <Image
+      source={{ uri: sourceUrl }}
+      style={style}
+      contentFit="cover"
+      cachePolicy="memory"
+      transition={transition}
+      onError={() => { void refreshImage(); }}
+    />
   );
 }
 
@@ -496,6 +602,11 @@ function MessageBubble({
   onLongPress: (msg: DirectMessage) => void;
 }) {
   const swipeableRef = useRef<Swipeable>(null);
+  const isDark = useColorScheme() === "dark";
+  const leftBubbleBg = isDark ? "#242529" : "#F8F9FB";
+  const leftBorderColor = isDark ? "rgba(255, 255, 255, 0.08)" : "#ECEFF3";
+  const leftTextColor = isDark ? "#F9FAFB" : "#111827";
+  const leftTimeColor = isDark ? "rgba(255, 255, 255, 0.55)" : "#6B7280";
 
   const renderLeftActions = (progress: any, dragX: any) => {
     const trans = dragX.interpolate({
@@ -506,7 +617,7 @@ function MessageBubble({
     return (
       <View style={{ width: 50, justifyContent: 'center', alignItems: 'center' }}>
         <Animated.View style={{ transform: [{ translateX: trans }] }}>
-          <Reply size={18} color="#0084ff" />
+          <Reply size={18} color="#0A84FF" />
         </Animated.View>
       </View>
     );
@@ -532,6 +643,7 @@ function MessageBubble({
         style={[
           bubbleStyles.row,
           isMe ? bubbleStyles.rowRight : bubbleStyles.rowLeft,
+          isLast && bubbleStyles.rowGroupEnd,
           msg.reaction ? { marginBottom: 10 } : null
         ]}
       >
@@ -540,9 +652,15 @@ function MessageBubble({
           <View style={bubbleStyles.avatarCol}>
             {showAvatar ? (
               recipientPhoto ? (
-                <Image source={{ uri: recipientPhoto }} style={bubbleStyles.avatar} />
+                <Image
+                  source={{ uri: recipientPhoto }}
+                  style={bubbleStyles.avatar}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                  transition={0}
+                />
               ) : (
-                <View style={[bubbleStyles.avatar, { backgroundColor: "#E5E7EB" }]} />
+                <View style={[bubbleStyles.avatar, { backgroundColor: isDark ? "#38383A" : "#E5E7EB" }]} />
               )
             ) : (
               <View style={{ width: 28 }} />
@@ -552,22 +670,36 @@ function MessageBubble({
 
         <View style={[
           bubbleStyles.bubble,
-          isMe ? bubbleStyles.bubbleRight : bubbleStyles.bubbleLeft,
+          isMe
+            ? [bubbleStyles.bubbleRight, isLast && bubbleStyles.bubbleRightTail]
+            : [
+                bubbleStyles.bubbleLeft,
+                { backgroundColor: leftBubbleBg, borderColor: leftBorderColor },
+                isLast && bubbleStyles.bubbleLeftTail,
+              ],
           msg.reply_to_info ? { minWidth: 220 } : null
         ]}>
           {/* Reply preview */}
           {msg.reply_to_info && (
-            <View style={[bubbleStyles.replyQuote, isMe ? bubbleStyles.replyQuoteRight : bubbleStyles.replyQuoteLeft]}>
-              <View style={[bubbleStyles.replyBar, { backgroundColor: isMe ? "rgba(255,255,255,0.7)" : "#0084ff" }]} />
+            <View style={[
+              bubbleStyles.replyQuote,
+              isMe
+                ? bubbleStyles.replyQuoteRight
+                : [bubbleStyles.replyQuoteLeft, { backgroundColor: isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 132, 255, 0.06)" }]
+            ]}>
+              <View style={[bubbleStyles.replyBar, { backgroundColor: isMe ? "rgba(255,255,255,0.7)" : (isDark ? "#38BDF8" : "#0A84FF") }]} />
               <View style={{ flex: 1, justifyContent: "center" }}>
-                <Text style={[bubbleStyles.replyText, { color: isMe ? "rgba(255,255,255,0.8)" : "#4B5563" }]} numberOfLines={2}>
+                <Text style={[bubbleStyles.replyText, { color: isMe ? "rgba(255,255,255,0.8)" : (isDark ? "#E5E7EB" : "#4B5563") }]} numberOfLines={2}>
                   {getReplyPreviewText(msg.reply_to_info)}
                 </Text>
               </View>
               {msg.reply_to_info.image_url && (
-                <Image
-                  source={{ uri: msg.reply_to_info.image_url }}
+                <ChatMessageImage
+                  messageId={msg.reply_to_info.id}
+                  imageUrl={msg.reply_to_info.image_url}
+                  imageUrlExpiresAt={msg.reply_to_info.image_url_expires_at}
                   style={bubbleStyles.replyThumbnail}
+                  transition={0}
                 />
               )}
             </View>
@@ -575,17 +707,21 @@ function MessageBubble({
 
           {/* Image */}
           {msg.image_url && (
-            <Image
-              source={{ uri: msg.image_url }}
+            <ChatMessageImage
+              messageId={msg.id}
+              imageUrl={msg.image_url}
+              imageUrlExpiresAt={msg.image_url_expires_at}
               style={bubbleStyles.image}
-              resizeMode="cover"
+              transition={100}
             />
           )}
 
           {/* Audio Message (WhatsApp-style) */}
           {msg.audio_url ? (
             <VoiceMessage
+              messageId={msg.id}
               audioUrl={msg.audio_url}
+              audioUrlExpiresAt={msg.audio_url_expires_at}
               duration={msg.audio_duration}
               isMe={isMe}
               timestamp={msg.timestamp}
@@ -595,26 +731,28 @@ function MessageBubble({
             <>
               {/* Text */}
               {!!msg.content && (
-                <Text style={[bubbleStyles.text, isMe ? bubbleStyles.textRight : bubbleStyles.textLeft]}>
+                <Text style={[bubbleStyles.text, isMe ? bubbleStyles.textRight : [bubbleStyles.textLeft, { color: leftTextColor }]]}>
                   {msg.content}
                 </Text>
               )}
 
               {/* Time + read tick */}
-              <View style={[bubbleStyles.footer, { justifyContent: isMe ? "flex-end" : "flex-start" }]}>
-                <Text style={[bubbleStyles.time, { color: isMe ? "rgba(255,255,255,0.65)" : "#9CA3AF" }]}>
-                  {formatMessageTime(msg.timestamp)}
-                </Text>
-                {isMe && (
-                  <View style={{ marginLeft: 4 }}>
-                    {msg.read_at ? (
-                      <CheckCheck size={13} color="rgba(255,255,255,0.85)" />
-                    ) : (
-                      <Check size={13} color="rgba(255,255,255,0.65)" />
-                    )}
-                  </View>
-                )}
-              </View>
+              {isLast && (
+                <View style={[bubbleStyles.footer, { justifyContent: isMe ? "flex-end" : "flex-start" }]}>
+                  <Text style={[bubbleStyles.time, { color: isMe ? "rgba(255,255,255,0.65)" : leftTimeColor }]}>
+                    {formatMessageTime(msg.timestamp)}
+                  </Text>
+                  {isMe && (
+                    <View style={{ marginLeft: 4 }}>
+                      {msg.read_at ? (
+                        <CheckCheck size={13} color="rgba(255,255,255,0.85)" />
+                      ) : (
+                        <Check size={13} color="rgba(255,255,255,0.65)" />
+                      )}
+                    </View>
+                  )}
+                </View>
+              )}
             </>
           )}
 
@@ -622,6 +760,10 @@ function MessageBubble({
           {msg.reaction && (
             <View style={[
               bubbleStyles.reactionBadge,
+              {
+                backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6",
+                borderColor: isDark ? "#1C1C1E" : "#FFFFFF",
+              },
               isMe ? bubbleStyles.reactionBadgeRight : bubbleStyles.reactionBadgeLeft
             ]}>
               <Text style={{ fontSize: 12 }}>{msg.reaction}</Text>
@@ -629,38 +771,36 @@ function MessageBubble({
           )}
         </View>
 
-        {/* Reply swipe hint (right side spacer for received) */}
-        {!isMe && <View style={{ width: 44 }} />}
       </Pressable>
     </Swipeable>
   );
 }
 
 const bubbleStyles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "flex-end", paddingHorizontal: 12, marginVertical: 2 },
+  row: { flexDirection: "row", alignItems: "flex-end", paddingHorizontal: 12, marginTop: 2, marginBottom: 4 },
+  rowGroupEnd: { marginBottom: 10 },
   rowRight: { justifyContent: "flex-end" },
   rowLeft: { justifyContent: "flex-start" },
   avatarCol: { marginRight: 6, marginBottom: 2 },
   avatar: { width: 28, height: 28, borderRadius: 14 },
   bubble: {
-    maxWidth: "78%",
+    maxWidth: "76%",
     borderRadius: 18,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
-    elevation: 1,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   bubbleRight: {
-    backgroundColor: "#0084ff",
-    borderBottomRightRadius: 4,
+    backgroundColor: "#0A84FF",
   },
+  bubbleRightTail: { borderBottomRightRadius: 5 },
   bubbleLeft: {
-    backgroundColor: "#F0F0F0",
-    borderBottomLeftRadius: 4,
+    backgroundColor: "#F8F9FB",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "transparent",
   },
+  bubbleLeftTail: { borderBottomLeftRadius: 5 },
   replyQuote: {
     flexDirection: "row",
     borderRadius: 6,
@@ -678,12 +818,10 @@ const bubbleStyles = StyleSheet.create({
     position: "absolute",
     bottom: -10,
     right: 12,
-    backgroundColor: "#F3F4F6",
     borderRadius: 10,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderWidth: 1.5,
-    borderColor: "#FFFFFF",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -713,11 +851,17 @@ const bubbleStyles = StyleSheet.create({
 // ─── Main Screen ────────────────────────────────────────────────────────────
 
 export default function ChatScreen() {
-  const { id, type } = useLocalSearchParams<{ id: string; type?: string }>();
+  const { id, type, photo: paramPhoto, username: paramUsername, name: paramName } = useLocalSearchParams();
   const recipientId = typeof id === "string" ? id : (Array.isArray(id) ? id[0] : "");
+  const initialPhoto = typeof paramPhoto === "string" ? paramPhoto : "";
+  const initialName = typeof paramName === "string" ? paramName : (typeof paramUsername === "string" ? paramUsername : "");
 
+  const isDark = useColorScheme() === "dark";
   const insets = useSafeAreaInsets();
-  useAndroidBack();
+  const goToMessages = useCallback(() => {
+    router.dismissTo("/(tabs)/messages");
+  }, []);
+  useAndroidBack("/(tabs)/messages", true);
   const background = useColor("background");
   const primary = useColor("primary");
   const textColor = useColor("text");
@@ -734,25 +878,51 @@ export default function ChatScreen() {
   useEffect(() => { if (!profile) fetchProfile(); }, [profile, fetchProfile]);
 
   const recipientQuery = useGetProfileDetailsQuery(recipientId);
-  const recipientUsername = recipientQuery.data?.username ?? "Conversation";
-  const recipientPhoto =
+  const recipientUsername = initialName || recipientQuery.data?.name || recipientQuery.data?.username || "Conversation";
+  const queryPhoto =
     recipientQuery.data?.photos?.find((p: any) => p.is_main)?.image ??
-    recipientQuery.data?.photos?.[0]?.image ??
-    "";
+    recipientQuery.data?.photos?.[0]?.image;
+  // Always prioritize initialPhoto from route params so the avatar never switches URI or blinks
+  const recipientPhoto = initialPhoto || queryPhoto || "";
 
   const currentUserId = profile?.id ?? "";
   const currentUserName = profile?.username ?? "You";
 
-  const historyQuery = useDirectHistoryQuery(recipientId);
+  const dmQuota = profile?.access?.quotas.personal_messages;
+  const isDmQuotaExhausted =
+    dmQuota?.remaining != null &&
+    dmQuota.remaining <= 0 &&
+    (!dmQuota.resets_at || new Date(dmQuota.resets_at).getTime() > Date.now());
 
-  const { sendDirectMessage, sendTyping, onTyping, setActiveRecipientId, onlineUsers, sendMessageReaction } = useChatSocket();
+  const historyQuery = useDirectHistoryQuery(recipientId);
+  const queryClient = useQueryClient();
+  const [isLoadingOlder, setIsLoadingOlder] = useState(false);
+  const [noMoreMessages, setNoMoreMessages] = useState(false);
+
+  const { sendDirectMessage, sendTyping, onTyping, setActiveRecipientId, onlineUsers, sendMessageReaction, queryPresence } = useChatSocket();
 
   useEffect(() => {
     setActiveRecipientId(recipientId);
+    if (recipientId) {
+      queryPresence(recipientId);
+      const interval = setInterval(() => {
+        queryPresence(recipientId);
+      }, 15000);
+      return () => {
+        clearInterval(interval);
+        setActiveRecipientId(null);
+      };
+    }
     return () => {
       setActiveRecipientId(null);
     };
-  }, [recipientId, setActiveRecipientId]);
+  }, [recipientId, setActiveRecipientId, queryPresence]);
+
+  const isRecipientOnline = useMemo(() => {
+    if (!recipientId) return false;
+    const rId = String(recipientId);
+    return !!onlineUsers[rId] || !!onlineUsers[rId.toLowerCase()];
+  }, [recipientId, onlineUsers]);
 
   const [text, setText] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -762,23 +932,71 @@ export default function ChatScreen() {
   const [isUploadingAudio, setIsUploadingAudio] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recipientTyping, setRecipientTyping] = useState(false);
-  const audioRecorder = useAudioRecorder(RecordingPresets.LOW_QUALITY);
-  const recorderState = useAudioRecorderState(audioRecorder);
+  const [recordDurationSeconds, setRecordDurationSeconds] = useState(0);
+  const audioRecorder = useAudioRecorder(VOICE_RECORDING_OPTIONS);
   const recordingStartedAt = useRef(0);
   const recordingTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const recordingDotOpacity = useRef(new Animated.Value(1)).current;
+  const recordingLevel = useRef(new Animated.Value(0)).current;
+  const smoothedRecordingLevel = useRef(0);
 
   useEffect(() => {
-    if (isRecording) {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(recordingDotOpacity, { toValue: 0.2, duration: 500, useNativeDriver: true }),
-          Animated.timing(recordingDotOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
-        ])
-      ).start();
-    } else {
-      recordingDotOpacity.setValue(1);
+    if (!isRecording) {
+      setRecordDurationSeconds(0);
+      return;
     }
+
+    let timer: ReturnType<typeof setTimeout>;
+    const tick = () => {
+      const elapsedMs = Date.now() - recordingStartedAt.current;
+      setRecordDurationSeconds(Math.floor(elapsedMs / 1000));
+      timer = setTimeout(tick, Math.max(50, 1000 - (elapsedMs % 1000)));
+    };
+    tick();
+    return () => clearTimeout(timer);
+  }, [isRecording]);
+
+  useEffect(() => {
+    if (!isRecording) {
+      smoothedRecordingLevel.current = 0;
+      recordingLevel.setValue(0);
+      return;
+    }
+
+    const updateLevel = () => {
+      const decibels = audioRecorder.getStatus().metering ?? -160;
+      const rawLevel = decibels <= -48 ? 0 : Math.min(1, (decibels + 48) / 38);
+      const previous = smoothedRecordingLevel.current;
+      const next = rawLevel > previous
+        ? previous * 0.2 + rawLevel * 0.8
+        : previous * 0.72 + rawLevel * 0.28;
+      smoothedRecordingLevel.current = next;
+      Animated.timing(recordingLevel, {
+        toValue: next,
+        duration: rawLevel > previous ? 70 : 140,
+        useNativeDriver: true,
+      }).start();
+    };
+
+    updateLevel();
+    const meter = setInterval(updateLevel, 100);
+    return () => clearInterval(meter);
+  }, [audioRecorder, isRecording, recordingLevel]);
+
+  useEffect(() => {
+    if (!isRecording) {
+      recordingDotOpacity.setValue(1);
+      return;
+    }
+
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(recordingDotOpacity, { toValue: 0.2, duration: 500, useNativeDriver: true }),
+        Animated.timing(recordingDotOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
   }, [isRecording, recordingDotOpacity]);
 
   const { mutate: blockUser } = useBlockUserMutation();
@@ -797,7 +1015,7 @@ export default function ChatScreen() {
           unmatchUser(recipientId, {
             onSuccess: () => {
               Alert.alert("Success", "User unmatched.");
-              router.back();
+              goToMessages();
             }
           });
         },
@@ -812,7 +1030,7 @@ export default function ChatScreen() {
           unfriendUser(recipientId, {
             onSuccess: () => {
               Alert.alert("Success", "Removed from friends.");
-              router.back();
+              goToMessages();
             }
           });
         },
@@ -842,7 +1060,7 @@ export default function ChatScreen() {
             blockUser(recipientId, {
               onSuccess: () => {
                 Alert.alert("Blocked", "User has been blocked.");
-                router.back();
+                goToMessages();
               }
             });
           }}
@@ -852,13 +1070,16 @@ export default function ChatScreen() {
 
     setChatMenuItems(items);
     setChatMenuOpen(true);
-  }, [recipientId, type, blockUser, unmatchUser, unfriendUser, reportUser]);
+  }, [recipientId, type, blockUser, unmatchUser, unfriendUser, reportUser, goToMessages]);
 
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isTypingSent = useRef(false);
   const inputRef = useRef<TextInput>(null);
   const listRef = useRef<FlatList>(null);
+  const isAtBottom = useRef(true);
   const prevMsgCount = useRef(0);
+  const hasStartedPaging = useRef(false);
+  const initialHistoryPageFor = useRef<string | null>(null);
 
   // Subscribe to typing events from the global socket
   useEffect(() => {
@@ -891,29 +1112,50 @@ export default function ChatScreen() {
   const handleSend = useCallback(() => {
     const trimmed = text.trim();
     if (!trimmed || !recipientId) return;
+    if (isDmQuotaExhausted) {
+      Alert.alert(
+        "Daily Limit Reached",
+        "You've reached your daily message limit. Upgrade your subscription or wait until midnight to send more."
+      );
+      return;
+    }
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch {}
     sendDirectMessage(recipientId, trimmed, undefined, undefined, undefined, replyingTo?.id);
     setText("");
     setReplyingTo(null);
+    // Scroll AFTER the render that inserts the optimistic message
+    requestAnimationFrame(() => {
+      listRef.current?.scrollToOffset({ offset: 0, animated: false });
+    });
     if (typingTimer.current) clearTimeout(typingTimer.current);
     isTypingSent.current = false;
     sendTyping(recipientId, false);
-  }, [text, recipientId, replyingTo, sendDirectMessage, sendTyping]);
+  }, [text, recipientId, replyingTo, isDmQuotaExhausted, sendDirectMessage, sendTyping]);
 
   const uploadAndSendImage = async (asset: ImagePicker.ImagePickerAsset) => {
+    if (isDmQuotaExhausted) {
+      Alert.alert(
+        "Daily Limit Reached",
+        "You've reached your daily message limit. Upgrade your subscription or wait until midnight to send more."
+      );
+      return;
+    }
     const filename = asset.fileName || asset.uri.split("/").pop() || "photo.jpg";
     const ext = /\.([a-zA-Z]+)$/.exec(filename)?.[1] ?? "jpeg";
     const formData = new FormData();
     formData.append("image", { uri: asset.uri, name: filename, type: `image/${ext}` } as any);
     setIsUploadingImage(true);
     try {
-      const res = await apiClient.post<{ image_url: string }>("/api/chat/upload-image/", formData, {
+      const res = await apiClient.post<{ image_url: string; image_ref: string }>("/api/chat/upload-image/", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      sendDirectMessage(recipientId, "", res.data.image_url, undefined, undefined, replyingTo?.id);
+      sendDirectMessage(recipientId, "", res.data.image_url, undefined, undefined, replyingTo?.id, undefined, res.data.image_ref);
       setReplyingTo(null);
+      requestAnimationFrame(() => {
+        listRef.current?.scrollToOffset({ offset: 0, animated: false });
+      });
     } catch {
       Alert.alert("Upload Failed", "Couldn't upload image. Please try again.");
     } finally {
@@ -961,18 +1203,41 @@ export default function ChatScreen() {
   const cancelRecording = useCallback(async () => {
     if (recordingTimeout.current) clearTimeout(recordingTimeout.current);
     setIsRecording(false);
+    let recordedUri = audioRecorder.uri;
     try {
       await audioRecorder.stop();
+      recordedUri = audioRecorder.uri || recordedUri;
       await setAudioModeAsync({ allowsRecording: false });
     } catch {}
+    if (recordedUri) {
+      try {
+        new File(recordedUri).delete();
+      } catch {}
+    }
   }, [audioRecorder]);
 
   const stopAndSendVoice = useCallback(async () => {
     if (recordingTimeout.current) clearTimeout(recordingTimeout.current);
     setIsRecording(false);
+    // If the quota is exhausted, stop the recording and discard it.
+    if (isDmQuotaExhausted) {
+      try {
+        await audioRecorder.stop();
+        await setAudioModeAsync({ allowsRecording: false });
+        const uri = audioRecorder.uri;
+        if (uri) { try { new File(uri).delete(); } catch {} }
+      } catch {}
+      Alert.alert(
+        "Daily Limit Reached",
+        "You've reached your daily message limit. Upgrade your subscription or wait until midnight to send more."
+      );
+      return;
+    }
+    let recordedUri: string | null = null;
     try {
       await audioRecorder.stop();
       const uri = audioRecorder.uri;
+      recordedUri = uri;
       const duration = Math.max(1, Math.round((Date.now() - recordingStartedAt.current) / 1000));
       await setAudioModeAsync({ allowsRecording: false });
       if (!uri) throw new Error("Recording file unavailable");
@@ -980,14 +1245,22 @@ export default function ChatScreen() {
       const formData = new FormData();
       formData.append("audio", { uri, name: "voice-message.m4a", type: "audio/mp4" } as any);
       setIsUploadingAudio(true);
-      const res = await apiClient.post<{ audio_url: string }>("/api/chat/upload-audio/", formData, {
+      const res = await apiClient.post<{ audio_url: string; audio_ref: string }>("/api/chat/upload-audio/", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      sendDirectMessage(recipientId, "", undefined, res.data.audio_url, duration, replyingTo?.id);
+      sendDirectMessage(recipientId, "", undefined, res.data.audio_url, duration, replyingTo?.id, res.data.audio_ref);
       setReplyingTo(null);
+      requestAnimationFrame(() => {
+        listRef.current?.scrollToOffset({ offset: 0, animated: false });
+      });
     } catch {
       Alert.alert("Voice message failed", "Couldn't send the recording. Please try again.");
     } finally {
+      if (recordedUri) {
+        try {
+          new File(recordedUri).delete();
+        } catch {}
+      }
       setIsUploadingAudio(false);
     }
   }, [audioRecorder, recipientId, replyingTo, sendDirectMessage]);
@@ -1026,12 +1299,52 @@ export default function ChatScreen() {
   const rawMessages = useMemo(() => historyQuery.data ?? [], [historyQuery.data]);
   const listData = useMemo(() => groupMessagesByDay(rawMessages), [rawMessages]);
 
-  // When a new message arrives, scroll the inverted list to offset 0 (= newest)
-  // without animation so there is no visible "bounce".
+  useEffect(() => {
+    if (!historyQuery.isSuccess || initialHistoryPageFor.current === recipientId) return;
+    initialHistoryPageFor.current = recipientId;
+    setNoMoreMessages(rawMessages.length < HISTORY_PAGE_SIZE);
+  }, [historyQuery.isSuccess, rawMessages.length, recipientId]);
+
+  const fetchOlderMessages = useCallback(async () => {
+    if (isLoadingOlder || noMoreMessages || rawMessages.length === 0) return;
+    setIsLoadingOlder(true);
+    const oldestMsg = rawMessages[rawMessages.length - 1];
+    try {
+      const response = await apiClient.get<DirectMessage[]>(
+        `/api/chat/direct/history/${recipientId}/`,
+        { params: { before: oldestMsg.timestamp } }
+      );
+      const olderMessages = response.data;
+      if (olderMessages.length < HISTORY_PAGE_SIZE) {
+        setNoMoreMessages(true);
+      }
+      if (olderMessages.length > 0) {
+        queryClient.setQueryData(
+          ['directHistory', recipientId],
+          (old: DirectMessage[] | undefined) => {
+            if (!old) return olderMessages;
+            // append strictly older ones (avoid duplicates just in case)
+            const existingIds = new Set(old.map(m => m.id));
+            const newM = olderMessages.filter(m => !existingIds.has(m.id));
+            return [...old, ...newM];
+          }
+        );
+      }
+    } catch (e) {
+      console.warn("Failed to fetch older messages:", e);
+    } finally {
+      setIsLoadingOlder(false);
+    }
+  }, [isLoadingOlder, noMoreMessages, rawMessages, recipientId, queryClient]);
+
+  // When a new message arrives and the user is near the bottom, snap to it instantly.
+  // animated:false avoids competing with the FlatList's own scroll adjustments.
   useEffect(() => {
     const count = rawMessages.length;
     if (count > prevMsgCount.current && prevMsgCount.current > 0) {
-      listRef.current?.scrollToOffset({ offset: 0, animated: false });
+      if (isAtBottom.current) {
+        listRef.current?.scrollToOffset({ offset: 0, animated: false });
+      }
     }
     prevMsgCount.current = count;
   }, [rawMessages.length]);
@@ -1041,19 +1354,35 @@ export default function ChatScreen() {
       if (item.type === "day") {
         return (
           <View style={styles.daySep}>
-            <View style={[styles.daySepLine, { backgroundColor: border }]} />
-            <Text style={[styles.daySepText, { color: muted }]}>{item.label}</Text>
-            <View style={[styles.daySepLine, { backgroundColor: border }]} />
+            <View
+              style={[
+                styles.daySepPill,
+                {
+                  backgroundColor: isDark
+                    ? "rgba(255, 255, 255, 0.12)"
+                    : "rgba(0, 0, 0, 0.06)",
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.daySepText,
+                  { color: isDark ? "rgba(255, 255, 255, 0.75)" : muted },
+                ]}
+              >
+                {item.label}
+              </Text>
+            </View>
           </View>
         );
       }
       const msg: DirectMessage = item;
       const isMe = String(msg.sender) === String(currentUserId);
-      // show avatar only on last message in a run from this sender
+      // The list is newest-first. The newest message in each sender run carries
+      // the tail, timestamp, and (for received messages) the avatar.
       const nextItem = listData[index - 1]; // inverted list: next in array = older
-      const showAvatar =
-        !isMe &&
-        (!nextItem || (nextItem as any).type === "day" || String((nextItem as DirectMessage).sender) !== String(msg.sender));
+      const isLast = !nextItem || (nextItem as any).type === "day" || String((nextItem as DirectMessage).sender) !== String(msg.sender);
+      const showAvatar = !isMe && isLast;
 
       return (
         <MessageBubble
@@ -1062,7 +1391,7 @@ export default function ChatScreen() {
           showAvatar={showAvatar}
           recipientPhoto={recipientPhoto}
           onReply={setReplyingTo}
-          isLast={index === 0}
+          isLast={isLast}
           onLongPress={setReactingToMessage}
         />
       );
@@ -1076,27 +1405,38 @@ export default function ChatScreen() {
     <View style={[styles.root, { backgroundColor: background }]}>
       {/* ── Header ── */}
       <View style={[styles.header, { paddingTop: insets.top + 4, borderBottomColor: border + "44", backgroundColor: background }]}>
-        <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
+        <Pressable onPress={goToMessages} hitSlop={12} style={styles.backBtn}>
           <ChevronLeft size={24} color={textColor} />
         </Pressable>
 
         <Pressable style={styles.headerCenter} onPress={() => {}}>
           {recipientPhoto ? (
             <View>
-              <Image source={{ uri: recipientPhoto }} style={styles.headerAvatar} />
-              {onlineUsers[recipientId] && <View style={styles.onlineDot} />}
+              <Image
+                source={{ uri: recipientPhoto }}
+                style={styles.headerAvatar}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                transition={0}
+              />
+              {isRecipientOnline && (
+                <View style={[styles.onlineDot, { borderColor: background }]} />
+              )}
             </View>
           ) : (
             <View style={[styles.headerAvatar, styles.headerAvatarFallback, { backgroundColor: card }]}>
               <Text style={{ color: muted, fontWeight: "700", fontSize: 16 }}>
                 {recipientUsername.charAt(0).toUpperCase()}
               </Text>
+              {isRecipientOnline && (
+                <View style={[styles.onlineDot, { borderColor: background }]} />
+              )}
             </View>
           )}
           <View style={{ marginLeft: 10 }}>
             <Text style={[styles.headerName, { color: textColor }]}>{recipientUsername}</Text>
-            <Text style={[styles.headerSub, { color: muted }]}>
-              {recipientTyping ? "typing…" : onlineUsers[recipientId] ? "Active now" : "Offline"}
+            <Text style={[styles.headerSub, { color: isRecipientOnline ? "#22C55E" : muted, fontWeight: isRecipientOnline ? "600" : "400" }]}>
+              {recipientTyping ? "typing…" : isRecipientOnline ? "Active now" : "Offline"}
             </Text>
           </View>
         </Pressable>
@@ -1136,10 +1476,27 @@ export default function ChatScreen() {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
-            maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
             windowSize={10}
             maxToRenderPerBatch={20}
             removeClippedSubviews={Platform.OS === "android"}
+            onScroll={(e) => {
+              isAtBottom.current = e.nativeEvent.contentOffset.y < 50;
+            }}
+            onScrollBeginDrag={() => {
+              hasStartedPaging.current = true;
+            }}
+            scrollEventThrottle={16}
+            onEndReached={() => {
+              if (hasStartedPaging.current) void fetchOlderMessages();
+            }}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={
+              isLoadingOlder ? (
+                <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+                  <ActivityIndicator color={primary} />
+                </View>
+              ) : null
+            }
             ListEmptyComponent={
               <View style={styles.emptyWrap}>
                 <Text style={{ fontSize: 36, marginBottom: 12 }}>👋</Text>
@@ -1182,9 +1539,12 @@ export default function ChatScreen() {
               </Text>
             </View>
             {replyingTo.image_url && (
-              <Image
-                source={{ uri: replyingTo.image_url }}
+              <ChatMessageImage
+                messageId={replyingTo.id}
+                imageUrl={replyingTo.image_url}
+                imageUrlExpiresAt={replyingTo.image_url_expires_at}
                 style={styles.replyThumbnail}
+                transition={0}
               />
             )}
             <Pressable
@@ -1198,204 +1558,231 @@ export default function ChatScreen() {
           </View>
         )}
 
-        {/* ── Quick Emoji Bar ── */}
-        {showEmojiPicker && (
-          <View style={[styles.emojiBar, { backgroundColor: card, borderTopColor: border + "25" }]}>
-            <FlatList
-              data={QUICK_EMOJIS}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              keyExtractor={(item, index) => `${item}-${index}`}
-              contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 8, gap: 10 }}
-              renderItem={({ item }) => (
-                <Pressable
-                  onPress={() => {
-                    try {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    } catch {}
-                    handleTextChange(text + item);
-                  }}
-                  style={({ pressed }) => [
-                    styles.emojiItem,
-                    pressed && { transform: [{ scale: 1.25 }] },
-                  ]}
-                >
-                  <Text style={{ fontSize: 24 }}>{item}</Text>
-                </Pressable>
-              )}
-            />
-          </View>
-        )}
-
-        {/* ── Input bar ── */}
-        <View
-          style={[
-            styles.inputBar,
-            {
-              backgroundColor: background,
-              borderTopColor: border + "28",
-              paddingBottom: Math.max(insets.bottom, 10),
-              alignItems: isRecording ? "center" : "flex-end",
-            },
-          ]}
-        >
-          {/* Main Input Capsule */}
+        {/* ── Daily limit banner OR emoji + input bar ── */}
+        {isDmQuotaExhausted ? (
           <View
             style={[
-              styles.inputPill,
+              styles.limitBanner,
               {
-                backgroundColor: card,
-                borderColor: border + "45",
-                minHeight: 48,
-                height: isRecording ? 48 : undefined,
-                paddingHorizontal: isRecording ? 0 : 6,
+                backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6",
+                borderColor: isDark ? "rgba(255, 255, 255, 0.12)" : border + "45",
+                paddingBottom: Math.max(
+                  insets.bottom + (Platform.OS === "android" ? 8 : 4),
+                  Platform.OS === "android" ? 22 : 14,
+                ),
               },
             ]}
           >
-            {isRecording ? (
-              <View style={styles.recordingRow}>
-                {/* Big Cancel Button with slight borders */}
-                <Pressable
-                  onPress={() => {
-                    try {
-                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-                    } catch {}
-                    cancelRecording();
-                  }}
-                  hitSlop={8}
-                  style={({ pressed }) => [
-                    styles.cancelBtn,
-                    {
-                      borderColor: border + "85",
-                      backgroundColor: background,
-                    },
-                    pressed && { opacity: 0.6, transform: [{ scale: 0.95 }] },
-                  ]}
-                  accessibilityLabel="Cancel recording"
-                  accessibilityRole="button"
-                >
-                  <Text style={[styles.cancelBtnText, { color: "#EF4444" }]}>Cancel</Text>
-                </Pressable>
-
-                {/* Blinking Live Indicator + Monospace Timer */}
-                <View style={styles.recTimerWrap}>
-                  <Animated.View style={[styles.recDot, { opacity: recordingDotOpacity }]} />
-                  <Text style={[styles.recTimerText, { color: textColor }]}>
-                    {formatDuration(recorderState.durationMillis / 1000)}
-                  </Text>
-                </View>
-
-                {/* Animated soundwave visualizer */}
-                <LiveWaveform isRecording={isRecording} color={primary} />
-              </View>
-            ) : (
-              <>
-                {/* Emoji button */}
-                <Pressable
-                  onPress={() => {
-                    try {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    } catch {}
-                    setShowEmojiPicker((prev) => !prev);
-                  }}
-                  hitSlop={6}
-                  style={({ pressed }) => [
-                    styles.pillIconBtn,
-                    { backgroundColor: showEmojiPicker ? primary + "22" : border + "35" },
-                    pressed && { opacity: 0.6, transform: [{ scale: 0.94 }] },
-                  ]}
-                  accessibilityLabel="Choose emoji"
-                  accessibilityRole="button"
-                >
-                  <Smile size={18} color={showEmojiPicker ? primary : muted} />
-                </Pressable>
-
-                {/* Attach photo button */}
-                <Pressable
-                  onPress={pickImage}
-                  hitSlop={6}
-                  style={({ pressed }) => [
-                    styles.pillIconBtn,
-                    { backgroundColor: border + "35" },
-                    pressed && { opacity: 0.6, transform: [{ scale: 0.94 }] },
-                  ]}
-                  accessibilityLabel="Attach photo from gallery"
-                  accessibilityRole="button"
-                >
-                  <Paperclip size={18} color={muted} />
-                </Pressable>
-
-                <TextInput
-                  ref={inputRef}
-                  style={[styles.input, { color: textColor }]}
-                  value={text}
-                  onChangeText={handleTextChange}
-                  onFocus={() => setShowEmojiPicker(false)}
-                  placeholder="Message…"
-                  placeholderTextColor={muted}
-                  multiline
-                  maxLength={2000}
-                  returnKeyType="default"
-                />
-
-                {/* Camera button with transparent background */}
-                <Pressable
-                  onPress={takePhoto}
-                  hitSlop={6}
-                  style={({ pressed }) => [
-                    styles.pillIconBtn,
-                    { backgroundColor: border + "35" },
-                    pressed && { opacity: 0.6, transform: [{ scale: 0.94 }] },
-                  ]}
-                  accessibilityLabel="Take photo with camera"
-                  accessibilityRole="button"
-                >
-                  <Camera size={18} color={muted} />
-                </Pressable>
-              </>
-            )}
+            <Lock size={18} color="#EF4444" />
+            <Text style={[styles.limitBannerText, { color: textColor }]}>
+              Daily limit reached ({dmQuota?.used}/{dmQuota?.limit}). Resets at midnight.
+            </Text>
           </View>
+        ) : (
+          <>
+            {/* ── Quick Emoji Bar ── */}
+            {showEmojiPicker && (
+              <View style={[styles.emojiBar, { backgroundColor: card, borderTopColor: border + "25" }]}>
+                <FlatList
+                  data={QUICK_EMOJIS}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  keyExtractor={(item, index) => `${item}-${index}`}
+                  contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 8, gap: 10 }}
+                  renderItem={({ item }) => (
+                    <Pressable
+                      onPress={() => {
+                        try {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        } catch {}
+                        handleTextChange(text + item);
+                      }}
+                      style={({ pressed }) => [
+                        styles.emojiItem,
+                        pressed && { transform: [{ scale: 1.25 }] },
+                      ]}
+                    >
+                      <Text style={{ fontSize: 24 }}>{item}</Text>
+                    </Pressable>
+                  )}
+                />
+              </View>
+            )}
 
-          {/* Action button: Vibrant Primary Send if text/uploading/recording, Tactile Mic if empty */}
-          {text.trim() || isUploadingImage || isUploadingAudio || isRecording ? (
-            <Pressable
-              onPress={isRecording ? stopAndSendVoice : handleSend}
-              disabled={isUploadingImage || isUploadingAudio}
-              style={({ pressed }) => [
-                styles.sendBtn,
-                { backgroundColor: primary },
-                Platform.OS === "ios" && { shadowColor: primary },
-                pressed && { transform: [{ scale: 0.94 }], opacity: 0.92 },
-              ]}
-              accessibilityLabel={isRecording ? "Send voice message" : "Send message"}
-              accessibilityRole="button"
-            >
-              {isUploadingImage || isUploadingAudio ? (
-                <ActivityIndicator size="small" color="#FFF" />
-              ) : isRecording ? (
-                <Square size={16} color="#FFFFFF" fill="#FFFFFF" />
-              ) : (
-                <Send size={20} color="#FFFFFF" strokeWidth={2.4} style={{ marginLeft: 2 }} />
-              )}
-            </Pressable>
-          ) : (
-            <Pressable
-              onPress={handleMicPress}
-              style={({ pressed }) => [
-                styles.micBtn,
+            {/* ── Input bar ── */}
+            <View
+              style={[
+                styles.inputBar,
                 {
-                  backgroundColor: card,
-                  borderColor: border + "45",
+                  backgroundColor: background,
+                  borderTopColor: isDark ? "rgba(255, 255, 255, 0.08)" : border + "28",
+                  paddingBottom: Math.max(
+                    insets.bottom + (Platform.OS === "android" ? 8 : 4),
+                    Platform.OS === "android" ? 22 : 14,
+                  ),
+                  alignItems: isRecording ? "center" : "flex-end",
                 },
-                pressed && { opacity: 0.7, transform: [{ scale: 0.94 }] },
               ]}
-              accessibilityLabel="Record voice message"
-              accessibilityRole="button"
             >
-              <Mic size={20} color={primary} />
-            </Pressable>
-          )}
-        </View>
+              {/* Main Input Capsule */}
+              <View
+                style={[
+                  styles.inputPill,
+                  {
+                    backgroundColor: isDark ? "#1C1C1E" : card,
+                    borderColor: isDark ? "rgba(255, 255, 255, 0.12)" : border + "45",
+                    minHeight: 48,
+                    height: isRecording ? 48 : undefined,
+                    paddingHorizontal: isRecording ? 0 : 6,
+                  },
+                ]}
+              >
+                {isRecording ? (
+                  <View style={styles.recordingRow}>
+                    {/* Big Cancel Button with slight borders */}
+                    <Pressable
+                      onPress={() => {
+                        try {
+                          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                        } catch {}
+                        cancelRecording();
+                      }}
+                      hitSlop={8}
+                      style={({ pressed }) => [
+                        styles.cancelBtn,
+                        {
+                          borderColor: border + "85",
+                          backgroundColor: background,
+                        },
+                        pressed && { opacity: 0.6, transform: [{ scale: 0.95 }] },
+                      ]}
+                      accessibilityLabel="Cancel recording"
+                      accessibilityRole="button"
+                    >
+                      <Text style={[styles.cancelBtnText, { color: "#EF4444" }]}>Cancel</Text>
+                    </Pressable>
+
+                    {/* Blinking Live Indicator + Monospace Timer */}
+                    <View style={styles.recTimerWrap}>
+                      <Animated.View style={[styles.recDot, { opacity: recordingDotOpacity }]} />
+                      <Text style={[styles.recTimerText, { color: textColor }]}>
+                        {formatDuration(recordDurationSeconds)}
+                      </Text>
+                    </View>
+
+                    {/* Animated soundwave visualizer */}
+                    <LiveWaveform level={recordingLevel} color={primary} />
+                  </View>
+                ) : (
+                  <>
+                    {/* Emoji button */}
+                    <Pressable
+                      onPress={() => {
+                        try {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        } catch {}
+                        setShowEmojiPicker((prev) => !prev);
+                      }}
+                      hitSlop={6}
+                      style={({ pressed }) => [
+                        styles.pillIconBtn,
+                        { backgroundColor: showEmojiPicker ? primary + "22" : isDark ? "rgba(255, 255, 255, 0.08)" : border + "35" },
+                        pressed && { opacity: 0.6, transform: [{ scale: 0.94 }] },
+                      ]}
+                      accessibilityLabel="Choose emoji"
+                      accessibilityRole="button"
+                    >
+                      <Smile size={18} color={showEmojiPicker ? primary : muted} />
+                    </Pressable>
+
+                    {/* Attach photo button */}
+                    <Pressable
+                      onPress={pickImage}
+                      hitSlop={6}
+                      style={({ pressed }) => [
+                        styles.pillIconBtn,
+                        { backgroundColor: isDark ? "rgba(255, 255, 255, 0.08)" : border + "35" },
+                        pressed && { opacity: 0.6, transform: [{ scale: 0.94 }] },
+                      ]}
+                      accessibilityLabel="Attach photo from gallery"
+                      accessibilityRole="button"
+                    >
+                      <Paperclip size={18} color={muted} />
+                    </Pressable>
+
+                    <TextInput
+                      ref={inputRef}
+                      style={[styles.input, { color: textColor }]}
+                      value={text}
+                      onChangeText={handleTextChange}
+                      onFocus={() => setShowEmojiPicker(false)}
+                      placeholder="Message…"
+                      placeholderTextColor={muted}
+                      multiline
+                      maxLength={2000}
+                      returnKeyType="default"
+                    />
+
+                    {/* Camera button with transparent background */}
+                    <Pressable
+                      onPress={takePhoto}
+                      hitSlop={6}
+                      style={({ pressed }) => [
+                        styles.pillIconBtn,
+                        { backgroundColor: isDark ? "rgba(255, 255, 255, 0.08)" : border + "35" },
+                        pressed && { opacity: 0.6, transform: [{ scale: 0.94 }] },
+                      ]}
+                      accessibilityLabel="Take photo with camera"
+                      accessibilityRole="button"
+                    >
+                      <Camera size={18} color={muted} />
+                    </Pressable>
+                  </>
+                )}
+              </View>
+
+              {/* Action button: Vibrant Primary Send if text/uploading/recording, Tactile Mic if empty */}
+              {text.trim() || isUploadingImage || isUploadingAudio || isRecording ? (
+                <Pressable
+                  onPress={isRecording ? stopAndSendVoice : handleSend}
+                  disabled={isUploadingImage || isUploadingAudio}
+                  style={({ pressed }) => [
+                    styles.sendBtn,
+                    { backgroundColor: primary },
+                    Platform.OS === "ios" && { shadowColor: primary },
+                    pressed && { transform: [{ scale: 0.94 }], opacity: 0.92 },
+                  ]}
+                  accessibilityLabel={isRecording ? "Send voice message" : "Send message"}
+                  accessibilityRole="button"
+                >
+                  {isUploadingImage || isUploadingAudio ? (
+                    <ActivityIndicator size="small" color="#FFF" />
+                  ) : isRecording ? (
+                    <Square size={16} color="#FFFFFF" fill="#FFFFFF" />
+                  ) : (
+                    <Send size={20} color="#FFFFFF" strokeWidth={2.4} style={{ marginLeft: 2 }} />
+                  )}
+                </Pressable>
+              ) : (
+                <Pressable
+                  onPress={handleMicPress}
+                  style={({ pressed }) => [
+                    styles.micBtn,
+                    {
+                      backgroundColor: isDark ? "#1C1C1E" : card,
+                      borderColor: isDark ? "rgba(255, 255, 255, 0.12)" : border + "45",
+                    },
+                    pressed && { opacity: 0.7, transform: [{ scale: 0.94 }] },
+                  ]}
+                  accessibilityLabel="Record voice message"
+                  accessibilityRole="button"
+                >
+                  <Mic size={20} color={primary} />
+                </Pressable>
+              )}
+            </View>
+          </>
+        )}
       </KeyboardAvoidingView>
 
       {/* ── Chat Action Menu ── */}
@@ -1555,14 +1942,21 @@ const styles = StyleSheet.create({
 
   // Day separator
   daySep: {
-    flexDirection: "row",
     alignItems: "center",
-    marginVertical: 12,
+    justifyContent: "center",
+    marginVertical: 14,
     paddingHorizontal: 16,
-    gap: 8,
   },
-  daySepLine: { flex: 1, height: StyleSheet.hairlineWidth },
-  daySepText: { fontSize: 12, fontWeight: "600" },
+  daySepPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  daySepText: {
+    fontSize: 11.5,
+    fontWeight: "600",
+    letterSpacing: 0.2,
+  },
 
   // Empty state
   emptyWrap: {
@@ -1753,5 +2147,18 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 4,
     marginLeft: 8,
+  },
+  limitBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  limitBannerText: {
+    fontSize: 13,
+    fontWeight: "600",
   },
 });

@@ -116,7 +116,7 @@ export default function ChangeEmailScreen() {
       await apiClient.post('/api/settings/request-email-change/', { new_email: newEmail });
       const submittedEmail = newEmail;
       setNewEmail("");
-      router.push({ pathname: "/(tabs)/../settings/verify-email", params: { newEmail: submittedEmail } });
+      router.push({ pathname: "/settings/verify-email", params: { newEmail: submittedEmail } });
     } catch (error: any) {
       const errorMsg = error.response?.data?.error || "An error occurred while requesting verification.";
       Alert.alert("Request Failed", errorMsg);

@@ -5,44 +5,7 @@ import { useOnboarding } from "@/providers/onboarding-context";
 import { useRouter } from "expo-router";
 import { Pressable, ScrollView, View } from "react-native";
 
-const INTEREST_CATEGORIES = [
-  {
-    title: "Logical & Structured",
-    tags: ["Coding", "Math", "Patterns"],
-  },
-  {
-    title: "Visual/Sensory",
-    tags: ["Photography", "Design", "Colors"],
-  },
-  {
-    title: "Animals & Nature",
-    tags: ["Biology", "Pets", "Botany"],
-  },
-  {
-    title: "Imaginary Universes",
-    tags: ["Sci-Fi", "D&D", "Lore"],
-  },
-  {
-    title: "Collecting",
-    tags: ["History", "Antiques", "Cataloging"],
-  },
-  {
-    title: "Language",
-    tags: ["Linguistics", "Writing", "Etymology"],
-  },
-  {
-    title: "Body & Movement",
-    tags: ["Yoga", "Dance", "Proprioception"],
-  },
-  {
-    title: "Mechanical",
-    tags: ["Engines", "Electronics", "Systems"],
-  },
-  {
-    title: "Psychology",
-    tags: ["Behavior", "Neurodiversity", "Sociology"],
-  },
-];
+import { INTEREST_CATEGORIES } from "@/constants/interests";
 
 export default function OnboardingInterestsScreen() {
   const router = useRouter();
@@ -96,34 +59,36 @@ export default function OnboardingInterestsScreen() {
                   fontSize: 16,
                   fontWeight: "700",
                   color: selected ? primary : text,
-                  marginBottom: 8,
+                  marginBottom: cat.tags.length > 0 ? 8 : 0,
                 }}
               >
                 {cat.title}
               </Text>
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-                {cat.tags.map((tag) => (
-                  <View
-                    key={tag}
-                    style={{
-                      backgroundColor: selected ? primary + "22" : muted + "22",
-                      borderRadius: 20,
-                      paddingHorizontal: 12,
-                      paddingVertical: 4,
-                    }}
-                  >
-                    <Text
+              {cat.tags.length > 0 && (
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                  {cat.tags.map((tag) => (
+                    <View
+                      key={tag}
                       style={{
-                        fontSize: 12,
-                        fontWeight: "500",
-                        color: selected ? primary : muted,
+                        backgroundColor: selected ? primary + "22" : muted + "22",
+                        borderRadius: 20,
+                        paddingHorizontal: 12,
+                        paddingVertical: 4,
                       }}
                     >
-                      {tag}
-                    </Text>
-                  </View>
-                ))}
-              </View>
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          fontWeight: "500",
+                          color: selected ? primary : muted,
+                        }}
+                      >
+                        {tag}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              )}
             </Pressable>
           );
         })}

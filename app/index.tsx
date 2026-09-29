@@ -1,42 +1,50 @@
 import { useAuthStore } from "@/store/authStore";
 import { useProfileStore } from "@/store/profileStore";
 import { Redirect } from "expo-router";
-import React, { useEffect } from "react";
-import { ActivityIndicator, View, Text, Pressable, StyleSheet } from "react-native";
+import React from "react";
+import { ActivityIndicator, View, Text, Pressable } from "react-native";
 import { useColor } from "@/hooks/useColor";
 import { WifiOff } from "lucide-react-native";
 
 export default function IndexScreen() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const isRestoring = useAuthStore((state) => state.isRestoring);
-  const { profile, fetchProfile, isLoading: isProfileLoading, error } = useProfileStore();
+  const { profile, fetchProfile, isLoading: isProfileLoading, error, hasHydrated } = useProfileStore();
   const background = useColor("background");
   const text = useColor("text");
   const primary = useColor("primary");
   const textMuted = useColor("textMuted");
 
-  useEffect(() => {
-    if (isAuthenticated && !profile && !isProfileLoading && !error) {
+  React.useEffect(() => {
+    if (isAuthenticated && hasHydrated && !profile && !isProfileLoading && !error) {
       fetchProfile();
     }
-  }, [isAuthenticated, profile, isProfileLoading, error]);
+  }, [isAuthenticated, hasHydrated, profile, isProfileLoading, error, fetchProfile]);
 
-  if (isRestoring) {
+  // Wait for storage hydration before making any routing decision
+  if (isRestoring || !hasHydrated) {
     return null;
   }
 
+  // Not authenticated -> go to login
   if (!isAuthenticated) {
     return <Redirect href={"/(auth)/login"} />;
   }
 
-  if (isProfileLoading || (!profile && !error)) {
-    return (
-      <View style={{ flex: 1, backgroundColor: background, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color={primary} />
-      </View>
-    );
+  // Fast path: Profile already cached locally -> route immediately with zero wait & zero spinner!
+  if (profile) {
+    if (!profile.onboarding_part1_completed) {
+      return <Redirect href={"/onboarding"} />;
+    }
+
+    if (profile.face_verification_status === "not_submitted") {
+      return <Redirect href={"/onboarding/verification-prompt"} />;
+    }
+
+    return <Redirect href={"/(tabs)/home"} />;
   }
 
+  // Offline / Network error state when there is no cached profile
   if (error) {
     const isNetworkError = error === 'Failed to fetch profile' || error.includes('Network');
     
@@ -65,6 +73,7 @@ export default function IndexScreen() {
         </Text>
         
         <Pressable
+          disabled={isProfileLoading}
           onPress={() => fetchProfile()}
           style={({ pressed }) => ({
             backgroundColor: primary,
@@ -72,7 +81,7 @@ export default function IndexScreen() {
             paddingVertical: 16,
             borderRadius: 30,
             width: '100%',
-            opacity: pressed ? 0.8 : 1,
+            opacity: pressed || isProfileLoading ? 0.8 : 1,
             shadowColor: primary,
             shadowOffset: { width: 0, height: 4 },
             shadowOpacity: 0.2,
@@ -80,23 +89,17 @@ export default function IndexScreen() {
             elevation: 4,
           })}
         >
-          <Text style={{ color: "#fff", fontWeight: "700", fontSize: 16, textAlign: 'center' }}>Try Again</Text>
+          {isProfileLoading ? (
+            <ActivityIndicator color="#fff" size="small" />
+          ) : (
+            <Text style={{ color: "#fff", fontWeight: "700", fontSize: 16, textAlign: 'center' }}>Try Again</Text>
+          )}
         </Pressable>
       </View>
     );
   }
 
-  if (profile) {
-    if (!profile.onboarding_part1_completed) {
-      return <Redirect href={"/onboarding"} />;
-    }
-
-    if (profile.face_verification_status === "not_submitted") {
-      return <Redirect href={"/onboarding/verification-prompt"} />;
-    }
-
-    return <Redirect href={"/(tabs)/home"} />;
-  }
-
+  // Profile is still being fetched on cold start without cache:
+  // Return null so the native splash screen remains smoothly visible without showing an ugly spinner!
   return null;
 }

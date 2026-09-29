@@ -38,6 +38,8 @@ export const useAuthStore = create<AuthState>((set) => ({
       await SecureStore.deleteItemAsync('access_token');
       await SecureStore.deleteItemAsync('refresh_token');
       await SecureStore.deleteItemAsync('user_role');
+      const { useProfileStore } = await import('./profileStore');
+      useProfileStore.getState().clearProfile();
       set({ accessToken: null, refreshToken: null, role: null, isAuthenticated: false });
     } catch (error) {
       console.error('Failed to clear auth tokens', error);
@@ -46,9 +48,11 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   restoreAuth: async () => {
     try {
-      const access = await SecureStore.getItemAsync('access_token');
-      const refresh = await SecureStore.getItemAsync('refresh_token');
-      const role = await SecureStore.getItemAsync('user_role');
+      const [access, refresh, role] = await Promise.all([
+        SecureStore.getItemAsync('access_token'),
+        SecureStore.getItemAsync('refresh_token'),
+        SecureStore.getItemAsync('user_role'),
+      ]);
       
       if (access && refresh) {
         set({ accessToken: access, refreshToken: refresh, role, isAuthenticated: true, isRestoring: false });

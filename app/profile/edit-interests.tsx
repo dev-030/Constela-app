@@ -13,17 +13,7 @@ import { useProfileStore } from '@/store/profileStore';
 import { updateMyProfile } from '@/api/profile';
 import { useAndroidBack } from '@/hooks/useAndroidBack';
 
-const INTEREST_CATEGORIES = [
-  { title: "Logical & Structured", tags: ["Coding", "Math", "Patterns"] },
-  { title: "Visual/Sensory", tags: ["Photography", "Design", "Colors"] },
-  { title: "Animals & Nature", tags: ["Biology", "Pets", "Botany"] },
-  { title: "Imaginary Universes", tags: ["Sci-Fi", "D&D", "Lore"] },
-  { title: "Collecting", tags: ["History", "Antiques", "Cataloging"] },
-  { title: "Language", tags: ["Linguistics", "Writing", "Etymology"] },
-  { title: "Body & Movement", tags: ["Yoga", "Dance", "Proprioception"] },
-  { title: "Mechanical", tags: ["Engines", "Electronics", "Systems"] },
-  { title: "Psychology", tags: ["Behavior", "Neurodiversity", "Sociology"] },
-];
+import { INTEREST_CATEGORIES } from '@/constants/interests';
 
 export default function EditInterestsScreen() {
   useAndroidBack();
@@ -34,7 +24,7 @@ export default function EditInterestsScreen() {
   const border = useColor('border');
   const primary = useColor('primary');
 
-  const { profile, fetchProfile } = useProfileStore();
+  const { profile, fetchProfile, setProfile } = useProfileStore();
 
   useEffect(() => {
     if (!profile) fetchProfile();
@@ -63,15 +53,24 @@ export default function EditInterestsScreen() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const formData = new FormData();
-      formData.append('interests', JSON.stringify(interests));
-
-      await updateMyProfile(formData);
-      await fetchProfile();
+      const updated = await updateMyProfile({ interests });
+      if (updated) {
+        setProfile(updated);
+      }
+      fetchProfile().catch(console.error);
       router.back();
     } catch (error: any) {
-      console.error(error);
-      Alert.alert("Error", "Failed to save profile");
+      console.error('Failed to save interests:', error);
+      let errMsg = "Failed to save profile";
+      if (error?.response?.data && typeof error.response.data === "object") {
+        const firstKey = Object.keys(error.response.data)[0];
+        if (Array.isArray(error.response.data[firstKey])) {
+          errMsg = `${firstKey}: ${error.response.data[firstKey][0]}`;
+        } else if (typeof error.response.data[firstKey] === "string") {
+          errMsg = error.response.data[firstKey];
+        }
+      }
+      Alert.alert("Error", errMsg);
     } finally {
       setIsSaving(false);
     }
@@ -112,34 +111,36 @@ export default function EditInterestsScreen() {
                   fontSize: 16,
                   fontWeight: "700",
                   color: text,
-                  marginBottom: 8,
+                  marginBottom: category.tags.length > 0 ? 8 : 0,
                 }}
               >
                 {category.title}
               </Text>
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-                {category.tags.map((tag) => (
-                  <View
-                    key={tag}
-                    style={{
-                      backgroundColor: selected ? primary + "15" : muted + "22",
-                      borderRadius: 20,
-                      paddingHorizontal: 12,
-                      paddingVertical: 4,
-                    }}
-                  >
-                    <Text
+              {category.tags.length > 0 && (
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                  {category.tags.map((tag) => (
+                    <View
+                      key={tag}
                       style={{
-                        fontSize: 12,
-                        fontWeight: "500",
-                        color: selected ? primary : muted,
+                        backgroundColor: selected ? primary + "15" : muted + "22",
+                        borderRadius: 20,
+                        paddingHorizontal: 12,
+                        paddingVertical: 4,
                       }}
                     >
-                      {tag}
-                    </Text>
-                  </View>
-                ))}
-              </View>
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          fontWeight: "500",
+                          color: selected ? primary : muted,
+                        }}
+                      >
+                        {tag}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              )}
             </Pressable>
           );
         })}
@@ -150,7 +151,7 @@ export default function EditInterestsScreen() {
       <View style={[styles.footer, { paddingBottom: insets.bottom || 24, backgroundColor: background }]}>
         <Button 
           onPress={handleSave} 
-          style={[styles.saveBtn, !hasChanged && { opacity: 0.5 }]} 
+          style={[styles.saveBtn, ...(!hasChanged ? [{ opacity: 0.5 }] : [])]} 
           disabled={isSaving || !hasChanged}
         >
           {isSaving ? <ActivityIndicator color="#FFF" /> : "Save Changes"}

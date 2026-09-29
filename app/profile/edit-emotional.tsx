@@ -23,7 +23,7 @@ export default function EditEmotionalScreen() {
   const primary = useColor('primary');
   const border = useColor('border');
 
-  const { profile, fetchProfile } = useProfileStore();
+  const { profile, fetchProfile, setProfile } = useProfileStore();
 
   useEffect(() => {
     if (!profile) fetchProfile();
@@ -55,17 +55,19 @@ export default function EditEmotionalScreen() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const formData = new FormData();
-      formData.append('recharge_methods', JSON.stringify(recharge));
-      formData.append('exhaust_triggers', JSON.stringify(exhausts));
-      formData.append('emotional_needs', JSON.stringify(needs));
-      formData.append('second_degree_humor', humor === 'Yes' ? 'true' : 'false');
-      formData.append('soothe_methods', JSON.stringify(soothes));
-
-      await updateMyProfile(formData);
-      await fetchProfile();
+      const updated = await updateMyProfile({
+        recharge_methods: recharge,
+        exhaust_triggers: exhausts,
+        emotional_needs: needs,
+        second_degree_humor: humor === 'Yes',
+        soothe_methods: soothes,
+      });
+      if (updated) {
+        setProfile(updated);
+      }
+      fetchProfile().catch(console.error);
       router.back();
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
             let errMsg = "Failed to save profile";
       if (error?.response?.data && typeof error.response.data === "object") {
@@ -156,10 +158,10 @@ export default function EditEmotionalScreen() {
         <View style={styles.pillRow}>
           {['Silence or soft sounds', 'Dim light', 'Massage', 'Sensory objects', 'Chosen solitude', 'Comforting routines', 'Predictability', 'Clear Communication', 'Hyperfocus on an interest'].map(item => (
             <FilterPill 
-              key={item} label={item} 
+              key={item} 
+              label={item} 
               selected={soothes.includes(item)} 
               onPress={() => toggleArrayItem(soothes, setSoothes, item)} 
-              style={!soothes.includes(item) && { backgroundColor: '#FAF3E0', borderWidth: 1, borderColor: '#E0D4B4' }}
             />
           ))}
         </View>
@@ -170,7 +172,7 @@ export default function EditEmotionalScreen() {
       <View style={[styles.footer, { paddingBottom: insets.bottom || 24, backgroundColor: background }]}>
         <Button 
           onPress={handleSave} 
-          style={[styles.saveBtn, !hasChanged && { opacity: 0.5 }]} 
+          style={[styles.saveBtn, ...(!hasChanged ? [{ opacity: 0.5 }] : [])]} 
           disabled={isSaving || !hasChanged}
         >
           {isSaving ? <ActivityIndicator color="#FFF" /> : "Save Changes"}

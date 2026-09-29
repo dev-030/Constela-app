@@ -16,16 +16,18 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { Alert } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/authStore';
 import { useProfileStore } from '@/store/profileStore';
-
-const WS_BASE_URL =
-  (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8001')
-    .replace(/^https/, 'wss')
-    .replace(/^http/, 'ws');
+import { WS_URL } from '@/constants/config';
+import { apiClient } from '@/api/client';
 
 type TypingCallback = (senderId: string, isTyping: boolean) => void;
+
+function quotaIsCurrentlyExhausted(quota?: { remaining: number | null; resets_at: string }) {
+  return quota?.remaining === 0 && new Date(quota.resets_at).getTime() > Date.now();
+}
 
 interface ChatSocketContextValue {
   isConnected: boolean;
@@ -34,7 +36,11 @@ interface ChatSocketContextValue {
     recipientId: string,
     content: string,
     imageUrl?: string,
+    audioUrl?: string,
+    audioDuration?: number,
     replyToId?: string,
+    audioRef?: string,
+    imageRef?: string,
   ) => void;
   sendRoomMessage: (roomId: string, content: string) => void;
   joinRoom: (roomId: string) => void;
@@ -44,6 +50,7 @@ interface ChatSocketContextValue {
   setActiveRecipientId: (id: string | null) => void;
   sendMarkRead: (partnerId: string) => void;
   sendMessageReaction: (messageId: string, reaction: string | null, recipientId: string) => void;
+  queryPresence: (userId: string) => void;
 }
 
 const ChatSocketContext = createContext<ChatSocketContextValue>({
@@ -58,18 +65,22 @@ const ChatSocketContext = createContext<ChatSocketContextValue>({
   setActiveRecipientId: () => {},
   sendMarkRead: () => {},
   sendMessageReaction: () => {},
+  queryPresence: () => {},
 });
 
 export function ChatSocketProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const { accessToken } = useAuthStore();
+  const profileId = useProfileStore((state) => state.profile?.id);
   const [isConnected, setIsConnected] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState<Record<string, boolean>>({});
 
   const ws = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const heartbeatTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const reconnectDelay = useRef(1000);
   const isMounted = useRef(true);
+  const lastProfileId = useRef<string | undefined>(profileId);
 
   // Tracks which inbox/chat screen is currently open/focused
   const activeRecipientIdRef = useRef<string | null>(null);
@@ -97,34 +108,55 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
 
       if (data.type === 'initial_presence') {
         console.log('[ChatSocket] initial_presence:', data.online_ids);
-        setOnlineUsers((prev) => {
-          const next = { ...prev };
-          data.online_ids.forEach((id: string) => {
-            next[id] = true;
-          });
-          return next;
+        const map: Record<string, boolean> = {};
+        (data.online_ids || []).forEach((id: any) => {
+          const strId = String(id);
+          map[strId] = true;
+          map[strId.toLowerCase()] = true;
         });
+        setOnlineUsers((prev) => ({ ...prev, ...map }));
         return;
       }
 
       if (data.type === 'status_update') {
         const { profile_id, status } = data;
         console.log(`[ChatSocket] status_update profile_id=${profile_id} status=${status}`);
+        const isOnline = status === 'online';
+        const strId = String(profile_id);
         setOnlineUsers((prev) => ({
           ...prev,
-          [profile_id]: status === 'online',
+          [strId]: isOnline,
+          [strId.toLowerCase()]: isOnline,
         }));
         return;
       }
 
+      if (data.type === 'subscription_policy_updated') {
+        console.log('[ChatSocket] subscription_policy_updated received — refreshing profile & limits');
+        void useProfileStore.getState().fetchProfile();
+        void queryClient.invalidateQueries({ queryKey: ['chatRooms'] });
+        void queryClient.invalidateQueries({ queryKey: ['likesReceived'] });
+        return;
+      }
+
       if (data.type === 'direct_message') {
+        if (data.quota) {
+          useProfileStore.getState().updateQuota('personal_messages', data.quota);
+        }
         const newMsg = data.message;
+        const tempId = data.temp_id ? String(data.temp_id) : null;
         const myProfile = useProfileStore.getState().profile;
         if (!myProfile) return;
 
         const myId = String(myProfile.id);
         const senderId = String(newMsg.sender);
         const receiverId = String(newMsg.receiver);
+
+        // Never let a stale or misrouted socket event enter another account's cache.
+        if (senderId !== myId && receiverId !== myId) {
+          console.warn('[ChatSocket] Ignored DM not belonging to the current account');
+          return;
+        }
 
         // The "other" person's ID is the key for the query cache
         const otherPersonId = senderId === myId ? receiverId : senderId;
@@ -139,21 +171,43 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
           sendMarkRead(senderId);
         }
 
-        // Inject into chat history cache — deduplicate by id
+        // Inject into chat history cache — replace temp in-place to preserve order
         queryClient.setQueryData(
           ['directHistory', otherPersonId],
           (oldData: any[] | undefined) => {
             if (!oldData) return [newMsg];
-            if (oldData.some((m) => String(m.id) === String(newMsg.id))) return oldData;
+
+            // Already have the real message — just strip any lingering temp duplicate
+            if (oldData.some((message) => String(message.id) === String(newMsg.id))) {
+              return tempId
+                ? oldData.filter((message) => String(message.id) !== tempId)
+                : oldData;
+            }
+
+            // Replace the temp message IN-PLACE so it keeps its position in the list.
+            // If we filter-then-prepend instead, the confirmed message jumps to index 0
+            // (newest slot), pushing any later optimistic messages above it and causing
+            // a visible re-ordering flicker until their echoes also arrive.
+            if (tempId) {
+              const idx = oldData.findIndex((message) => String(message.id) === tempId);
+              if (idx !== -1) {
+                const updated = [...oldData];
+                updated[idx] = newMsg;
+                return updated;
+              }
+            }
+
+            // No temp found (e.g. incoming message from the other person) — prepend normally
             return [newMsg, ...oldData];
           }
         );
 
         const lastMsgText = newMsg.image_url
           ? (newMsg.content ? `📷 Photo: ${newMsg.content}` : "📷 Photo")
-          : (newMsg.content || "");
+          : newMsg.audio_url ? "🎤 Voice message" : (newMsg.content || "");
 
-        // Surgically update the threads list cache for BOTH tab types.
+        // Update an existing row only. The server decides whether it belongs in
+        // Dating or Friends; inserting it into both leaks conversations across tabs.
         const updatedThread = {
           profile: {
             id: otherPersonId,
@@ -169,7 +223,7 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
           queryClient.setQueryData(
             ['messageThreads', threadType],
             (oldThreads: any[] | undefined) => {
-              if (!oldThreads) return [updatedThread];
+              if (!oldThreads) return oldThreads;
               const exists = oldThreads.some((t: any) => String(t.profile.id) === otherPersonId);
               if (exists) {
                 return oldThreads.map((t: any) =>
@@ -183,7 +237,7 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
                     : t
                 );
               }
-              return [updatedThread, ...oldThreads];
+              return oldThreads;
             }
           );
         }
@@ -191,26 +245,51 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
       }
 
       if (data.type === 'room_message') {
+        if (data.quota) {
+          useProfileStore.getState().updateQuota('community_messages', data.quota);
+        }
         const newMsg = data.message;
+        const tempId = data.temp_id ? String(data.temp_id) : null;
         const roomId = String(newMsg.room);
+        if (!activeRoomsRef.current.has(roomId)) return;
 
         queryClient.setQueryData(
           ['roomMessages', roomId],
           (oldData: any[] | undefined) => {
             if (!oldData) return [newMsg];
-            // If the exact same real id is already in cache, skip
-            if (oldData.some((m: any) => String(m.id) === String(newMsg.id))) return oldData;
-            // Remove any optimistic temp message with matching sender+content to avoid duplication
-            const withoutTemp = oldData.filter(
-              (m: any) =>
-                !(
-                  String(m.id).startsWith('temp-') &&
-                  String(m.sender) === String(newMsg.sender) &&
-                  m.content === newMsg.content
-                )
+
+            // Already have the real message — just strip any lingering temp duplicate
+            if (oldData.some((message) => String(message.id) === String(newMsg.id))) {
+              return tempId
+                ? oldData.filter((message) => String(message.id) !== tempId)
+                : oldData;
+            }
+
+            // Replace the temp message IN-PLACE so it keeps its exact position in the list.
+            // This prevents rapid consecutive messages from swapping or jumping.
+            if (tempId) {
+              const idx = oldData.findIndex((message) => String(message.id) === tempId);
+              if (idx !== -1) {
+                const updated = [...oldData];
+                updated[idx] = newMsg;
+                return updated;
+              }
+            }
+
+            // Fallback match if tempId was not returned in payload: match oldest matching pending message from sender
+            const fallbackIdx = oldData.findIndex((message) =>
+              String(message.id).startsWith('temp-') &&
+              String(message.sender) === String(newMsg.sender) &&
+              message.content === newMsg.content
             );
-            // The FlatList is inverted so newest messages go to the front of the array
-            return [newMsg, ...withoutTemp];
+            if (fallbackIdx !== -1) {
+              const updated = [...oldData];
+              updated[fallbackIdx] = newMsg;
+              return updated;
+            }
+
+            // No temp found (e.g. incoming message from someone else) — prepend normally
+            return [newMsg, ...oldData];
           }
         );
         return;
@@ -267,6 +346,23 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
 
       if (data.type === 'error') {
         console.warn('[ChatSocket] Server error:', data.message);
+        const isQuotaError = data.code === 'DAILY_PERSONAL_MESSAGE_LIMIT_REACHED' || data.code === 'DAILY_COMMUNITY_MESSAGE_LIMIT_REACHED';
+        if (data.quota && (data.quota_kind === 'personal_messages' || data.quota_kind === 'community_messages')) {
+          useProfileStore.getState().updateQuota(data.quota_kind, data.quota);
+        }
+        if (isQuotaError) {
+          Alert.alert('Daily limit reached', data.message);
+        } else if (data.temp_id) {
+          Alert.alert('Message not sent', data.message || 'Please try again.');
+        }
+        if (data.temp_id) {
+          queryClient.getQueryCache().getAll().forEach((query) => {
+            if (query.queryKey[0] !== 'directHistory' && query.queryKey[0] !== 'roomMessages') return;
+            queryClient.setQueryData(query.queryKey, (oldData: any[] | undefined) =>
+              oldData?.filter((message) => String(message.id) !== String(data.temp_id))
+            );
+          });
+        }
       }
     },
     [queryClient, sendMarkRead]
@@ -276,14 +372,14 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
     if (!accessToken) return;
     if (ws.current && ws.current.readyState !== WebSocket.CLOSED) return;
 
-    const url = `${WS_BASE_URL}/ws/chat/?token=${accessToken}`;
-    console.log('[ChatSocket] Connecting to', url);
+    const url = `${WS_URL}/ws/chat/?token=${accessToken}`;
+    console.log('[ChatSocket] Connecting');
 
     const socket = new WebSocket(url);
     ws.current = socket;
 
     socket.onopen = () => {
-      if (!isMounted.current) return;
+      if (!isMounted.current || ws.current !== socket) return;
       console.log('[ChatSocket] Connected ✅');
       setIsConnected(true);
       reconnectDelay.current = 1000;
@@ -291,10 +387,16 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
       activeRoomsRef.current.forEach((roomId) => {
         socket.send(JSON.stringify({ type: 'enter_room', room_id: roomId }));
       });
+      if (heartbeatTimer.current) clearInterval(heartbeatTimer.current);
+      heartbeatTimer.current = setInterval(() => {
+        if (ws.current === socket && socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({ type: 'ping' }));
+        }
+      }, 25000);
     };
 
     socket.onmessage = (e) => {
-      if (!isMounted.current) return;
+      if (!isMounted.current || ws.current !== socket) return;
       try {
         const data = JSON.parse(e.data);
         handleMessage(data);
@@ -304,12 +406,17 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
     };
 
     socket.onerror = (e) => {
+      if (ws.current !== socket) return;
       console.warn('[ChatSocket] Error', e);
     };
 
     socket.onclose = (e) => {
-      if (!isMounted.current) return;
+      // An old account's socket may close after a new one has connected.
+      // Ignore it so it cannot clear or reconnect over the current socket.
+      if (!isMounted.current || ws.current !== socket) return;
       console.log('[ChatSocket] Closed', e.code, e.reason);
+      if (heartbeatTimer.current) clearInterval(heartbeatTimer.current);
+      heartbeatTimer.current = null;
       setIsConnected(false);
       ws.current = null;
 
@@ -329,10 +436,24 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
     return () => {
       isMounted.current = false;
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
-      ws.current?.close();
+      if (heartbeatTimer.current) clearInterval(heartbeatTimer.current);
+      heartbeatTimer.current = null;
+      const socket = ws.current;
       ws.current = null;
+      socket?.close();
     };
   }, [accessToken, connect]);
+
+  useEffect(() => {
+    setOnlineUsers({});
+    activeRecipientIdRef.current = null;
+    activeRoomsRef.current.clear();
+    if (profileId && lastProfileId.current && profileId !== lastProfileId.current) {
+      queryClient.removeQueries({ queryKey: ['directHistory'] });
+      queryClient.removeQueries({ queryKey: ['messageThreads'] });
+    }
+    if (profileId) lastProfileId.current = profileId;
+  }, [profileId, queryClient]);
 
   // ----- Public API -----
 
@@ -341,23 +462,133 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
       recipientId: string,
       content: string,
       imageUrl?: string,
+      audioUrl?: string,
+      audioDuration?: number,
       replyToId?: string,
+      audioRef?: string,
+      imageRef?: string,
     ) => {
-      if (ws.current?.readyState !== WebSocket.OPEN) {
-        console.warn('[ChatSocket] Cannot send — socket not open');
+      const myProfile = useProfileStore.getState().profile;
+      const personalQuota = myProfile?.access?.quotas.personal_messages;
+      if (quotaIsCurrentlyExhausted(personalQuota)) {
+        Alert.alert('Daily limit reached', 'You have used all of today\'s personal messages.');
         return;
       }
-      ws.current.send(
-        JSON.stringify({
-          type: 'direct_message',
-          recipient_id: recipientId,
-          content: content || '',
-          image_url: imageUrl ?? null,
-          reply_to_id: replyToId ?? null,
-        })
-      );
+      if (personalQuota && personalQuota.remaining != null) {
+        useProfileStore.getState().updateQuota('personal_messages', {
+          ...personalQuota,
+          used: personalQuota.used + 1,
+          remaining: Math.max(0, personalQuota.remaining - 1),
+        });
+      }
+      const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+
+      if (myProfile) {
+        const history = queryClient.getQueryData<any[]>(['directHistory', recipientId]);
+        const repliedMessage = replyToId
+          ? history?.find((message) => String(message.id) === String(replyToId))
+          : null;
+        queryClient.setQueryData(
+          ['directHistory', recipientId],
+          (oldData: any[] | undefined) => [{
+            id: tempId,
+            sender: String(myProfile.id),
+            receiver: recipientId,
+            sender_name: myProfile.name || myProfile.username,
+            receiver_name: '',
+            sender_photo: myProfile.photos?.find((photo) => photo.is_main)?.image ?? '',
+            receiver_photo: '',
+            content: content || '',
+            timestamp: new Date().toISOString(),
+            read_at: null,
+            image_url: imageUrl ?? null,
+            audio_url: audioUrl ?? null,
+            audio_duration: audioDuration ?? null,
+            reply_to: replyToId ?? null,
+            reply_to_info: repliedMessage ? {
+              id: repliedMessage.id,
+              content: repliedMessage.content,
+              image_url: repliedMessage.image_url ?? null,
+              image_url_expires_at: repliedMessage.image_url_expires_at ?? null,
+              audio_url: repliedMessage.audio_url ?? null,
+              sender_id: repliedMessage.sender,
+              sender_name: repliedMessage.sender_name,
+            } : null,
+          }, ...(oldData ?? [])]
+        );
+      }
+
+      const payload = {
+        type: 'direct_message',
+        temp_id: tempId,
+        recipient_id: recipientId,
+        content: content || '',
+        image_url: imageUrl ?? null,
+        image_ref: imageRef ?? null,
+        audio_url: audioUrl ?? null,
+        audio_ref: audioRef ?? null,
+        audio_duration: audioDuration ?? null,
+        reply_to_id: replyToId ?? null,
+      };
+
+      const removeOptimisticMessage = () => {
+        queryClient.setQueryData(
+          ['directHistory', recipientId],
+          (oldData: any[] | undefined) => oldData?.filter((message) => message.id !== tempId)
+        );
+      };
+
+      try {
+        if (ws.current?.readyState === WebSocket.OPEN) {
+          ws.current.send(JSON.stringify(payload));
+          return;
+        }
+      } catch {
+        // The HTTP fallback below handles a socket that closed between the check and send.
+      }
+
+      console.warn('[ChatSocket] Socket not open — sending through HTTP fallback');
+      void apiClient.post('/api/chat/direct/', {
+        receiver: recipientId,
+        temp_id: tempId,
+        content: content || '',
+        image_url: imageUrl ?? null,
+        image_ref: imageRef ?? null,
+        audio_url: audioUrl ?? null,
+        audio_ref: audioRef ?? null,
+        audio_duration: audioDuration ?? null,
+        reply_to_id: replyToId ?? null,
+      }).then((response) => {
+        const { quota, ...message } = response.data;
+        if (quota) useProfileStore.getState().updateQuota('personal_messages', quota);
+        queryClient.setQueryData(
+          ['directHistory', recipientId],
+          (oldData: any[] | undefined) => {
+            const data = oldData ?? [];
+            if (data.some((item) => String(item.id) === String(message.id))) {
+              return data.filter((message) => String(message.id) !== tempId);
+            }
+            const idx = data.findIndex((message) => String(message.id) === tempId);
+            if (idx !== -1) {
+              const updated = [...data];
+              updated[idx] = message;
+              return updated;
+            }
+            return [message, ...data];
+          }
+        );
+      }).catch((error) => {
+        removeOptimisticMessage();
+        const response = error?.response?.data;
+        if (response?.quota) useProfileStore.getState().updateQuota('personal_messages', response.quota);
+        if (response?.code === 'DAILY_PERSONAL_MESSAGE_LIMIT_REACHED') {
+          Alert.alert('Daily limit reached', response.error);
+        }
+        console.warn('[ChatSocket] Message send failed:', error?.message);
+      });
     },
-    []
+    [queryClient]
   );
 
   const sendTyping = useCallback((recipientId: string, isTyping: boolean) => {
@@ -368,20 +599,95 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
   }, []);
 
   const sendRoomMessage = useCallback((roomId: string, content: string) => {
-    if (ws.current?.readyState !== WebSocket.OPEN) return;
-    ws.current.send(JSON.stringify({ type: 'room_message', room_id: roomId, content }));
-  }, []);
+    const trimmed = content.trim();
+    const myProfile = useProfileStore.getState().profile;
+    if (!trimmed || !myProfile) return;
+    const commQuota = myProfile.access?.quotas.community_messages;
+    if (quotaIsCurrentlyExhausted(commQuota)) {
+      Alert.alert('Daily limit reached', 'You have used all of today\'s community messages.');
+      return;
+    }
+    if (commQuota && commQuota.remaining != null) {
+      useProfileStore.getState().updateQuota('community_messages', {
+        ...commQuota,
+        used: commQuota.used + 1,
+        remaining: Math.max(0, commQuota.remaining - 1),
+      });
+    }
+
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    const optimisticMessage = {
+      id: tempId,
+      room: String(roomId),
+      sender: String(myProfile.id),
+      sender_name: myProfile.name || myProfile.username,
+      sender_photo: myProfile.photos?.find((photo) => photo.is_main)?.image ?? '',
+      content: trimmed,
+      timestamp: new Date().toISOString(),
+      is_pending: true,
+    };
+    queryClient.setQueryData(
+      ['roomMessages', roomId],
+      (oldData: any[] | undefined) => [optimisticMessage, ...(oldData ?? [])]
+    );
+
+    const payload = { type: 'room_message', temp_id: tempId, room_id: String(roomId), content: trimmed };
+    const removeOptimisticMessage = () => queryClient.setQueryData(
+      ['roomMessages', roomId],
+      (oldData: any[] | undefined) => oldData?.filter((message) => String(message.id) !== tempId)
+    );
+
+    try {
+      if (ws.current?.readyState === WebSocket.OPEN) {
+        ws.current.send(JSON.stringify(payload));
+        return;
+      }
+    } catch {
+      // HTTP fallback below handles a socket that closed between the check and send.
+    }
+
+    void apiClient.post(`/api/chat/rooms/${roomId}/send/`, { content: trimmed, temp_id: tempId })
+      .then((response) => {
+        const { quota, ...message } = response.data;
+        if (quota) useProfileStore.getState().updateQuota('community_messages', quota);
+        queryClient.setQueryData(
+          ['roomMessages', roomId],
+          (oldData: any[] | undefined) => {
+            const data = oldData ?? [];
+            if (data.some((item) => String(item.id) === String(message.id))) {
+              return data.filter((msg) => String(msg.id) !== tempId);
+            }
+            const idx = data.findIndex((msg) => String(msg.id) === tempId);
+            if (idx !== -1) {
+              const updated = [...data];
+              updated[idx] = message;
+              return updated;
+            }
+            return [message, ...data];
+          }
+        );
+      })
+      .catch((error) => {
+        removeOptimisticMessage();
+        const response = error?.response?.data;
+        if (response?.quota) useProfileStore.getState().updateQuota('community_messages', response.quota);
+        if (response?.code === 'DAILY_COMMUNITY_MESSAGE_LIMIT_REACHED') {
+          Alert.alert('Daily limit reached', response.error);
+        }
+      });
+  }, [queryClient]);
 
   const joinRoom = useCallback((roomId: string) => {
-    activeRoomsRef.current.add(roomId);
+    activeRoomsRef.current.add(String(roomId));
     if (ws.current?.readyState !== WebSocket.OPEN) return;
-    ws.current.send(JSON.stringify({ type: 'enter_room', room_id: roomId }));
+    ws.current.send(JSON.stringify({ type: 'enter_room', room_id: String(roomId) }));
   }, []);
 
   const leaveRoom = useCallback((roomId: string) => {
-    activeRoomsRef.current.delete(roomId);
+    activeRoomsRef.current.delete(String(roomId));
     if (ws.current?.readyState !== WebSocket.OPEN) return;
-    ws.current.send(JSON.stringify({ type: 'leave_room', room_id: roomId }));
+    ws.current.send(JSON.stringify({ type: 'leave_room', room_id: String(roomId) }));
   }, []);
 
   const onTyping = useCallback((cb: TypingCallback) => {
@@ -391,12 +697,19 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
     };
   }, []);
 
+  const queryPresence = useCallback((userId: string) => {
+    if (!userId || ws.current?.readyState !== WebSocket.OPEN) return;
+    ws.current.send(JSON.stringify({ type: 'query_presence', user_id: userId }));
+  }, []);
+
   const setActiveRecipientId = useCallback((id: string | null) => {
     console.log(`[ChatSocket] setActiveRecipientId: ${id}`);
     activeRecipientIdRef.current = id;
     if (id) {
       // Mark read immediately upon opening
       sendMarkRead(id);
+      // Query current presence for this recipient immediately
+      queryPresence(id);
 
       // Reset local unread_count for this user in threads list cache
       for (const threadType of ['dating', 'friends'] as const) {
@@ -411,7 +724,7 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
         );
       }
     }
-  }, [sendMarkRead, queryClient]);
+  }, [sendMarkRead, queryPresence, queryClient]);
 
   const sendMessageReaction = useCallback((messageId: string, reaction: string | null, recipientId: string) => {
     if (ws.current?.readyState !== WebSocket.OPEN) return;
@@ -440,6 +753,7 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
         setActiveRecipientId,
         sendMarkRead,
         sendMessageReaction,
+        queryPresence,
       }}
     >
       {children}

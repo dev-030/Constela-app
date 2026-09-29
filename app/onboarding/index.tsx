@@ -48,8 +48,6 @@ export default function OnboardingStep1() {
       allowsEditing: true,
       aspect: [4, 5],
       quality: 0.7,
-      maxWidth: 1080,
-      maxHeight: 1350,
     });
     if (!result.canceled && result.assets[0]) {
       const next = [...data.photos];

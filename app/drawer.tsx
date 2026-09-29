@@ -4,14 +4,12 @@ import { Text } from '@/components/ui/text';
 import { useColor } from '@/hooks/useColor';
 import { router } from 'expo-router';
 import { Avatar } from '@/components/ui/avatar';
-import { Pressable, View, Switch, Dimensions } from 'react-native';
+import { Pressable, View, Switch, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState, useEffect } from 'react';
 import { useProfileStore } from '@/store/profileStore';
 import { useLogout } from '@/api/auth';
 import { useAndroidBack } from '@/hooks/useAndroidBack';
-
-const { width, height } = Dimensions.get('window');
 
 export default function DrawerScreen() {
   const insets = useSafeAreaInsets();
@@ -25,6 +23,7 @@ export default function DrawerScreen() {
   const destructive = useColor('red');
   const teal = useColor('teal');
   const green = useColor('green');
+  const { width } = useWindowDimensions();
   
   const [needBreak, setNeedBreak] = useState(false);
   const { profile, fetchProfile } = useProfileStore();
@@ -64,7 +63,7 @@ export default function DrawerScreen() {
             justifyContent: 'center',
             alignItems: 'center'
           }}>
-            <Avatar uri={profile?.photos?.[0]?.image} size={80} />
+            <Avatar uri={profile?.photos?.find((p) => p.is_main)?.image || profile?.photos?.[0]?.image} size={80} />
           </View>
           <Text style={{ fontSize: 24, fontWeight: 'bold' }}>{profile?.username || 'Loading...'}</Text>
           <Text style={{ color: green, fontSize: 12, fontWeight: '600', marginTop: 4 }}>{profile?.neurotype_labels?.join(' & ') || ''}</Text>

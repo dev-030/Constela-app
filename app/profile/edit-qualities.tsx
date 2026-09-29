@@ -35,7 +35,7 @@ export default function EditQualitiesScreen() {
   const border = useColor('border');
   const primary = useColor('primary');
 
-  const { profile, fetchProfile } = useProfileStore();
+  const { profile, fetchProfile, setProfile } = useProfileStore();
 
   useEffect(() => {
     if (!profile) fetchProfile();
@@ -64,11 +64,11 @@ export default function EditQualitiesScreen() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const formData = new FormData();
-      formData.append('qualities', JSON.stringify(qualities));
-
-      await updateMyProfile(formData);
-      await fetchProfile();
+      const updated = await updateMyProfile({ qualities });
+      if (updated) {
+        setProfile(updated);
+      }
+      fetchProfile().catch(console.error);
       router.back();
     } catch (error: any) {
       console.error(error);
@@ -148,7 +148,7 @@ export default function EditQualitiesScreen() {
       <View style={[styles.footer, { paddingBottom: insets.bottom || 24, backgroundColor: background }]}>
         <Button 
           onPress={handleSave} 
-          style={[styles.saveBtn, !hasChanged && { opacity: 0.5 }]} 
+          style={[styles.saveBtn, ...(!hasChanged ? [{ opacity: 0.5 }] : [])]} 
           disabled={isSaving || !hasChanged}
         >
           {isSaving ? <ActivityIndicator color="#FFF" /> : "Save Changes"}

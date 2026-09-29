@@ -11,6 +11,7 @@ import { useAndroidBack } from "@/hooks/useAndroidBack";
 import { useInfiniteNotificationsQuery, Notification, useMarkNotificationsReadMutation } from "@/api/notifications";
 import { ActivityIndicator, FlatList, RefreshControl } from "react-native";
 import { useEffect } from "react";
+import { Avatar } from "@/components/ui/avatar";
 
 const getIconForType = (type: string) => {
   switch (type) {
@@ -54,9 +55,13 @@ export default function NotificationsScreen() {
       >
         {/* Avatar / Icon wrapper */}
         <View style={styles.avatarWrapper}>
-          <View style={[styles.avatar, styles.initialsAvatar, { backgroundColor: color + "20" }]}>
-            <Text style={[styles.initialsText, { color: color }]}>{item.type.charAt(0).toUpperCase()}</Text>
-          </View>
+          {item.data?.sender_photo ? (
+            <Avatar uri={item.data.sender_photo} size={56} rounded />
+          ) : (
+            <View style={[styles.avatar, styles.initialsAvatar, { backgroundColor: color + "20" }]}>
+              <Text style={[styles.initialsText, { color: color }]}>{item.type.charAt(0).toUpperCase()}</Text>
+            </View>
+          )}
           <View style={[styles.typeIconBadge, { backgroundColor: color, borderColor: background }]}>
             <Icon name={icon} size={10} color="#FFF" />
           </View>

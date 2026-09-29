@@ -2,7 +2,8 @@ import { Icon } from '@/components/ui/icon';
 import { ButtonSpinner, SpinnerVariant } from '@/components/ui/spinner';
 import { Text } from '@/components/ui/text';
 import { useColor } from '@/hooks/useColor';
-import { CORNERS, FONT_SIZE, HEIGHT } from '@/theme/globals';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
+import { CORNERS, FONT_SIZE } from '@/theme/globals';
 import * as Haptics from 'expo-haptics';
 import { LucideProps } from 'lucide-react-native';
 import { forwardRef } from 'react';
@@ -74,6 +75,7 @@ export const Button = forwardRef<View, ButtonProps>(
     const destructiveForegroundColor = useColor('destructiveForeground');
     const greenColor = useColor('green');
     const borderColor = useColor('border');
+    const { controlHeight, size: responsiveSize } = useResponsiveLayout();
 
     // Animation values for liquid glass effect
     const scale = useSharedValue(1);
@@ -90,20 +92,20 @@ export const Button = forwardRef<View, ButtonProps>(
       // Size variants
       switch (size) {
         case 'sm':
-          Object.assign(baseStyle, { height: 44, paddingHorizontal: 24 });
+          Object.assign(baseStyle, { height: 44, paddingHorizontal: responsiveSize(24, 20) });
           break;
         case 'lg':
-          Object.assign(baseStyle, { height: 54, paddingHorizontal: 36 });
+          Object.assign(baseStyle, { height: responsiveSize(54, 48), paddingHorizontal: responsiveSize(36, 28) });
           break;
         case 'icon':
           Object.assign(baseStyle, {
-            height: HEIGHT,
-            width: HEIGHT,
+            height: controlHeight,
+            width: controlHeight,
             paddingHorizontal: 0,
           });
           break;
         default:
-          Object.assign(baseStyle, { height: HEIGHT, paddingHorizontal: 32 });
+          Object.assign(baseStyle, { height: controlHeight, paddingHorizontal: responsiveSize(32, 24) });
       }
 
       // Variant styles
@@ -137,7 +139,7 @@ export const Button = forwardRef<View, ButtonProps>(
 
     const getButtonTextStyle = (): TextStyle => {
       const baseTextStyle: TextStyle = {
-        fontSize: FONT_SIZE,
+        fontSize: responsiveSize(FONT_SIZE, 15),
         fontWeight: '500',
       };
 
@@ -186,13 +188,13 @@ export const Button = forwardRef<View, ButtonProps>(
     const getIconSize = (): number => {
       switch (size) {
         case 'sm':
-          return 16;
+          return responsiveSize(16, 15);
         case 'lg':
-          return 24;
+          return responsiveSize(24, 20);
         case 'icon':
-          return 20;
+          return responsiveSize(20, 18);
         default:
-          return 18;
+          return responsiveSize(18, 16);
       }
     };
 
@@ -297,7 +299,7 @@ export const Button = forwardRef<View, ButtonProps>(
         : flexValue !== null
         ? {
             flex: flexValue,
-            maxHeight: size === 'sm' ? 44 : size === 'lg' ? 54 : HEIGHT,
+            maxHeight: size === 'sm' ? 44 : size === 'lg' ? responsiveSize(54, 48) : controlHeight,
           }
         : {};
     };

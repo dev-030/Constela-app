@@ -4,7 +4,7 @@ import { Text } from "@/components/ui/text";
 import { useColor } from "@/hooks/useColor";
 import { BORDER_RADIUS } from "@/theme/globals";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useState, useEffect } from "react";
+import { useCallback, useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Clock,
@@ -27,40 +27,50 @@ import CardList from "../../../components/feat-card";
 import Header from "../../../components/header";
 import { useProfileStore } from "@/store/profileStore";
 import { ShieldAlert } from "lucide-react-native";
+import { useColorScheme } from "@/hooks/useColorScheme";
 
 export default function HomeScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const background = useColor("background");
   const primary = useColor("primary");
+  const text = useColor("text");
   const muted = useColor("textMuted");
   const border = useColor("border");
   const error = useColor("destructive");
+  const isDark = useColorScheme() === "dark";
   
   const { profile, fetchProfile } = useProfileStore();
+  const rawName = profile?.user?.first_name || profile?.username || "";
+  const displayName = rawName ? rawName.charAt(0).toUpperCase() + rawName.slice(1) : "";
   const isFaceApproved = profile?.face_verification_status === "approved";
   const isProfileComplete = profile?.profile_completion_pct === 100;
   const isFacePending = profile?.face_verification_status === "pending";
   const showWarning = isFacePending;
 
   const [refreshing, setRefreshing] = useState(false);
+  const hasFocused = useRef(false);
 
-  // Automatically refresh profile data silently when returning to this tab
+  // Startup already loaded the profile. Refresh silently on later visits.
   useFocusEffect(
     useCallback(() => {
+      if (!hasFocused.current) {
+        hasFocused.current = true;
+        return;
+      }
       fetchProfile();
-    }, [])
+    }, [fetchProfile])
   );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await fetchProfile();
     setRefreshing(false);
-  }, []);
+  }, [fetchProfile]);
 
   // Poll every minute IF profile is complete but face is not yet approved
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setInterval> | undefined;
     
     if (isProfileComplete && !isFaceApproved) {
       interval = setInterval(() => {
@@ -86,9 +96,17 @@ export default function HomeScreen() {
       >
         {/* Donation Banner */}
         <View
-          style={[styles.donationBanner, { backgroundColor: primary + 30 }]}
+          style={[
+            styles.donationBanner,
+            {
+              backgroundColor: isDark ? "rgba(222, 65, 119, 0.15)" : "#FFF1F5",
+              borderColor: isDark ? "rgba(222, 65, 119, 0.3)" : "#FFE4E6",
+            },
+          ]}
         >
-          <Icon name={HandHeart} size={20} color={primary} />
+          <View style={[styles.donationIconWrap, { backgroundColor: primary }]}>
+            <Icon name={HandHeart} size={14} color="#FFF" />
+          </View>
           <Text style={[styles.donationText, { color: primary }]}>
             {t('dashboard.donate_desc')}
           </Text>
@@ -96,10 +114,12 @@ export default function HomeScreen() {
 
         {/* Greeting */}
         <View style={styles.greetingContainer}>
-          <Text variant="title" style={styles.greetingTitle}>
-            {t('dashboard.hello')} {profile?.user?.first_name || profile?.username || ""}
+          <Text style={[styles.greetingTitle, { color: isDark ? "#F8FAFC" : "#0F172A" }]}>
+            {displayName ? `${t('dashboard.hello')}, ${displayName}` : t('dashboard.hello')}
           </Text>
-          <Text style={{ color: muted, fontSize: 16, fontWeight: "500" }}>{t('dashboard.what_to_do')}</Text>
+          <Text style={[styles.greetingSubtitle, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+            {t('dashboard.what_to_do')}
+          </Text>
         </View>
 
         {showWarning && (
@@ -141,37 +161,48 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   donationBanner: {
-    borderRadius: BORDER_RADIUS,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    borderRadius: 14,
+    paddingVertical: 9,
+    paddingHorizontal: 13,
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    marginBottom: 24,
+    gap: 10,
+    marginBottom: 20,
     borderWidth: 1,
-    borderColor: "#E25687" + 60,
+  },
+  donationIconWrap: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
   },
   donationText: {
-    fontSize: 14,
-    fontWeight: "600",
+    fontSize: 12.5,
+    fontWeight: "500",
     flex: 1,
-    lineHeight: 20,
+    lineHeight: 17,
   },
   greetingContainer: {
-    marginBottom: 28,
-    paddingHorizontal: 4,
+    marginBottom: 20,
+    paddingHorizontal: 2,
   },
   greetingTitle: {
-    fontSize: 32,
-    fontWeight: "800",
-    marginBottom: 6,
-    letterSpacing: -0.5,
+    fontSize: 24,
+    fontWeight: "700",
+    marginBottom: 4,
+    letterSpacing: -0.4,
+  },
+  greetingSubtitle: {
+    fontSize: 14,
+    fontWeight: "400",
+    lineHeight: 19,
   },
   warningBanner: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 16,
-    marginBottom: 24,
+    padding: 14,
+    marginBottom: 20,
     borderRadius: BORDER_RADIUS,
     borderWidth: 1,
     gap: 12,
@@ -180,13 +211,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   warningTitle: {
-    fontSize: 14,
+    fontSize: 13.5,
     fontWeight: "600",
     marginBottom: 2,
   },
   warningDesc: {
-    fontSize: 13,
+    fontSize: 12.5,
+    fontWeight: "400",
     opacity: 0.9,
-    lineHeight: 18,
+    lineHeight: 17,
   },
 });

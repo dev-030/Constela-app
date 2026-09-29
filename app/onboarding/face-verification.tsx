@@ -162,7 +162,6 @@ export default function FaceVerificationScreen() {
     try {
       // takePhoto() → high quality photo, no looping
       const photo = await cameraRef.current.takePhoto({
-        qualityPrioritization: "speed",
         flash: "off",
         enableShutterSound: false,
       });
@@ -367,7 +366,7 @@ export default function FaceVerificationScreen() {
               <Camera
                 ref={cameraRef}
                 device={device}
-                isActive={step !== "done"}
+                isActive={true}
                 pixelFormat="yuv"
                 style={{ flex: 1, width: "100%", height: "100%" }}
                 photo={true}

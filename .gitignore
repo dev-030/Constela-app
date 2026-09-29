@@ -46,3 +46,9 @@ app-example
 # generated native folders
 /ios
 /android
+
+# Scratch & patch scripts
+*.py
+patch_*.js
+check_*.js
+test_*.js

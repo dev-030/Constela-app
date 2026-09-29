@@ -3,9 +3,11 @@ import { Icon } from "@/components/ui/icon";
 import { InputOTP } from "@/components/ui/input-otp";
 import { Text } from "@/components/ui/text";
 import { useColor } from "@/hooks/useColor";
+import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import { router, useLocalSearchParams } from "expo-router";
 import { ArrowLeft, Mail } from "lucide-react-native";
 import { Pressable, ScrollView, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useState } from "react";
 import { useVerifyOtpMutation, useResendOtpMutation } from "@/api/auth";
 import { toast } from "sonner-native";
@@ -15,6 +17,8 @@ export default function OtpScreen() {
   const muted = useColor("textMuted");
   const background = useColor("background");
   const primaryForeground = useColor("primaryForeground");
+  const insets = useSafeAreaInsets();
+  const { horizontalPadding, isCompact, size } = useResponsiveLayout();
 
   const { email } = useLocalSearchParams<{ email?: string }>();
   const [otp, setOtp] = useState("");
@@ -74,10 +78,20 @@ export default function OtpScreen() {
     <ScrollView
       contentContainerStyle={{ flexGrow: 1, backgroundColor: background }}
     >
-      <View style={{ flex: 1, padding: 24, paddingTop: 60 }}>
+      <View
+        style={{
+          flex: 1,
+          width: "100%",
+          maxWidth: 480,
+          alignSelf: "center",
+          paddingHorizontal: horizontalPadding,
+          paddingTop: insets.top + (isCompact ? 20 : 32),
+          paddingBottom: 32,
+        }}
+      >
         {/* Header - Back Button & Title */}
         <View
-          style={{ flexDirection: "row", alignItems: "center", marginBottom: 24 }}
+          style={{ flexDirection: "row", alignItems: "center", marginBottom: size(24, 18) }}
         >
           <Pressable
             onPress={() => router.back()}
@@ -97,8 +111,8 @@ export default function OtpScreen() {
         <View
           style={{
             alignItems: "center",
-            marginBottom: 40,
-            paddingHorizontal: 20,
+            marginBottom: size(40, 28),
+            paddingHorizontal: size(20, 12),
           }}
         >
           <Text style={{ color: muted, textAlign: "center", fontSize: 14 }}>
@@ -118,7 +132,7 @@ export default function OtpScreen() {
         </View>
 
         {/* Pink Envelope Icon */}
-        <View style={{ alignItems: "center", marginBottom: 48 }}>
+        <View style={{ alignItems: "center", marginBottom: size(48, 32) }}>
           <View
             style={{
               width: 80,
@@ -134,17 +148,17 @@ export default function OtpScreen() {
         </View>
 
         {/* OTP Input */}
-        <View style={{ alignItems: "center", marginBottom: 48 }}>
+        <View style={{ alignItems: "center", marginBottom: size(48, 32) }}>
           <InputOTP
             length={4}
             value={otp}
             onChangeText={setOtp}
-            slotStyle={{ width: 64, height: 64, borderRadius: 12 }}
+            slotStyle={{ height: 64, borderRadius: 12 }}
           />
         </View>
 
         {/* Buttons */}
-        <View style={{ gap: 24, marginTop: "auto", marginBottom: 40 }}>
+        <View style={{ gap: size(24, 18), marginTop: "auto", marginBottom: size(40, 24) }}>
           <Button
             textStyle={{ color: primaryForeground }}
             onPress={handleVerify}

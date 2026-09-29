@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { View, StyleSheet, ScrollView, Pressable, Switch, TouchableWithoutFeedback, Platform, Animated, Dimensions, ActivityIndicator } from "react-native";
+import { View, StyleSheet, ScrollView, Pressable, Switch, TouchableWithoutFeedback, Platform, Animated, useWindowDimensions, ActivityIndicator } from "react-native";
 import { BlurView } from "expo-blur";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -24,7 +24,6 @@ import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { useColor } from "@/hooks/useColor";
 import { useQueryClient } from "@tanstack/react-query";
 import { useFilterStore } from "@/store/filterStore";
-import { useProfileStore } from "@/store/profileStore";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
 import { LANGUAGES } from "@/constants/languages";
 import { INTERESTS_POOL } from "@/constants/matches";
@@ -38,23 +37,22 @@ export default function FiltersScreen() {
   const text = useColor("text");
   const muted = useColor("textMuted");
   const primary = useColor("primary");
+  const { width, height } = useWindowDimensions();
 
   const [activeTab, setActiveTab] = useState("Basic");
   const globalFilters = useFilterStore(state => state.filters);
-  const profile = useProfileStore((s) => s.profile);
-  // Advanced filters are now available to every user regardless of tier —
-  // no paywall on the Advanced tab. Keep `profile` referenced so the store
-  // subscription stays warm for any other UI that may read from it.
-  void profile;
 
   // Basic States
   const [ageRange, setAgeRange] = useState({ 
     low: globalFilters.age_min || 18, 
     high: globalFilters.age_max || 65 
   });
-  const [height, setHeight] = useState(globalFilters.height_min || 140);
+  const [heightRange, setHeightRange] = useState({
+    low: globalFilters.height_min || 140,
+    high: globalFilters.height_max || 220
+  });
 
-  const slideAnim = useRef(new Animated.Value(Dimensions.get('window').height)).current;
+  const slideAnim = useRef(new Animated.Value(height)).current;
   const [isApplying, setIsApplying] = useState(false);
   const queryClient = useQueryClient();
   const setGlobalFilters = useFilterStore(state => state.setFilters);
@@ -66,12 +64,12 @@ export default function FiltersScreen() {
       tension: 65,
       friction: 11,
     }).start();
-  }, []);
+  }, [height, slideAnim]);
 
   const handleClose = () => {
     if (isApplying) return;
     Animated.timing(slideAnim, {
-      toValue: Dimensions.get('window').height,
+      toValue: height,
       duration: 250,
       useNativeDriver: true,
     }).start(() => {
@@ -90,7 +88,8 @@ export default function FiltersScreen() {
     const newFilters = {
       age_min: ageRange.low !== 18 ? ageRange.low : undefined,
       age_max: ageRange.high !== 65 ? ageRange.high : undefined,
-      height_min: height !== 140 ? height : undefined,
+      height_min: heightRange.low !== 140 ? heightRange.low : undefined,
+      height_max: heightRange.high !== 220 ? heightRange.high : undefined,
       gender: mappedGender,
       marital_status: selectedMaritalStatus.length ? selectedMaritalStatus.join(',') : undefined,
       looking_for: selectedLookingFor.length ? selectedLookingFor.join(',') : undefined,
@@ -193,27 +192,27 @@ export default function FiltersScreen() {
       </View>
 
       <View style={styles.section}>
-        {renderSectionHeader("Gender")}
+        {renderSectionHeader("Looking for")}
         <View style={styles.wrapContainer}>
           {["Woman", "Man", "Non-binary", "Other"].map((g) => (
             <FilterPill
               key={g}
               label={g}
               selected={selectedGender === g}
-              onPress={() => setSelectedGender(g)}
+              onPress={() => setSelectedGender(selectedGender === g ? "" : g)}
             />
           ))}
         </View>
       </View>
 
       <View style={styles.section}>
-        {renderSectionHeader("Height", `${height}cm+`)}
+        {renderSectionHeader("Height", `${heightRange.low} - ${heightRange.high}cm`)}
         <RangeSlider
           min={140}
           max={220}
-          low={height}
-          single
-          onValueChanged={(l) => setHeight(l)}
+          low={heightRange.low}
+          high={heightRange.high}
+          onValueChanged={(l, h) => setHeightRange({ low: l, high: h || 220 })}
         />
       </View>
 
@@ -328,7 +327,7 @@ export default function FiltersScreen() {
       </BottomSheet>
 
       <View style={styles.section}>
-        {renderSectionHeader("Looking for")}
+        {renderSectionHeader("Relationship Intent")}
         <View style={styles.gridContainer}>
           <FilterCard
             title="Serious"
@@ -366,8 +365,8 @@ export default function FiltersScreen() {
   );
 
   const renderAdvancedTab = () => (
-    <View style={styles.advancedContainer}>
-      <View style={styles.advancedContent}>
+    <View>
+      <View>
         {renderBasicTab()}
 
         <View style={styles.section}>
@@ -565,7 +564,7 @@ export default function FiltersScreen() {
                 onPress={() => {
                   useFilterStore.getState().clearFilters();
                   setAgeRange({ low: 18, high: 65 });
-                  setHeight(140);
+                  setHeightRange({ low: 140, high: 220 });
                   setSelectedGender("");
                   setSelectedMaritalStatus([]);
                   setSelectedLanguages([]);
@@ -609,7 +608,7 @@ export default function FiltersScreen() {
             contentContainerStyle={styles.scrollContent}
             scrollEnabled
           >
-            <View style={styles.filterContent}>
+            <View style={[styles.filterContent, { width }]}>
               {activeTab === "Basic" ? renderBasicTab() : renderAdvancedTab()}
             </View>
           </ScrollView>
@@ -687,7 +686,6 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   filterContent: {
-    width: Dimensions.get('window').width,
     paddingHorizontal: 20,
     paddingTop: 24,
     overflow: 'hidden',

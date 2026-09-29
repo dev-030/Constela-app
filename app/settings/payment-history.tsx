@@ -278,9 +278,8 @@ export default function PaymentHistoryScreen() {
         )}
 
         {historyQuery.isLoading ? (
-          <View style={styles.empty}>
-            <ActivityIndicator color={primary} />
-            <Text style={styles.emptyText}>Loading your transactions…</Text>
+          <View style={[styles.empty, { paddingVertical: 40 }]}>
+            <ActivityIndicator size="large" color={primary} />
           </View>
         ) : isEmpty ? (
           <View style={styles.empty}>

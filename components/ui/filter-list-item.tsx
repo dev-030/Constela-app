@@ -43,7 +43,7 @@ const styles = StyleSheet.create({
   container: {
     paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: BORDER_RADIUS.md,
+    borderRadius: BORDER_RADIUS,
     borderWidth: 1,
     marginBottom: 8,
   },

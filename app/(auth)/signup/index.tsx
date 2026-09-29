@@ -7,7 +7,6 @@ import { router } from "expo-router";
 import { Eye, EyeOff, Square, CheckSquare } from "lucide-react-native";
 import { useState } from "react";
 import {
-  Image,
   Pressable,
   View,
   Platform,
@@ -15,6 +14,7 @@ import {
   TouchableOpacity,
   Keyboard,
 } from "react-native";
+import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSignUpMutation, useGoogleAuthMutation } from "@/api/auth";
@@ -24,6 +24,7 @@ import { GoogleIcon } from "@/components/ui/GoogleIcon";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { BottomSheet, useBottomSheet } from "@/components/ui/bottom-sheet";
 import { WebView } from "react-native-webview";
+import { useAuthLayout } from "@/hooks/useAuthLayout";
 
 const SNAP_POINTS = [0.55, 0.9];
 
@@ -75,6 +76,7 @@ export default function SignupScreen() {
   const muted = useColor("textMuted");
   const background = useColor("background");
   const border = useColor("border");
+  const layout = useAuthLayout();
 
   const handleGoogleSignIn = async () => {
     Keyboard.dismiss();
@@ -193,29 +195,31 @@ export default function SignupScreen() {
       <KeyboardAwareScrollView
         contentContainerStyle={{
           flexGrow: 1,
-          paddingHorizontal: 24,
-          paddingBottom: 24,
-          paddingTop: 10,
+          alignItems: "center",
+          paddingHorizontal: layout.horizontalPadding,
+          paddingBottom: layout.isCompact ? 20 : 24,
+          paddingTop: layout.isCompact ? 4 : 10,
         }}
         keyboardShouldPersistTaps="handled"
         bottomOffset={60}
       >
-        {/* Header - Globe Icon */}
+        <View style={{ width: "100%", maxWidth: layout.contentMaxWidth }}>
+          {/* Header - Globe Icon */}
 
-        {/* Logo */}
-        <View style={{ alignItems: "center", marginBottom: 12 }}>
-          <Image
-            source={require("@/assets/images/logo.png")}
-            style={{ width: 280, height: 140 }}
-            resizeMode="contain"
-          />
-        </View>
+          {/* Logo */}
+          <View style={{ alignItems: "center", marginBottom: layout.isCompact ? 4 : 12 }}>
+            <Image
+              source={require("@/assets/images/constela_logo.png")}
+              style={{ width: layout.logoWidth, height: layout.logoHeight }}
+              contentFit="contain"
+            />
+          </View>
 
         {/* Title */}
         <View style={{ alignItems: "center", marginBottom: 12 }}>
           <Text
             variant="title"
-            style={{ fontSize: 28, fontWeight: "bold", marginBottom: 8 }}
+            style={{ fontSize: layout.isCompact ? 26 : 28, fontWeight: "bold", marginBottom: 8 }}
           >
             Welcome
           </Text>
@@ -225,13 +229,13 @@ export default function SignupScreen() {
         </View>
 
         {/* Form */}
-        <View style={{ gap: 10 }}>
+        <View style={{ gap: layout.isCompact ? 8 : 10 }}>
           <View style={{ gap: 8 }}>
             <Text style={{ fontWeight: "600", fontSize: 14 }}>Name</Text>
             <Input
               placeholder="e.g. Alex Smith"
               variant="outline"
-              inputStyle={{ paddingVertical: 14 }}
+              inputStyle={{ paddingVertical: layout.isCompact ? 10 : 14 }}
               value={name}
               onChangeText={setName}
             />
@@ -316,7 +320,7 @@ export default function SignupScreen() {
         </View>
 
         {/* Social Login */}
-        <View style={{ marginTop: 16, alignItems: "center" }}>
+          <View style={{ marginTop: layout.isCompact ? 10 : 16, alignItems: "center" }}>
           <View
             style={{
               flexDirection: "row",
@@ -331,10 +335,10 @@ export default function SignupScreen() {
             <View style={{ flex: 1, height: 1, backgroundColor: border }} />
           </View>
 
-          <View style={{ flexDirection: "row", gap: 16, width: "100%" }}>
+          <View style={{ flexDirection: layout.socialDirection, gap: 12, width: "100%" }}>
             <Button
               variant="outline"
-              style={{ flex: 1, height: 50, gap: 10 }}
+              style={{ height: 50, gap: 10, ...(layout.socialDirection === "row" ? { flex: 1 } : { width: "100%" }) }}
               onPress={handleGoogleSignIn}
               disabled={googleAuth.isPending}
               loading={googleAuth.isPending}
@@ -345,13 +349,14 @@ export default function SignupScreen() {
             {Platform.OS === "ios" && (
               <Button
                 variant="outline"
-                style={{ flex: 1, height: 50, gap: 10 }}
+                style={{ height: 50, gap: 10, ...(layout.socialDirection === "row" ? { flex: 1 } : { width: "100%" }) }}
               >
                 <FontAwesome name="apple" size={22} color={muted} />
                 <Text style={{ fontWeight: "600" }}>Apple</Text>
               </Button>
             )}
           </View>
+        </View>
         </View>
       </KeyboardAwareScrollView>
 

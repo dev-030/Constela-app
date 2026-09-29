@@ -1,13 +1,8 @@
 import { useEffect, useRef } from 'react';
-import { Platform } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/authStore';
 import { useProfileStore } from '@/store/profileStore';
-
-let WS_URL = process.env.EXPO_PUBLIC_API_URL?.replace('http', 'ws') || 'ws://localhost:8000';
-if (Platform.OS === 'android' && WS_URL.includes('localhost')) {
-  WS_URL = WS_URL.replace('localhost', '10.0.2.2');
-}
+import { WS_URL } from '@/constants/config';
 
 export function useChatWebSocket(roomId?: string) {
   const ws = useRef<WebSocket | null>(null);

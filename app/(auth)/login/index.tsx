@@ -4,9 +4,10 @@ import { Input } from "@/components/ui/input";
 import { Text } from "@/components/ui/text";
 import { useColor } from "@/hooks/useColor";
 import { Link, router } from "expo-router";
-import { ChevronDown, Eye, EyeOff, Globe } from "lucide-react-native";
+import { Eye, EyeOff } from "lucide-react-native";
 import { useState } from "react";
-import { Image, Pressable, View, Platform } from "react-native";
+import { Pressable, View, Platform } from "react-native";
+import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useLoginMutation, useGoogleAuthMutation } from "@/api/auth";
@@ -15,9 +16,10 @@ import { FontAwesome } from "@expo/vector-icons";
 import { GoogleIcon } from "@/components/ui/GoogleIcon";
 import { useTranslation } from "react-i18next";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
+import { useAuthLayout } from "@/hooks/useAuthLayout";
 
 export default function LoginScreen() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -30,6 +32,7 @@ export default function LoginScreen() {
   const muted = useColor("textMuted");
   const background = useColor("background");
   const border = useColor("border");
+  const layout = useAuthLayout();
 
   const handleGoogleSignIn = async () => {
     try {
@@ -114,39 +117,41 @@ export default function LoginScreen() {
       <KeyboardAwareScrollView
         contentContainerStyle={{
           flexGrow: 1,
-          paddingHorizontal: 24,
-          paddingBottom: 40,
+          alignItems: "center",
+          paddingHorizontal: layout.horizontalPadding,
+          paddingBottom: layout.isCompact ? 24 : 40,
         }}
         keyboardShouldPersistTaps="handled"
         bottomOffset={60}
       >
-        {/* Logo Section */}
-        <View
-          style={{
-            flex: 1,
-            justifyContent: "center",
-            alignItems: "center",
-            minHeight: 220,
-            paddingVertical: 40,
-          }}
-        >
-          <Image
-            source={require("@/assets/images/logo.png")}
-            style={{ width: 280, height: 140 }}
-            resizeMode="contain"
-          />
-        </View>
+        <View style={{ width: "100%", maxWidth: layout.contentMaxWidth }}>
+          {/* Logo Section */}
+          <View
+            style={{
+              flex: layout.isCompact ? undefined : 1,
+              justifyContent: "center",
+              alignItems: "center",
+              minHeight: layout.logoSectionMinHeight,
+              paddingVertical: layout.logoSectionPadding,
+            }}
+          >
+            <Image
+              source={require("@/assets/images/constela_logo.png")}
+              style={{ width: layout.logoWidth, height: layout.logoHeight }}
+              contentFit="contain"
+            />
+          </View>
 
-        <View style={{ gap: 20 }}>
+          <View style={{ gap: layout.sectionGap }}>
           {/* Title */}
           <View style={{ alignItems: "center" }}>
             <Text
               variant="title"
-              style={{ fontSize: 32, fontWeight: "bold", marginBottom: 8 }}
+              style={{ fontSize: layout.titleSize, fontWeight: "bold", marginBottom: 8 }}
             >
               {t("auth.welcome")}
             </Text>
-            <Text style={{ color: muted, textAlign: "center", fontSize: 16 }}>
+            <Text style={{ color: muted, textAlign: "center", fontSize: layout.subtitleSize }}>
               {t("auth.sign_in_prompt")}
             </Text>
           </View>
@@ -210,7 +215,7 @@ export default function LoginScreen() {
           </View>
 
           {/* Footer */}
-          <View style={{ alignItems: "center", marginTop: 16 }}>
+          <View style={{ alignItems: "center", marginTop: layout.isCompact ? 8 : 16 }}>
             <Text>
               {t("auth.no_account")}{" "}
               <Text
@@ -223,7 +228,7 @@ export default function LoginScreen() {
           </View>
 
           {/* Social Login */}
-          <View style={{ marginTop: 8, alignItems: "center" }}>
+          <View style={{ marginTop: layout.isCompact ? 0 : 8, alignItems: "center" }}>
             <View
               style={{
                 flexDirection: "row",
@@ -245,10 +250,10 @@ export default function LoginScreen() {
               <View style={{ flex: 1, height: 1, backgroundColor: border }} />
             </View>
 
-            <View style={{ flexDirection: "row", gap: 16, width: "100%" }}>
+            <View style={{ flexDirection: layout.socialDirection, gap: 12, width: "100%" }}>
               <Button
                 variant="outline"
-                style={{ flex: 1, height: 50, gap: 10 }}
+                style={{ height: 50, gap: 10, ...(layout.socialDirection === "row" ? { flex: 1 } : { width: "100%" }) }}
                 onPress={handleGoogleSignIn}
                 disabled={googleAuth.isPending}
                 loading={googleAuth.isPending}
@@ -259,13 +264,14 @@ export default function LoginScreen() {
               {Platform.OS === "ios" && (
                 <Button
                   variant="outline"
-                  style={{ flex: 1, height: 50, gap: 10 }}
+                  style={{ height: 50, gap: 10, ...(layout.socialDirection === "row" ? { flex: 1 } : { width: "100%" }) }}
                 >
                   <FontAwesome name="apple" size={22} color={text} />
                   <Text style={{ fontWeight: "600" }}>Apple</Text>
                 </Button>
               )}
             </View>
+          </View>
           </View>
         </View>
       </KeyboardAwareScrollView>

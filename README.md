@@ -23,7 +23,7 @@ We use the native `@react-native-firebase/messaging` module to generate raw devi
 
 ### 2. RevenueCat (In-App Purchases)
 * **What it does:** Manages our premium subscription tiers and handles all Apple App Store and Google Play Store transactions.
-* **How it works:** We use the native `react-native-purchases` SDK to display paywalls, process payments, and verify subscription status. The frontend queries RevenueCat locally to see if a user is "Premium".
+* **How it works:** The native `react-native-purchases` SDK processes purchases using the signed-in profile ID. Purchases and restores are verified through `/api/subscription/sync/`; server-verified profile fields control feature access. The SDK customer info is used for store-management details, not client-side access grants.
 
 ### 3. Vision Camera
 * **What it does:** Provides high-performance, native camera access.
@@ -65,4 +65,3 @@ If you are a new developer cloning this repository, here is exactly how to get t
    ```bash
    npx expo run:ios
    ```
-

@@ -17,6 +17,7 @@ export interface ChatMessage {
   sender_photo: string;
   content: string;
   timestamp: string;
+  is_pending?: boolean;
 }
 
 export interface JoinRoomResponse {
@@ -25,17 +26,22 @@ export interface JoinRoomResponse {
   member_count: number;
 }
 
-export const useChatRoomsQuery = (search: string = '') => {
+export const fetchChatRooms = async (search = '') => {
+  const trimmed = search.trim();
+  const url = trimmed
+    ? `/api/chat/rooms/?search=${encodeURIComponent(trimmed)}`
+    : '/api/chat/rooms/';
+  const response = await apiClient.get<ChatRoom[]>(url);
+  return response.data;
+};
+
+export const useChatRoomsQuery = (search: string = '', enabled = true) => {
   return useQuery({
     queryKey: ['chatRooms', search],
-    queryFn: async () => {
-      const trimmed = search.trim();
-      const url = trimmed
-        ? `/api/chat/rooms/?search=${encodeURIComponent(trimmed)}`
-        : '/api/chat/rooms/';
-      const response = await apiClient.get<ChatRoom[]>(url);
-      return response.data;
-    },
+    queryFn: () => fetchChatRooms(search),
+    staleTime: 60 * 1000,
+    enabled,
+    retryOnMount: false,
     retry: (failureCount, error: any) => {
       if (error?.response?.status === 403) return false;
       return failureCount < 3;
@@ -64,7 +70,21 @@ export const useJoinRoomMutation = () => {
       );
       return response.data;
     },
-    onSuccess: () => {
+    onSuccess: (result, roomId) => {
+      queryClient.setQueriesData<ChatRoom[]>({ queryKey: ['chatRooms'] }, (rooms) =>
+        rooms?.map((room) =>
+          room.id === roomId
+            ? { ...room, is_joined: true, member_count: result.member_count }
+            : room
+        )
+      );
+      queryClient.setQueryData<ChatRoom>(['chatRoom', roomId], (room) =>
+        room
+          ? { ...room, is_joined: true, member_count: result.member_count }
+          : queryClient
+              .getQueryData<ChatRoom[]>(['chatRooms', ''])
+              ?.find((cachedRoom) => cachedRoom.id === roomId)
+      );
       queryClient.invalidateQueries({ queryKey: ['chatRooms'] });
       queryClient.invalidateQueries({ queryKey: ['chatRoom'] });
       queryClient.invalidateQueries({ queryKey: ['roomMessages'] });
@@ -82,13 +102,25 @@ export const useLeaveRoomMutation = () => {
       );
       return response.data;
     },
-    onSuccess: () => {
+    onSuccess: (result, roomId) => {
+      queryClient.setQueriesData<ChatRoom[]>({ queryKey: ['chatRooms'] }, (rooms) =>
+        rooms?.map((room) =>
+          room.id === roomId
+            ? { ...room, is_joined: false, member_count: result.member_count }
+            : room
+        )
+      );
+      queryClient.setQueryData<ChatRoom>(['chatRoom', roomId], (room) =>
+        room ? { ...room, is_joined: false, member_count: result.member_count } : room
+      );
       queryClient.invalidateQueries({ queryKey: ['chatRooms'] });
       queryClient.invalidateQueries({ queryKey: ['chatRoom'] });
       queryClient.invalidateQueries({ queryKey: ['roomMessages'] });
     },
   });
 };
+
+export const ROOM_HISTORY_PAGE_SIZE = 50;
 
 export const useRoomMessagesQuery = (roomId: string) => {
   return useQuery({
@@ -97,26 +129,19 @@ export const useRoomMessagesQuery = (roomId: string) => {
       const response = await apiClient.get<ChatMessage[]>(
         `/api/chat/rooms/${roomId}/messages/`
       );
-      return response.data;
+      const raw = response.data ?? [];
+      if (raw.length > 1) {
+        const firstTime = new Date(raw[0].timestamp).getTime();
+        const lastTime = new Date(raw[raw.length - 1].timestamp).getTime();
+        // If server returns oldest-first, reverse so newest is at index 0
+        if (firstTime < lastTime) {
+          return raw.reverse();
+        }
+      }
+      return raw;
     },
     enabled: !!roomId,
-  });
-};
-
-export const useSendRoomMessageMutation = (roomId: string) => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (content: string) => {
-      const response = await apiClient.post<ChatMessage>(
-        `/api/chat/rooms/${roomId}/send/`,
-        { content }
-      );
-      return response.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['roomMessages', roomId] });
-    },
+    staleTime: 0,
   });
 };
 

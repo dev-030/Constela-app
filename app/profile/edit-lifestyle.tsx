@@ -20,7 +20,7 @@ export default function EditLifestyleScreen() {
   const text = useColor('text');
   const border = useColor('border');
 
-  const { profile, fetchProfile } = useProfileStore();
+  const { profile, fetchProfile, setProfile } = useProfileStore();
 
   useEffect(() => {
     if (!profile) fetchProfile();
@@ -48,19 +48,21 @@ export default function EditLifestyleScreen() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const formData = new FormData();
-      formData.append('has_children', hasChildren === 'Yes' ? 'true' : 'false');
-      formData.append('wants_children', wantsChildren === 'Yes' ? 'true' : 'false');
-      formData.append('smoking', smoking === 'Yes' ? 'true' : 'false');
-      formData.append('alcohol', alcohol === 'Yes' ? 'true' : 'false');
-      formData.append('pets', pets === 'Yes' ? 'true' : 'false');
-      formData.append('sport', sport);
-      formData.append('eating_habits', eatingHabits);
-      
-      await updateMyProfile(formData);
-      await fetchProfile();
+      const updated = await updateMyProfile({
+        has_children: hasChildren === 'Yes',
+        wants_children: wantsChildren === 'Yes',
+        smoking: smoking === 'Yes',
+        alcohol: alcohol === 'Yes',
+        pets: pets === 'Yes',
+        sport,
+        eating_habits: eatingHabits,
+      });
+      if (updated) {
+        setProfile(updated);
+      }
+      fetchProfile().catch(console.error);
       router.back();
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
             let errMsg = "Failed to save profile";
       if (error?.response?.data && typeof error.response.data === "object") {
@@ -122,7 +124,7 @@ export default function EditLifestyleScreen() {
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom || 24, backgroundColor: background }]}>
-        <Button onPress={handleSave} style={[styles.saveBtn, !hasChanged && { opacity: 0.5 }]} disabled={isSaving || !hasChanged}>
+        <Button onPress={handleSave} style={[styles.saveBtn, ...(!hasChanged ? [{ opacity: 0.5 }] : [])]} disabled={isSaving || !hasChanged}>
           {isSaving ? <ActivityIndicator color="#FFF" /> : "Save Changes"}
         </Button>
       </View>

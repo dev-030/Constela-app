@@ -11,17 +11,23 @@ import { useFocusEffect, router } from 'expo-router';
  *
  * If the history stack cannot go back, it falls back to navigating to `fallbackRoute`
  * (defaults to '/(tabs)', i.e., Home), ensuring the app never forcibly exits.
+ * Set `alwaysUseFallback` for screens with a fixed parent route.
  *
  * Drop this single line into any sub-screen component:
  *   useAndroidBack();
  */
-export function useAndroidBack(fallbackRoute: string = '/(tabs)') {
+export function useAndroidBack(
+  fallbackRoute: string = '/(tabs)',
+  alwaysUseFallback = false,
+) {
   useFocusEffect(
     useCallback(() => {
       if (Platform.OS !== 'android') return;
 
       const onBackPress = () => {
-        if (router.canGoBack()) {
+        if (alwaysUseFallback) {
+          router.dismissTo(fallbackRoute as any);
+        } else if (router.canGoBack()) {
           router.back();
         } else {
           router.replace(fallbackRoute as any);
@@ -35,7 +41,6 @@ export function useAndroidBack(fallbackRoute: string = '/(tabs)') {
       );
 
       return () => subscription.remove();
-    }, [fallbackRoute])
+    }, [alwaysUseFallback, fallbackRoute])
   );
 }
-

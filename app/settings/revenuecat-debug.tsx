@@ -32,6 +32,8 @@ import {
   isNativeModuleAvailable,
   initializePurchases,
   getCustomerInfo,
+  restorePurchases,
+  syncSubscription,
   purchasePackage as purchasePackageHelper,
 } from "@/api/purchases";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
@@ -137,12 +139,10 @@ export default function RevenueCatDebugScreen() {
 
       // Step 2: make sure Purchases is configured (idempotent)
       const userId =
-        profile?.user?.id?.toString() ||
-        profile?.id?.toString() ||
-        `anon-${Math.random().toString(36).slice(2, 10)}`;
+        profile?.id?.toString() || "";
 
       try {
-        initializePurchases(userId);
+        await initializePurchases(userId);
       } catch (e: any) {
         console.warn("[RC Debug] initializePurchases threw:", e);
       }
@@ -204,11 +204,9 @@ export default function RevenueCatDebugScreen() {
 
       // Make sure Purchases is configured (idempotent)
       const userId =
-        profile?.user?.id?.toString() ||
-        profile?.id?.toString() ||
-        `anon-${Math.random().toString(36).slice(2, 10)}`;
+        profile?.id?.toString() || "";
       try {
-        initializePurchases(userId);
+        await initializePurchases(userId);
       } catch (e: any) {
         console.warn("[RC Debug] initializePurchases threw:", e);
       }
@@ -278,10 +276,8 @@ export default function RevenueCatDebugScreen() {
       try {
         // Make sure the SDK is configured before purchasing
         const userId =
-          profile?.user?.id?.toString() ||
-          profile?.id?.toString() ||
-          `anon-${Math.random().toString(36).slice(2, 10)}`;
-        initializePurchases(userId);
+          profile?.id?.toString() || "";
+        await initializePurchases(userId);
         console.log(`[RC Debug #${id}] Purchases configured for`, userId);
 
         // Use the helper so it goes through the same path as production
@@ -292,6 +288,7 @@ export default function RevenueCatDebugScreen() {
           customerInfo ? "(CustomerInfo)" : "(null)",
         );
         if (customerInfo) {
+          await syncSubscription();
           console.log(
             `[RC Debug #${id}] customerInfo JSON =`,
             JSON.stringify(customerInfo, null, 2),
@@ -392,7 +389,8 @@ export default function RevenueCatDebugScreen() {
     }));
 
     try {
-      const customerInfo = await Purchases.restorePurchases();
+      const customerInfo = await restorePurchases();
+      await syncSubscription();
       console.log(
         `[RC Debug #${id}] restorePurchases customerInfo =`,
         JSON.stringify(customerInfo, null, 2),

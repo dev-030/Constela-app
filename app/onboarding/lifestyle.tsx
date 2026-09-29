@@ -24,12 +24,9 @@ export default function OnboardingStep3() {
   const toggleLookingFor = (value: LookingFor) => {
     const current = data.lookingFor;
     if (current.includes(value)) {
-      update(
-        "lookingFor",
-        current.filter((v) => v !== value),
-      );
+      update("lookingFor", []);
     } else {
-      update("lookingFor", [...current, value]);
+      update("lookingFor", [value]);
     }
   };
 

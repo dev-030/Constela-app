@@ -35,20 +35,9 @@ const BIOS = [
   "Quiet spaces, loud laughs with the right people. Patient hearts welcome.",
 ];
 
-export const INTERESTS_POOL = [
-  "Gaming",
-  "Art",
-  "Space",
-  "Coffee",
-  "Hiking",
-  "Reading",
-  "Music",
-  "Photography",
-  "Cooking",
-  "Yoga",
-  "Films",
-  "Board Games",
-];
+import { ALL_INTEREST_TITLES } from "@/constants/interests";
+
+export const INTERESTS_POOL = ALL_INTEREST_TITLES;
 
 function pickN<T>(arr: T[], n: number, seed: number): T[] {
   const out: T[] = [];

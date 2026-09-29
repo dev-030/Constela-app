@@ -1,6 +1,6 @@
 import { Text } from '@/components/ui/text';
 import { useColor } from '@/hooks/useColor';
-import { CORNERS, FONT_SIZE } from '@/theme/globals';
+import { CORNERS } from '@/theme/globals';
 import React, {
   forwardRef,
   useCallback,
@@ -10,6 +10,7 @@ import React, {
 } from 'react';
 import {
   NativeSyntheticEvent,
+  LayoutChangeEvent,
   Pressable,
   TextInput,
   TextInputKeyPressEventData,
@@ -76,7 +77,7 @@ export const InputOTP = forwardRef<InputOTPRef, InputOTPProps>(
     ref
   ) => {
     const [isFocused, setIsFocused] = useState(false);
-    const [activeIndex, setActiveIndex] = useState(0);
+    const [availableWidth, setAvailableWidth] = useState(0);
     const inputRef = useRef<TextInput>(null);
 
     // Theme colors
@@ -86,7 +87,30 @@ export const InputOTP = forwardRef<InputOTPRef, InputOTPProps>(
     const borderColor = useColor('border');
     const primary = useColor('primary');
     const danger = useColor('red');
-    const background = useColor('background');
+
+    const requestedSlotWidth =
+      typeof slotStyle?.width === 'number' ? slotStyle.width : 58;
+    const slotGap = separator ? 0 : 8;
+    const horizontalMargin =
+      typeof slotStyle?.marginHorizontal === 'number'
+        ? slotStyle.marginHorizontal * 2
+        : 0;
+    const slotWidth = availableWidth
+      ? Math.max(
+          32,
+          Math.min(
+            requestedSlotWidth,
+            Math.floor(
+              (availableWidth - slotGap * (length - 1)) / length - horizontalMargin
+            )
+          )
+        )
+      : requestedSlotWidth;
+
+    const handleLayout = (event: LayoutChangeEvent) => {
+      const nextWidth = Math.floor(event.nativeEvent.layout.width);
+      if (nextWidth !== availableWidth) setAvailableWidth(nextWidth);
+    };
 
     // Normalize value to ensure it doesn't exceed length
     const normalizedValue = value.slice(0, length);
@@ -100,7 +124,6 @@ export const InputOTP = forwardRef<InputOTPRef, InputOTPProps>(
       blur: () => inputRef.current?.blur(),
       clear: () => {
         onChangeText?.('');
-        setActiveIndex(0);
       },
       getValue: () => normalizedValue,
     }));
@@ -112,7 +135,6 @@ export const InputOTP = forwardRef<InputOTPRef, InputOTPProps>(
         const limitedText = cleanText.slice(0, length);
 
         onChangeText?.(limitedText);
-        setActiveIndex(Math.min(limitedText.length, length - 1));
 
         // Call onComplete when OTP is fully entered
         if (limitedText.length === length) {
@@ -129,7 +151,6 @@ export const InputOTP = forwardRef<InputOTPRef, InputOTPProps>(
         if (key === 'Backspace' && normalizedValue.length > 0) {
           const newValue = normalizedValue.slice(0, -1);
           onChangeText?.(newValue);
-          setActiveIndex(Math.max(0, newValue.length));
         }
       },
       [normalizedValue, onChangeText]
@@ -138,7 +159,6 @@ export const InputOTP = forwardRef<InputOTPRef, InputOTPProps>(
     const handleFocus = useCallback(
       (e: any) => {
         setIsFocused(true);
-        setActiveIndex(normalizedValue.length);
         onFocus?.(e);
       },
       [normalizedValue.length, onFocus]
@@ -175,7 +195,7 @@ export const InputOTP = forwardRef<InputOTPRef, InputOTPProps>(
             disabled={disabled}
             style={[
               {
-                width: 58,
+                width: slotWidth,
                 height: 58,
                 borderRadius: CORNERS,
                 borderWidth: 1,
@@ -192,11 +212,12 @@ export const InputOTP = forwardRef<InputOTPRef, InputOTPProps>(
                 opacity: disabled ? 0.6 : 1,
               },
               slotStyle,
+              { width: slotWidth },
             ]}
           >
             <Text
               style={{
-                fontSize: FONT_SIZE + 2,
+                fontSize: Math.max(16, Math.round(slotWidth * 0.4)),
                 fontWeight: '600',
                 color: error ? danger : hasValue ? textColor : muted,
               }}
@@ -227,7 +248,7 @@ export const InputOTP = forwardRef<InputOTPRef, InputOTPProps>(
     });
 
     const renderContent = () => (
-      <View style={containerStyle}>
+      <View style={[{ width: '100%' }, containerStyle]} onLayout={handleLayout}>
         {/* Hidden TextInput for handling input */}
         <TextInput
           ref={inputRef}
@@ -254,6 +275,7 @@ export const InputOTP = forwardRef<InputOTPRef, InputOTPProps>(
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'center',
+            width: '100%',
             gap: separator ? 0 : 8,
           }}
         >

@@ -1,45 +1,40 @@
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
-import { Input } from "@/components/ui/input";
 import { InputOTP } from "@/components/ui/input-otp";
 import { Text } from "@/components/ui/text";
 import { useColor } from "@/hooks/useColor";
+import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import { router, useLocalSearchParams } from "expo-router";
-import { ArrowLeft, Eye, EyeOff } from "lucide-react-native";
+import { ArrowLeft } from "lucide-react-native";
 import { useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
-import { useResetPasswordMutation } from "@/api/auth";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useVerifyPasswordResetCodeMutation } from "@/api/auth";
 import { toast } from "sonner-native";
 
 export default function ResetPasswordScreen() {
   const { email } = useLocalSearchParams<{ email?: string }>();
   const [code, setCode] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-
-  const resetPassword = useResetPasswordMutation();
+  const verifyCode = useVerifyPasswordResetCodeMutation();
   const muted = useColor("textMuted");
   const background = useColor("background");
+  const insets = useSafeAreaInsets();
+  const { horizontalPadding, isCompact, size } = useResponsiveLayout();
 
-  const handleReset = () => {
+  const handleVerifyCode = () => {
     if (!code || code.length < 6) {
       toast.error("Please enter a valid 6-digit code");
       return;
     }
-    if (!newPassword) {
-      toast.error("Please enter a new password");
-      return;
-    }
 
-    resetPassword.mutate(
-      { email: email || "", code, new_password: newPassword },
+    verifyCode.mutate(
+      { email: email || "", code },
       {
-        onSuccess: (data) => {
-          toast.success(data.message || "Password reset successfully");
-          router.replace("/(auth)/login");
+        onSuccess: () => {
+          router.push({ pathname: "/(auth)/new-password", params: { email, code } });
         },
         onError: (err: any) => {
-          const errMsg = err?.response?.data?.error || err?.message || "Failed to reset password";
+          const errMsg = err?.response?.data?.error || err?.message || "Failed to verify code";
           toast.error(errMsg);
         },
       }
@@ -48,9 +43,19 @@ export default function ResetPasswordScreen() {
 
   return (
     <ScrollView contentContainerStyle={{ flexGrow: 1, backgroundColor: background }}>
-      <View style={{ flex: 1, padding: 24, paddingTop: 60 }}>
+      <View
+        style={{
+          flex: 1,
+          width: "100%",
+          maxWidth: 480,
+          alignSelf: "center",
+          paddingHorizontal: horizontalPadding,
+          paddingTop: insets.top + (isCompact ? 20 : 32),
+          paddingBottom: 32,
+        }}
+      >
         {/* Header */}
-        <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 24 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", marginBottom: size(24, 18) }}>
           <Pressable onPress={() => router.back()} style={{ padding: 8, marginLeft: -8 }}>
             <Icon name={ArrowLeft} size={24} />
           </Pressable>
@@ -60,50 +65,29 @@ export default function ResetPasswordScreen() {
         </View>
 
         {/* Instructions */}
-        <View style={{ marginBottom: 32 }}>
+        <View style={{ marginBottom: size(32, 24) }}>
           <Text style={{ color: muted, fontSize: 14 }}>
-            Enter the 6-digit code sent to {email} and your new password.
+            Enter the 6-digit code sent to {email}.
           </Text>
         </View>
 
         {/* Form */}
-        <View style={{ gap: 24 }}>
+        <View style={{ gap: size(24, 18) }}>
           <View style={{ gap: 8, alignItems: "center" }}>
             <Text style={{ fontWeight: "600", fontSize: 14, alignSelf: "flex-start" }}>Reset Code</Text>
             <InputOTP
               length={6}
               value={code}
               onChangeText={setCode}
-              slotStyle={{ width: 44, height: 56, borderRadius: 8, marginHorizontal: 2 }}
+              slotStyle={{ height: 56, borderRadius: 8, marginHorizontal: 2 }}
             />
           </View>
-
-          <View style={{ gap: 8 }}>
-            <Text style={{ fontWeight: "600", fontSize: 14 }}>New Password</Text>
-            <Input
-              placeholder="New password"
-              secureTextEntry={!showPassword}
-              variant="outline"
-              value={newPassword}
-              onChangeText={setNewPassword}
-              rightComponent={() => (
-                <Pressable onPress={() => setShowPassword(!showPassword)}>
-                  <Icon
-                    name={showPassword ? EyeOff : Eye}
-                    size={20}
-                    color={muted}
-                  />
-                </Pressable>
-              )}
-            />
-          </View>
-
           <Button
             style={{ marginTop: 8 }}
-            onPress={handleReset}
-            disabled={resetPassword.isPending || code.length < 6 || !newPassword}
+            onPress={handleVerifyCode}
+            disabled={verifyCode.isPending || code.length < 6}
           >
-            Reset Password
+            Continue
           </Button>
         </View>
       </View>

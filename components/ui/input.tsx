@@ -1,6 +1,7 @@
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { useColor } from '@/hooks/useColor';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { BORDER_RADIUS, CORNERS, FONT_SIZE, HEIGHT } from '@/theme/globals';
 import { LucideProps } from 'lucide-react-native';
 import React, { forwardRef, ReactElement, useState } from 'react';
@@ -60,6 +61,7 @@ export const Input = forwardRef<TextInput, InputProps>(
     const borderColor = useColor('border');
     const primary = useColor('primary');
     const danger = useColor('red');
+    const { controlHeight, size } = useResponsiveLayout();
 
     const isTextarea = type === 'textarea';
 
@@ -68,7 +70,7 @@ export const Input = forwardRef<TextInput, InputProps>(
       if (isTextarea) {
         return rows * 20 + 32; // Approximate line height + padding
       }
-      return HEIGHT;
+      return controlHeight;
     };
 
     // Variant styles
@@ -78,7 +80,7 @@ export const Input = forwardRef<TextInput, InputProps>(
         flexDirection: isTextarea ? 'column' : 'row',
         alignItems: isTextarea ? 'stretch' : 'center',
         minHeight: getHeight(),
-        paddingHorizontal: 16,
+        paddingHorizontal: size(16, 14),
         paddingVertical: isTextarea ? 12 : 0,
       };
 
@@ -103,7 +105,7 @@ export const Input = forwardRef<TextInput, InputProps>(
 
     const getInputStyle = (): TextStyle => ({
       flex: 1,
-      fontSize: FONT_SIZE,
+      fontSize: size(FONT_SIZE, 15),
       lineHeight: isTextarea ? 20 : undefined,
       color: disabled ? muted : error ? danger : textColor,
       paddingVertical: 0, // Remove default padding

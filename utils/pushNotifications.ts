@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import messaging from '@react-native-firebase/messaging';
+import { getMessaging, requestPermission, getToken, AuthorizationStatus } from '@react-native-firebase/messaging';
 import { apiClient } from '@/api/client';
 
 /**
@@ -15,11 +15,12 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
   }
 
   try {
+    const messagingInstance = getMessaging();
     // Request permission (iOS only requires this, Android 13+ also requests)
-    const authStatus = await messaging().requestPermission();
+    const authStatus = await requestPermission(messagingInstance);
     const enabled =
-      authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-      authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+      authStatus === AuthorizationStatus.AUTHORIZED ||
+      authStatus === AuthorizationStatus.PROVISIONAL;
 
     if (!enabled) {
       console.log('⚠️ Push notification permissions not granted.');
@@ -27,7 +28,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
     }
 
     // Get the device token
-    token = await messaging().getToken();
+    token = await getToken(messagingInstance);
 
     if (token) {
       // Send token to Django backend endpoint

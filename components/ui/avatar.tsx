@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, StyleProp, ViewStyle, ImageStyle } from 'react-native';
 import { Image } from 'expo-image';
 import { User } from 'lucide-react-native';
@@ -16,6 +16,8 @@ export function Avatar({ uri, size = 100, rounded = false, style, imageStyle }: 
   const [hasError, setHasError] = useState(false);
   const border = useColor('border');
   const muted = useColor('textMuted');
+
+  useEffect(() => setHasError(false), [uri]);
 
   const showFallback = !uri || hasError;
 

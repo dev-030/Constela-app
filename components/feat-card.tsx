@@ -3,10 +3,11 @@ import { View, StyleSheet, Pressable } from "react-native";
 import { Icon } from "@/components/ui/icon";
 import { Text } from "@/components/ui/text";
 import { useColor } from "@/hooks/useColor";
+import { useColorScheme } from "@/hooks/useColorScheme";
 import { useTranslation } from "react-i18next";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import {
   Clock,
-  Heart,
   MessageCircle,
   User,
   PlayCircle,
@@ -18,7 +19,6 @@ import {
   ChevronRight,
 } from "lucide-react-native";
 import { useRouter } from "expo-router";
-import { BORDER_RADIUS } from "@/theme/globals";
 
 interface FeatureItem {
   icon: React.ComponentType<any>;
@@ -29,8 +29,10 @@ interface CardConfig {
   id: string;
   title: string;
   subtitle: string;
-  badgeIcon: React.ComponentType<any>;
+  badgeIonIcon: keyof typeof Ionicons.glyphMap;
   badgeColor: string;
+  pillTextColorLight: string;
+  pillTextColorDark: string;
   features: FeatureItem[];
   buttonText: string;
   path?: string;
@@ -38,26 +40,33 @@ interface CardConfig {
 
 function DashboardCard({ config }: { config: CardConfig }) {
   const router = useRouter();
-  const cardBg = useColor("card");
-  const text = useColor("text");
-  const textMuted = useColor("textMuted");
-  const border = useColor("border");
+  const isDark = useColorScheme() === "dark";
+
+  const titleColor = isDark ? "#F8FAFC" : "#0F172A";
+  const subtitleColor = isDark ? "#94A3B8" : "#64748B";
+  const pillTextColor = isDark ? config.pillTextColorDark : config.pillTextColorLight;
+  const pillBg = isDark ? config.badgeColor + "22" : config.badgeColor + "14";
+  const pillBorder = isDark ? config.badgeColor + "38" : config.badgeColor + "26";
 
   return (
     <Pressable
-      style={[
+      style={({ pressed }) => [
         styles.cardContainer,
-        { backgroundColor: cardBg, borderColor: border, borderWidth: 1 },
+        {
+          backgroundColor: isDark ? "#1C1C1E" : "#FFFFFF",
+          borderColor: isDark ? "rgba(255, 255, 255, 0.12)" : "rgba(0, 0, 0, 0.08)",
+          transform: [{ scale: pressed ? 0.985 : 1 }],
+        },
       ]}
       onPress={() => config.path && router.push(config.path as any)}
     >
-      {/* Large faint background icon */}
+      {/* Background Watermark Icon */}
       <View style={styles.bgIconContainer} pointerEvents="none">
-        <Icon
-          name={config.badgeIcon}
-          size={160}
+        <Ionicons
+          name={config.badgeIonIcon}
+          size={140}
           color={config.badgeColor}
-          style={{ opacity: 0.05 }}
+          style={{ opacity: isDark ? 0.04 : 0.05 }}
         />
       </View>
 
@@ -65,30 +74,41 @@ function DashboardCard({ config }: { config: CardConfig }) {
         {/* Header */}
         <View style={styles.header}>
           <View style={[styles.iconBadge, { backgroundColor: config.badgeColor }]}>
-            <Icon name={config.badgeIcon} size={24} color="#FFF" />
+            <Ionicons name={config.badgeIonIcon} size={24} color="#FFF" />
           </View>
           <View style={styles.headerText}>
-            <Text style={[styles.cardTitle, { color: text }]}>{config.title}</Text>
-            <Text style={[styles.cardSubtitle, { color: textMuted }]}>
+            <Text style={[styles.cardTitle, { color: titleColor }]}>{config.title}</Text>
+            <Text style={[styles.cardSubtitle, { color: subtitleColor }]}>
               {config.subtitle}
             </Text>
           </View>
         </View>
 
-        {/* Features */}
+        {/* Features / Tags with Harmonic Color Matching */}
         <View style={styles.featuresList}>
           {config.features.map((feature, index) => (
-            <View key={index} style={[styles.featureItem, { backgroundColor: config.badgeColor + "15", borderColor: config.badgeColor + "30" }]}>
-              <Icon name={feature.icon} size={14} color={config.badgeColor} />
-              <Text style={[styles.featureText, { color: text }]}>{feature.text}</Text>
+            <View
+              key={index}
+              style={[
+                styles.featureItem,
+                {
+                  backgroundColor: pillBg,
+                  borderColor: pillBorder,
+                },
+              ]}
+            >
+              <Icon name={feature.icon} size={12} color={pillTextColor} />
+              <Text style={[styles.featureText, { color: pillTextColor }]}>
+                {feature.text}
+              </Text>
             </View>
           ))}
         </View>
 
-        {/* Action Button */}
+        {/* Solid Vibrant Action Button */}
         <View style={[styles.actionButton, { backgroundColor: config.badgeColor }]}>
           <Text style={styles.actionButtonText}>{config.buttonText}</Text>
-          <Icon name={ChevronRight} size={18} color="#FFF" />
+          <Icon name={ChevronRight} size={17} color="#FFF" />
         </View>
       </View>
     </Pressable>
@@ -98,16 +118,18 @@ function DashboardCard({ config }: { config: CardConfig }) {
 export default function CardList() {
   const { t } = useTranslation();
   const primary = useColor("primary");
-  const green = useColor("green") || "#30D158";
-  const purple = useColor("purple") || "#BF5AF2";
+  const green = useColor("green") || "#10B981";
+  const purple = useColor("purple") || "#8B5CF6";
 
   const cardsData: CardConfig[] = [
     {
       id: "meet",
       title: t('dashboard.meet_title'),
       subtitle: t('dashboard.meet_subtitle'),
-      badgeIcon: Heart,
+      badgeIonIcon: "heart",
       badgeColor: primary,
+      pillTextColorLight: "#9D174D",
+      pillTextColorDark: "#FDA4AF",
       buttonText: t('dashboard.meet_btn'),
       features: [
         { icon: User, text: t('dashboard.meet_f1') },
@@ -120,8 +142,10 @@ export default function CardList() {
       id: "friends",
       title: t('dashboard.friends_title'),
       subtitle: t('dashboard.friends_subtitle'),
-      badgeIcon: Users,
+      badgeIonIcon: "people",
       badgeColor: green,
+      pillTextColorLight: "#065F46",
+      pillTextColorDark: "#6EE7B7",
       buttonText: t('dashboard.friends_btn'),
       features: [
         { icon: Search, text: t('dashboard.friends_f1') },
@@ -134,8 +158,10 @@ export default function CardList() {
       id: "community",
       title: t('dashboard.community_title'),
       subtitle: t('dashboard.community_subtitle'),
-      badgeIcon: MessageSquare,
+      badgeIonIcon: "planet",
       badgeColor: purple,
+      pillTextColorLight: "#5B21B6",
+      pillTextColorDark: "#C4B5FD",
       buttonText: t('dashboard.community_btn'),
       features: [
         { icon: MessageSquare, text: t('dashboard.community_f1') },
@@ -160,82 +186,87 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   cardContainer: {
-    borderRadius: 24,
+    borderRadius: 22,
+    borderWidth: 1,
     overflow: "hidden",
     position: "relative",
   },
   bgIconContainer: {
     position: "absolute",
-    right: -20,
-    bottom: -20,
+    right: -16,
+    bottom: -16,
     zIndex: 0,
     transform: [{ rotate: "-15deg" }],
   },
   contentContainer: {
-    padding: 24,
+    padding: 20,
     zIndex: 1,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 16,
-    marginBottom: 20,
+    gap: 13,
+    marginBottom: 14,
   },
   headerText: {
     flex: 1,
   },
   iconBadge: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 5,
+    elevation: 3,
   },
   cardTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 4,
+    fontSize: 20,
+    fontWeight: "700",
+    letterSpacing: -0.3,
+    marginBottom: 2,
   },
   cardSubtitle: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 13.5,
+    fontWeight: "400",
+    lineHeight: 18,
   },
   featuresList: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
-    marginBottom: 24,
+    gap: 7,
+    marginBottom: 16,
   },
   featureItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 12,
+    paddingVertical: 5,
+    paddingHorizontal: 11,
+    borderRadius: 10,
     borderWidth: 1,
-    gap: 6,
+    gap: 5,
   },
   featureText: {
-    fontSize: 13,
-    fontWeight: "600",
+    fontSize: 12,
+    fontWeight: "500",
+    letterSpacing: 0,
   },
   actionButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 14,
     alignSelf: "stretch",
   },
   actionButtonText: {
     color: "#FFF",
-    fontSize: 15,
-    fontWeight: "bold",
+    fontSize: 14.5,
+    fontWeight: "600",
+    letterSpacing: 0.1,
   },
 });

@@ -7,6 +7,10 @@ export interface Notification {
   title: string;
   body: string;
   type: string;
+  data?: {
+    sender_photo?: string | null;
+    [key: string]: any;
+  };
   is_read: boolean;
   created_at: string;
 }

@@ -8,15 +8,18 @@ import {
   StyleSheet,
   TouchableOpacity,
   View,
+  InteractionManager,
 } from "react-native";
-import { router, useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { router } from "expo-router";
+import { useEffect, useState } from "react";
+import { Mic } from "lucide-react-native";
 import Header from "../../../components/header";
 import VerificationOverlay from "@/components/VerificationOverlay";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
-import { MessageThread, ThreadType, useThreadsQuery } from "@/api/messages";
+import { directHistoryQueryOptions, MessageThread, ThreadType, useThreadsQuery } from "@/api/messages";
 import { Avatar } from "@/components/ui/avatar";
 import { useChatSocket } from "@/api/ChatSocketProvider";
+import { useQueryClient } from "@tanstack/react-query";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -88,7 +91,7 @@ function SegmentedControl({
         easing: Easing.out(Easing.quad),
       });
     }
-  }, [activeIndex, pillWidth]);
+  }, [activeIndex, pillWidth, translateX]);
 
   const pillStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],
@@ -197,11 +200,13 @@ function ConversationList({
   emptyText: string;
   type: "dating" | "friends";
 }) {
+  const isDark = useColorScheme() === "dark";
   const background = useColor("background");
   const primary = useColor("primary");
   const text = useColor("text");
   const textMuted = useColor("textMuted");
   const { onlineUsers } = useChatSocket();
+  const queryClient = useQueryClient();
 
   // Only show a full-page spinner on the very first load (no data yet).
   // When a background refetch is triggered by invalidateQueries, we already
@@ -264,27 +269,42 @@ function ConversationList({
     >
       <View style={styles.messageList}>
         {threads.map((thread) => {
-          const isOnline = !!onlineUsers[thread.profile.id];
+          const pid = String(thread.profile.id);
+          const isOnline = !!onlineUsers[pid] || !!onlineUsers[pid.toLowerCase()];
           return (
             <Pressable
               key={thread.profile.id}
               style={styles.conversationRow}
-              onPress={() => router.push({ pathname: `/inbox/${thread.profile.id}`, params: { type } })}
+              onPressIn={() => {
+                void queryClient.prefetchQuery(
+                  directHistoryQueryOptions(String(thread.profile.id), true)
+                );
+              }}
+              onPress={() => router.push({
+                pathname: "/inbox/[id]",
+                params: { 
+                  id: thread.profile.id, 
+                  type,
+                  photo: thread.profile.photo,
+                  name: thread.profile.name,
+                  username: thread.profile.username
+                },
+              })}
             >
               <View style={styles.avatarWrap}>
                 <Avatar
                   uri={thread.profile.photo}
                   size={56}
+                  rounded
                 />
-                <View
-                  style={[
-                    styles.statusDot,
-                    {
-                      backgroundColor: isOnline ? "#22C55E" : "#CFD5D8",
-                      borderColor: background,
-                    },
-                  ]}
-                />
+                {isOnline && (
+                  <View
+                    style={[
+                      styles.statusDot,
+                      { borderColor: background },
+                    ]}
+                  />
+                )}
               </View>
 
               <View style={styles.conversationBody}>
@@ -295,9 +315,14 @@ function ConversationList({
                   </Text>
                 </View>
                 <View style={styles.previewRow}>
-                  <Text numberOfLines={1} style={[styles.messagePreview, { color: textMuted }]}>
-                    {thread.last_message}
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                    {thread.last_message === "Voice message" && (
+                      <Mic size={14} color={textMuted} style={{ marginRight: 4 }} />
+                    )}
+                    <Text numberOfLines={1} style={[styles.messagePreview, { color: textMuted }]}>
+                      {thread.last_message}
+                    </Text>
+                  </View>
                   {thread.unread_count > 0 ? (
                     <View style={styles.unreadBadge}>
                       <Text style={styles.unreadText}>{thread.unread_count}</Text>
@@ -315,11 +340,27 @@ function ConversationList({
 
 export default function MessagesScreen() {
   const background = useColor("background");
+  const queryClient = useQueryClient();
 
   const [tab, setTab] = useState<ThreadType>("dating");
 
   const datingQuery = useThreadsQuery("dating");
   const friendsQuery = useThreadsQuery("friends");
+
+  useEffect(() => {
+    const threads = tab === "dating" ? datingQuery.data : friendsQuery.data;
+    if (!threads?.length) return;
+
+    const task = InteractionManager.runAfterInteractions(() => {
+      threads.slice(0, 3).forEach((thread) => {
+        void queryClient.prefetchQuery(
+          directHistoryQueryOptions(String(thread.profile.id), true)
+        );
+      });
+    });
+
+    return () => task.cancel();
+  }, [tab, datingQuery.data, friendsQuery.data, queryClient]);
 
   const [refreshingDating, setRefreshingDating] = useState(false);
   const handleDatingRefresh = async () => {
@@ -404,11 +445,12 @@ const styles = StyleSheet.create({
   statusDot: {
     position: "absolute",
     right: 0,
-    bottom: 2,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    borderWidth: 2,
+    bottom: 0,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: "#22C55E",
+    borderWidth: 2.5,
   },
   conversationBody: {
     flex: 1,
@@ -465,6 +507,9 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 14,
+    maxWidth: 360,
+    paddingHorizontal: 24,
+    textAlign: "center",
   },
   retryText: {
     color: "#9A3B00",

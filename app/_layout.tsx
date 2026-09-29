@@ -7,7 +7,8 @@ import { useAuthStore } from "@/store/authStore";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Colors } from "@/theme/colors";
 import { ThemeProvider } from "@/theme/theme-provider";
-import { osName } from "expo-device";
+import { usePrefetchOnAppStart } from "@/hooks/usePrefetchOnAppStart";
+import { useProfileStore } from "@/store/profileStore";
 import { isLiquidGlassAvailable } from "expo-glass-effect";
 import * as NavigationBar from "expo-navigation-bar";
 import { Stack, useRouter, useSegments } from "expo-router";
@@ -15,29 +16,34 @@ import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { setBackgroundColorAsync } from "expo-system-ui";
 import React, { useEffect } from "react";
-import { BackHandler, LogBox, Platform } from "react-native";
+import { LogBox, Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
 
-LogBox.ignoreAllLogs();
-
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
+
+import { ThemeContextProvider } from "@/providers/theme-context";
+
+LogBox.ignoreAllLogs();
 
 GoogleSignin.configure({
   webClientId:
     "504633031372-14dbhe821adkj85sarl3g1otq3gu10um.apps.googleusercontent.com",
-  offlineAccess: true,
 });
 
 SplashScreen.setOptions({
   duration: 200,
   fade: true,
 });
-
-import { ThemeContextProvider } from "@/providers/theme-context";
+void SplashScreen.preventAutoHideAsync();
 
 function RootLayoutContent() {
   const colorScheme = useColorScheme() || "light";
+  const { profile } = useProfileStore();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
+  // Warm common tabs immediately and gated tabs only when local access allows it.
+  usePrefetchOnAppStart(isAuthenticated ? profile : null);
 
   useEffect(() => {
     if (Platform.OS === "android") {
@@ -133,6 +139,12 @@ function RootLayoutContent() {
           }}
         />
         <Stack.Screen
+          name="inbox/[id]"
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
           name="notifications"
           options={{
             headerShown: false,
@@ -146,29 +158,69 @@ function RootLayoutContent() {
 
 const queryClient = new QueryClient();
 
-import { useProfileStore } from "@/store/profileStore";
-
 export default function RootLayout() {
-  const { restoreAuth, isAuthenticated, isRestoring } = useAuthStore();
-  const { profile } = useProfileStore();
+  const { restoreAuth, isAuthenticated, isRestoring, accessToken } = useAuthStore();
+  const {
+    profile,
+    hasHydrated,
+    fetchProfile,
+    clearProfile,
+    error: profileError,
+  } = useProfileStore();
   const segments = useSegments();
   const router = useRouter();
+  const refreshedToken = React.useRef<string | null>(null);
 
   useEffect(() => {
     restoreAuth();
+  }, [restoreAuth]);
+
+  useEffect(() => {
+    if (!isRestoring && hasHydrated && isAuthenticated && accessToken && refreshedToken.current !== accessToken) {
+      refreshedToken.current = accessToken;
+      void fetchProfile();
+    }
+    if (!isRestoring && !isAuthenticated) {
+      refreshedToken.current = null;
+      queryClient.clear();
+      if (profile) clearProfile();
+    }
+  }, [
+    accessToken,
+    clearProfile,
+    fetchProfile,
+    hasHydrated,
+    isAuthenticated,
+    isRestoring,
+    profile,
+  ]);
+
+  useEffect(() => {
+    if (
+      !isRestoring &&
+      (!isAuthenticated || (hasHydrated && (Boolean(profile) || Boolean(profileError))))
+    ) {
+      void SplashScreen.hideAsync();
+    }
+  }, [hasHydrated, isAuthenticated, isRestoring, profile, profileError]);
+
+  useEffect(() => {
+    // Safety fallback: ensure splash screen never hangs indefinitely
+    const safetyTimer = setTimeout(() => {
+      void SplashScreen.hideAsync();
+    }, 4000);
+    return () => clearTimeout(safetyTimer);
   }, []);
 
   useEffect(() => {
     if (isRestoring) return;
 
     const inAuthGroup = segments[0] === "(auth)";
-    const inOnboarding = segments[0] === "onboarding";
-
     if (!isAuthenticated && !inAuthGroup) {
       router.replace("/(auth)/login");
       return;
     }
-  }, [isAuthenticated, isRestoring, segments]);
+  }, [isAuthenticated, isRestoring, router, segments]);
 
   return (
     <KeyboardProvider>

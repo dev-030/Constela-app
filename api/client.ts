@@ -1,14 +1,7 @@
 import axios from 'axios';
-import { Platform } from 'react-native';
 import { useAuthStore } from '../store/authStore';
 import { useProfileStore } from '../store/profileStore';
-// Assuming API URL from env or constants. Adjust as needed.
-let API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000'; // Default fallback
-
-// Fix for Android emulator to hit local machine's loopback
-if (Platform.OS === 'android' && API_URL.includes('localhost')) {
-  API_URL = API_URL.replace('localhost', '10.0.2.2');
-}
+import { API_URL } from '@/constants/config';
 
 console.log("INITIALIZED API_URL:", API_URL);
 export const apiClient = axios.create({
@@ -57,6 +50,10 @@ apiClient.interceptors.response.use(
             refresh: refreshToken,
           });
 
+          if (useAuthStore.getState().refreshToken !== refreshToken) {
+            throw new axios.CanceledError('Account changed during token refresh');
+          }
+
           if (response.data && response.data.access) {
             const newAccessToken = response.data.access;
             await updateAccessToken(newAccessToken);
@@ -66,6 +63,9 @@ apiClient.interceptors.response.use(
             return apiClient(originalRequest);
           }
         } catch (refreshError) {
+          if (useAuthStore.getState().refreshToken !== refreshToken) {
+            return Promise.reject(refreshError);
+          }
           // If refresh token fails (e.g. expired), log the user out
           await clearAuth();
           clearProfile();

@@ -27,7 +27,7 @@ export default function EditNeuroScreen() {
   const border = useColor('border');
   const primary = useColor('primary');
 
-  const { profile, fetchProfile } = useProfileStore();
+  const { profile, fetchProfile, setProfile } = useProfileStore();
 
   useEffect(() => {
     if (!profile) fetchProfile();
@@ -56,15 +56,24 @@ export default function EditNeuroScreen() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const formData = new FormData();
-      formData.append('neurotype_labels', JSON.stringify(neurotypeLabels));
-
-      await updateMyProfile(formData);
-      await fetchProfile();
+      const updated = await updateMyProfile({ neurotype_labels: neurotypeLabels });
+      if (updated) {
+        setProfile(updated);
+      }
+      fetchProfile().catch(console.error);
       router.back();
     } catch (error: any) {
-      console.error(error);
-      Alert.alert("Error", "Failed to save profile");
+      console.error('Failed to save neurodivergence:', error);
+      let errMsg = "Failed to save profile";
+      if (error?.response?.data && typeof error.response.data === "object") {
+        const firstKey = Object.keys(error.response.data)[0];
+        if (Array.isArray(error.response.data[firstKey])) {
+          errMsg = `${firstKey}: ${error.response.data[firstKey][0]}`;
+        } else if (typeof error.response.data[firstKey] === "string") {
+          errMsg = error.response.data[firstKey];
+        }
+      }
+      Alert.alert("Error", errMsg);
     } finally {
       setIsSaving(false);
     }
@@ -101,7 +110,7 @@ export default function EditNeuroScreen() {
       <View style={[styles.footer, { paddingBottom: insets.bottom || 24, backgroundColor: background }]}>
         <Button 
           onPress={handleSave} 
-          style={[styles.saveBtn, !hasChanged && { opacity: 0.5 }]} 
+          style={[styles.saveBtn, ...(!hasChanged ? [{ opacity: 0.5 }] : [])]} 
           disabled={isSaving || !hasChanged}
         >
           {isSaving ? <ActivityIndicator color="#FFF" /> : "Save Changes"}

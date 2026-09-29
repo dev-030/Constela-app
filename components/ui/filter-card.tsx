@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,
-    borderRadius: BORDER_RADIUS.lg,
+    borderRadius: BORDER_RADIUS,
     borderWidth: 1,
     gap: 12,
     flex: 1,

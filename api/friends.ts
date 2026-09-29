@@ -17,6 +17,9 @@ export interface FriendRequest {
   receiver_id?: string;
   username?: string;
   name?: string;
+  age?: number;
+  tags?: string[];
+  bio?: string;
   photo: string;
   subtitle: string;
   mutual_friends_count: number;
@@ -36,24 +39,32 @@ export interface SuggestionsResponse {
   total: number;
 }
 
+export const fetchFriendSuggestions = async (
+  filters: FriendSuggestionsFilters = {},
+  offset = 0,
+  limit = 20,
+): Promise<SuggestionsResponse> => {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) {
+    if (value !== undefined && value !== null && value !== '') {
+      params.append(key, String(value));
+    }
+  }
+  params.append('limit', String(limit));
+  params.append('offset', String(offset));
+  const response = await apiClient.get<SuggestionsResponse>(`/api/friends/suggestions/?${params.toString()}`);
+  return response.data;
+};
+
+export const fetchPendingFriendRequests = async () => {
+  const response = await apiClient.get<FriendRequest[]>('/api/friends/requests/');
+  return response.data;
+};
+
 export const useInfiniteFriendSuggestionsQuery = (filters: FriendSuggestionsFilters = {}, limit = 20) => {
   return useInfiniteQuery({
     queryKey: ['friendSuggestions', filters],
-    queryFn: async ({ pageParam = 0 }): Promise<SuggestionsResponse> => {
-      const params = new URLSearchParams();
-      for (const [key, value] of Object.entries(filters)) {
-        if (value !== undefined && value !== null && value !== '') {
-          params.append(key, String(value));
-        }
-      }
-      params.append('limit', String(limit));
-      params.append('offset', String(pageParam));
-      
-      const queryString = params.toString();
-      const url = `/api/friends/suggestions/?${queryString}`;
-      const response = await apiClient.get<SuggestionsResponse>(url);
-      return response.data;
-    },
+    queryFn: ({ pageParam = 0 }) => fetchFriendSuggestions(filters, pageParam, limit),
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) => {
       if (lastPage.next) {
@@ -61,16 +72,15 @@ export const useInfiniteFriendSuggestionsQuery = (filters: FriendSuggestionsFilt
       }
       return undefined;
     },
+    staleTime: 60 * 1000,
   });
 };
 
 export const usePendingFriendRequestsQuery = () => {
   return useQuery({
     queryKey: ['pendingFriendRequests'],
-    queryFn: async () => {
-      const response = await apiClient.get<FriendRequest[]>('/api/friends/requests/');
-      return response.data;
-    },
+    queryFn: fetchPendingFriendRequests,
+    staleTime: 30 * 1000,
   });
 };
 
@@ -95,7 +105,7 @@ export const useSendFriendRequestMutation = () => {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['friendSuggestions'] });
+      queryClient.invalidateQueries({ queryKey: ['sentFriendRequests'] });
     },
   });
 };
@@ -108,9 +118,19 @@ export const useAcceptFriendRequestMutation = () => {
       const response = await apiClient.post(`/api/friends/${friendshipId}/accept/`);
       return response.data;
     },
+    onMutate: async (friendshipId) => {
+      await queryClient.cancelQueries({ queryKey: ['pendingFriendRequests'] });
+      const previous = queryClient.getQueryData<FriendRequest[]>(['pendingFriendRequests']);
+      queryClient.setQueryData<FriendRequest[]>(
+        ['pendingFriendRequests'],
+        (requests = []) => requests.filter((request) => request.id !== friendshipId),
+      );
+      return { previous };
+    },
+    onError: (_error, _friendshipId, context) => {
+      queryClient.setQueryData(['pendingFriendRequests'], context?.previous);
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pendingFriendRequests'] });
-      queryClient.invalidateQueries({ queryKey: ['friendSuggestions'] });
       queryClient.invalidateQueries({ queryKey: ['messageThreads'] });
       queryClient.invalidateQueries({ queryKey: ['friends'] });
     },
@@ -125,8 +145,20 @@ export const useDeclineFriendRequestMutation = () => {
       const response = await apiClient.post(`/api/friends/${friendshipId}/decline/`);
       return response.data;
     },
+    onMutate: async (friendshipId) => {
+      await queryClient.cancelQueries({ queryKey: ['pendingFriendRequests'] });
+      const previous = queryClient.getQueryData<FriendRequest[]>(['pendingFriendRequests']);
+      queryClient.setQueryData<FriendRequest[]>(
+        ['pendingFriendRequests'],
+        (requests = []) => requests.filter((request) => request.id !== friendshipId),
+      );
+      return { previous };
+    },
+    onError: (_error, _friendshipId, context) => {
+      queryClient.setQueryData(['pendingFriendRequests'], context?.previous);
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pendingFriendRequests'] });
+      queryClient.invalidateQueries({ queryKey: ['friendSuggestions'] });
     },
   });
 };
@@ -139,8 +171,19 @@ export const useCancelFriendRequestMutation = () => {
       const response = await apiClient.delete(`/api/friends/${friendshipId}/`);
       return response.data;
     },
+    onMutate: async (friendshipId) => {
+      await queryClient.cancelQueries({ queryKey: ['sentFriendRequests'] });
+      const previous = queryClient.getQueryData<FriendRequest[]>(['sentFriendRequests']);
+      queryClient.setQueryData<FriendRequest[]>(
+        ['sentFriendRequests'],
+        (requests = []) => requests.filter((request) => request.id !== friendshipId),
+      );
+      return { previous };
+    },
+    onError: (_error, _friendshipId, context) => {
+      queryClient.setQueryData(['sentFriendRequests'], context?.previous);
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sentFriendRequests'] });
       queryClient.invalidateQueries({ queryKey: ['friendSuggestions'] });
     },
   });

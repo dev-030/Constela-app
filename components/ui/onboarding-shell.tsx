@@ -3,6 +3,7 @@ import { Icon } from "@/components/ui/icon";
 import { Text } from "@/components/ui/text";
 import { useColor } from "@/hooks/useColor";
 import { useKeyboardHeight } from "@/hooks/useKeyboardHeight";
+import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import { ArrowLeft } from "lucide-react-native";
 import React from "react";
 import { Pressable, View, ViewStyle } from "react-native";
@@ -40,6 +41,7 @@ export function OnboardingShell({
   const primaryForeground = useColor("primaryForeground");
   const border = useColor("border");
   const { isKeyboardVisible } = useKeyboardHeight();
+  const { horizontalPadding, isCompact, size } = useResponsiveLayout();
 
   return (
     <SafeAreaView
@@ -56,8 +58,8 @@ export function OnboardingShell({
             style={{
               flexDirection: "row",
               alignItems: "center",
-              paddingHorizontal: 20,
-              paddingVertical: 12,
+              paddingHorizontal: horizontalPadding,
+              paddingVertical: size(12, 10),
             }}
           >
             <Pressable
@@ -73,11 +75,11 @@ export function OnboardingShell({
 
         {/* Title block */}
         <View
-          style={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 16 }}
+          style={{ paddingHorizontal: horizontalPadding, paddingTop: 4, paddingBottom: size(16, 12) }}
         >
           <Text
             style={{
-              fontSize: 28,
+              fontSize: size(28, 24),
               fontWeight: "700",
               color: useColor("text"),
             }}
@@ -99,7 +101,7 @@ export function OnboardingShell({
         </View>
 
         {/* Body */}
-        <View style={[{ flex: 1, paddingHorizontal: 20 }, contentStyle]}>
+        <View style={[{ flex: 1, paddingHorizontal: horizontalPadding }, contentStyle]}>
           {children}
         </View>
 
@@ -107,9 +109,9 @@ export function OnboardingShell({
         {showFooter && (
           <View
             style={{
-              paddingHorizontal: 20,
-              paddingTop: 12,
-              paddingBottom: isKeyboardVisible ? 8 : 20,
+              paddingHorizontal: horizontalPadding,
+              paddingTop: size(12, 10),
+              paddingBottom: isKeyboardVisible ? 8 : size(20, 14),
               backgroundColor: background,
               borderTopWidth: isKeyboardVisible ? 0 : 0,
             }}
@@ -117,7 +119,7 @@ export function OnboardingShell({
             <Button
               onPress={onContinue}
               disabled={continueDisabled}
-              style={{ borderRadius: 28, height: 52 }}
+              style={{ borderRadius: 28, height: isCompact ? 48 : 52 }}
             >
               {continueLabel}
             </Button>

@@ -1,4 +1,5 @@
 import { useColor } from '@/hooks/useColor';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { FONT_SIZE } from '@/theme/globals';
 import React, { forwardRef } from 'react';
 import {
@@ -29,6 +30,7 @@ export const Text = forwardRef<RNText, TextProps>(
   ) => {
     const textColor = useColor('text', { light: lightColor, dark: darkColor });
     const mutedColor = useColor('textMuted');
+    const { size } = useResponsiveLayout();
 
     const getTextStyle = (): TextStyle => {
       const baseStyle: TextStyle = {
@@ -39,39 +41,39 @@ export const Text = forwardRef<RNText, TextProps>(
         case 'heading':
           return {
             ...baseStyle,
-            fontSize: 28,
+            fontSize: size(28, 24),
             fontWeight: '800',
           };
         case 'title':
           return {
             ...baseStyle,
-            fontSize: 24,
+            fontSize: size(24, 21),
             fontWeight: '700',
           };
         case 'subtitle':
           return {
             ...baseStyle,
-            fontSize: 19,
+            fontSize: size(19, 17),
             fontWeight: '600',
           };
         case 'caption':
           return {
             ...baseStyle,
-            fontSize: FONT_SIZE,
+            fontSize: size(FONT_SIZE, 15),
             fontWeight: '400',
             color: mutedColor,
           };
         case 'link':
           return {
             ...baseStyle,
-            fontSize: FONT_SIZE,
+            fontSize: size(FONT_SIZE, 15),
             fontWeight: '500',
             textDecorationLine: 'underline',
           };
         default: // 'body'
           return {
             ...baseStyle,
-            fontSize: FONT_SIZE,
+            fontSize: size(FONT_SIZE, 15),
             fontWeight: '400',
           };
       }
@@ -84,3 +86,5 @@ export const Text = forwardRef<RNText, TextProps>(
     );
   }
 );
+
+Text.displayName = 'Text';

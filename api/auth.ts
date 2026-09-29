@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from './client';
 import { useAuthStore } from '../store/authStore';
+import { useProfileStore } from '../store/profileStore';
+import type { UserProfile } from './profile';
 
 interface SignUpRequest {
   email: string;
@@ -31,13 +33,27 @@ interface ResetPasswordRequest {
 interface LoginResponse {
   access: string;
   refresh: string;
+  role?: string;
+  user?: any;
+  profile?: UserProfile;
 }
 
 interface VerifyOtpResponse {
-  message: string;
+  message?: string;
   access: string;
   refresh: string;
-  role: string;
+  role?: string;
+  user?: any;
+  profile?: UserProfile;
+}
+
+interface GoogleAuthResponse {
+  access: string;
+  refresh: string;
+  role?: string;
+  is_new_user?: boolean;
+  user?: any;
+  profile?: UserProfile;
 }
 
 interface GoogleAuthRequest {
@@ -51,10 +67,13 @@ export const useGoogleAuthMutation = () => {
 
   return useMutation({
     mutationFn: async (data: GoogleAuthRequest) => {
-      const response = await apiClient.post('/api/auth/google/', data);
-      const { access, refresh } = response.data;
+      const response = await apiClient.post<GoogleAuthResponse>('/api/auth/google/', data);
+      const { access, refresh, role, profile } = response.data;
       if (access && refresh) {
-        await setAuth(access, refresh);
+        await setAuth(access, refresh, role);
+      }
+      if (profile) {
+        useProfileStore.getState().setProfile(profile);
       }
       return response.data;
     },
@@ -76,12 +95,14 @@ export const useVerifyOtpMutation = () => {
   return useMutation({
     mutationFn: async (data: VerifyOtpRequest) => {
       const response = await apiClient.post<VerifyOtpResponse>('/api/auth/verify-otp/', data);
-      return response.data;
-    },
-    onSuccess: async (data) => {
-      if (data.access && data.refresh) {
-        await setAuth(data.access, data.refresh, data.role);
+      const { access, refresh, role, profile } = response.data;
+      if (access && refresh) {
+        await setAuth(access, refresh, role);
       }
+      if (profile) {
+        useProfileStore.getState().setProfile(profile);
+      }
+      return response.data;
     },
   });
 };
@@ -102,12 +123,14 @@ export const useLoginMutation = () => {
   return useMutation({
     mutationFn: async (data: LoginRequest) => {
       const response = await apiClient.post<LoginResponse>('/api/auth/login/', data);
-      return response.data;
-    },
-    onSuccess: async (data) => {
-      if (data.access && data.refresh) {
-        await setAuth(data.access, data.refresh);
+      const { access, refresh, role, profile } = response.data;
+      if (access && refresh) {
+        await setAuth(access, refresh, role);
       }
+      if (profile) {
+        useProfileStore.getState().setProfile(profile);
+      }
+      return response.data;
     },
   });
 };
@@ -116,6 +139,15 @@ export const useForgotPasswordMutation = () => {
   return useMutation({
     mutationFn: async (data: ForgotPasswordRequest) => {
       const response = await apiClient.post('/api/auth/forgot-password/', data);
+      return response.data;
+    },
+  });
+};
+
+export const useVerifyPasswordResetCodeMutation = () => {
+  return useMutation({
+    mutationFn: async (data: { email: string; code: string }) => {
+      const response = await apiClient.post('/api/auth/verify-reset-code/', data);
       return response.data;
     },
   });
@@ -176,8 +208,6 @@ export const useDeleteAccountMutation = () => {
     },
   });
 };
-
-import { useProfileStore } from '../store/profileStore';
 
 // 4. Logout Hook (optional but handy)
 export const useLogout = () => {

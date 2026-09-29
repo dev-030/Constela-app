@@ -117,17 +117,20 @@ export default function ProfileSheet() {
         showsVerticalScrollIndicator={false}
       >
         {/* Photo */}
-        {profile.photos?.[0]?.image ? (
-          <Image
-            source={{ uri: profile.photos[0].image }}
-            style={styles.photo}
-            resizeMode="cover"
-          />
-        ) : (
-          <View style={[styles.photo, { backgroundColor: border, justifyContent: "center", alignItems: "center" }]}>
-            <Text>No Photo</Text>
-          </View>
-        )}
+        {(() => {
+          const photoUri = profile.photos?.find((p: any) => p.is_main)?.image || profile.photos?.[0]?.image;
+          return photoUri ? (
+            <Image
+              source={{ uri: photoUri }}
+              style={styles.photo}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={[styles.photo, { backgroundColor: border, justifyContent: "center", alignItems: "center" }]}>
+              <Text>No Photo</Text>
+            </View>
+          );
+        })()}
 
         {/* Neurotype */}
         {profile.neurotype_labels && profile.neurotype_labels.length > 0 && (

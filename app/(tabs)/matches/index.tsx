@@ -55,7 +55,7 @@ export default function MatchesScreen() {
             swipeRef={feed.swipeRef}
             canUndo={feed.canUndo}
             isLocked={feed.isLocked}
-            swipePending={feed.swipeAction.isPending}
+            swipePending={false}
             onSwipe={feed.handleSwipe}
             onActiveIndexChange={feed.handleActiveIndexChange}
             onUndo={feed.handleUndo}

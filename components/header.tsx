@@ -1,25 +1,30 @@
-import { View, Text, Pressable, Image, StyleSheet } from "react-native";
+import { View, Pressable, Image, StyleSheet } from "react-native";
 import React from "react";
-import { Icon } from "@/components/ui/icon";
-import { Bell } from "lucide-react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useColor } from "@/hooks/useColor";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Avatar } from "@/components/ui/avatar";
 import { useProfileStore } from "@/store/profileStore";
 import { useUnreadNotificationCount } from "@/api/notifications";
+import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
+import { useColorScheme } from "@/hooks/useColorScheme";
 
 export default function Header({ title }: { title?: string }) {
   const insets = useSafeAreaInsets();
   const background = useColor("background");
   const primary = useColor("primary");
   const text = useColor("text");
-  const accent = useColor("accent");
+  const isDark = useColorScheme() === "dark";
   const router = useRouter();
   const { profile } = useProfileStore();
   const { data: unreadCount = 0 } = useUnreadNotificationCount();
+  const { horizontalPadding, isCompact, size } = useResponsiveLayout();
+  const logoWidth = size(80, 64);
+  const notificationSize = size(40, 36);
+  const avatarSize = size(36, 32);
 
-  const userPhotoUri = profile?.photos && profile.photos.length > 0 ? profile.photos[0].image : null;
+  const userPhotoUri = profile?.photos?.find((p) => p.is_main)?.image || (profile?.photos && profile.photos.length > 0 ? profile.photos[0].image : null);
 
   return (
     <View
@@ -27,23 +32,43 @@ export default function Header({ title }: { title?: string }) {
         styles.header,
         {
           paddingTop: insets.top + 0,
+          paddingHorizontal: horizontalPadding,
         },
       ]}
     >
       <Image
         source={require("@/assets/images/icon_transparent.png")}
-        style={styles.headerLogo}
+        style={[styles.headerLogo, { width: logoWidth, height: size(50, 40) }]}
         resizeMode="contain"
       />
-      <View style={styles.headerRight}>
-        <Pressable onPress={() => router.push("/notifications")} style={[styles.notificationBtn, { backgroundColor: accent }]} hitSlop={12}>
-          <Icon name={Bell} size={22} color={text} />
+      <View style={[styles.headerRight, { gap: isCompact ? 10 : 16 }]}>
+        <Pressable
+          onPress={() => router.push("/notifications")}
+          style={({ pressed }) => [
+            styles.notificationBtn,
+            {
+              width: notificationSize,
+              height: notificationSize,
+              borderRadius: notificationSize / 2,
+              backgroundColor: isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.04)",
+              borderColor: isDark ? "rgba(255, 255, 255, 0.12)" : "rgba(0, 0, 0, 0.07)",
+              borderWidth: 1,
+              transform: [{ scale: pressed ? 0.94 : 1 }],
+            },
+          ]}
+          hitSlop={12}
+        >
+          <Ionicons
+            name={unreadCount > 0 ? "notifications" : "notifications-outline"}
+            size={size(20, 18)}
+            color={text}
+          />
           {unreadCount > 0 && (
             <View style={[styles.notificationBadge, { borderColor: background }]} />
           )}
         </Pressable>
         <Pressable onPress={() => router.push("/settings")} style={[styles.avatarBtn, { borderColor: primary }]}>
-          <Avatar uri={userPhotoUri} size={36} rounded />
+          <Avatar uri={userPhotoUri} size={avatarSize} rounded />
         </Pressable>
       </View>
     </View>

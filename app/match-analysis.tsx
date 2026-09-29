@@ -7,7 +7,9 @@ import { useMatchAnalysisQuery } from "@/api/matching";
 import { useColor } from "@/hooks/useColor";
 import { LinearGradient } from "expo-linear-gradient";
 import { useProfileStore } from "@/store/profileStore";
+import { canAccessMatchAnalysis } from "@/api/profile";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
+import { isAxiosError } from "axios";
 
 const GOLD = "#FFD700";
 const GOLD_TEXT = "#B8860B";
@@ -15,8 +17,9 @@ const GOLD_TEXT = "#B8860B";
 export default function MatchAnalysisScreen() {
   const router = useRouter();
   useAndroidBack();
-  const { data: matches, isLoading, error, refetch, isRefetching } = useMatchAnalysisQuery();
   const { profile } = useProfileStore();
+  const hasAnalysisAccess = canAccessMatchAnalysis(profile);
+  const { data: matches, isLoading, error, refetch, isRefetching } = useMatchAnalysisQuery(hasAnalysisAccess);
   
   const background = useColor("background");
   const text = useColor("text");
@@ -76,8 +79,9 @@ export default function MatchAnalysisScreen() {
     );
   }
 
-  // Handle 403 / No Access
-  if (error) {
+  // Handle No Add-on Access (Local First) or 403 / Error
+  if (!hasAnalysisAccess || error) {
+    const isForbidden = !hasAnalysisAccess || (isAxiosError(error) && error.response?.status === 403);
     return (
       <SafeAreaView style={[styles.root, { backgroundColor: background }]} edges={["top"]}>
         <View style={styles.header}>
@@ -87,15 +91,15 @@ export default function MatchAnalysisScreen() {
         </View>
         <View style={styles.centerContent}>
           <Sparkles size={48} color={GOLD_TEXT} style={{ marginBottom: 16 }} />
-          <Text style={[styles.title, { color: text, textAlign: 'center' }]}>Premium Feature</Text>
+          <Text style={[styles.title, { color: text, textAlign: 'center' }]}>{isForbidden ? 'Premium Feature' : 'Could not load analysis'}</Text>
           <Text style={[styles.subtitle, { color: text, opacity: 0.6, textAlign: 'center', marginHorizontal: 32 }]}>
-            Purchase the Perfect Match Analysis add-on to unlock your top 5 compatible profiles!
+            {isForbidden ? 'Purchase the Perfect Match Analysis add-on to unlock your top 5 compatible profiles!' : 'Please check your connection and try again.'}
           </Text>
           <Pressable 
             style={[styles.upgradeBtn, { backgroundColor: GOLD_TEXT }]}
-            onPress={() => router.push("/settings/subscription" as any)}
+            onPress={() => isForbidden ? router.push("/settings/subscription") : void refetch()}
           >
-            <Text style={styles.upgradeBtnText}>View Subscription Options</Text>
+            <Text style={styles.upgradeBtnText}>{isForbidden ? 'View Subscription Options' : 'Retry'}</Text>
           </Pressable>
         </View>
       </SafeAreaView>

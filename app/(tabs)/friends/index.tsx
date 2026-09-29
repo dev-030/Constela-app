@@ -2,46 +2,253 @@ import React, { useCallback, useEffect, useState } from "react";
 import {
   View,
   StyleSheet,
-  ScrollView,
-  Image,
   Pressable,
   TextInput,
   RefreshControl,
   ActivityIndicator,
   Alert,
-  FlatList,
+  ScrollView,
+  type NativeSyntheticEvent,
+  type NativeScrollEvent,
 } from "react-native";
+import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
 import VerificationOverlay from "@/components/VerificationOverlay";
-import { Search } from "lucide-react-native";
-import Animated, { FadeIn, FadeOut, Layout } from "react-native-reanimated";
-
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-
+import { Check } from "lucide-react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { useColorScheme } from "@/hooks/useColorScheme";
+import Animated, {
+  FadeIn,
+  FadeOut,
+  Layout,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+  withSpring,
+  withSequence,
+  Easing,
+  runOnJS,
+} from "react-native-reanimated";
+import * as Haptics from "expo-haptics";
 import { Text } from "@/components/ui/text";
-import { Icon } from "@/components/ui/icon";
 import { useColor } from "@/hooks/useColor";
+import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import Header from "../../../components/header";
+import { useQueryClient, type InfiniteData } from "@tanstack/react-query";
+import { apiClient } from "@/api/client";
 import {
   useInfiniteFriendSuggestionsQuery,
   usePendingFriendRequestsQuery,
-  useSendFriendRequestMutation,
   useAcceptFriendRequestMutation,
   useDeclineFriendRequestMutation,
+  type Suggestion,
+  type SuggestionsResponse,
 } from "@/api/friends";
 
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 const SEARCH_DEBOUNCE_MS = 300;
 
+interface SuggestionCardProps {
+  person: Suggestion;
+  cardColor: string;
+  primary: string;
+  muted: string;
+  border: string;
+  onAddFriend: (userId: string) => Promise<void>;
+  onDismiss: (userId: string) => void;
+  cardWidth: number;
+}
+
+const SuggestionCard = React.memo(function SuggestionCard({
+  person,
+  cardColor,
+  primary,
+  muted,
+  border,
+  onAddFriend,
+  onDismiss,
+  cardWidth,
+}: SuggestionCardProps) {
+  const { size } = useResponsiveLayout();
+  const [isRequested, setIsRequested] = useState(false);
+  const opacity = useSharedValue(1);
+  const scale = useSharedValue(1);
+  const translateY = useSharedValue(0);
+  const btnScale = useSharedValue(1);
+
+  const cardAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [
+      { scale: scale.value },
+      { translateY: translateY.value },
+    ],
+  }));
+
+  const btnAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: btnScale.value }],
+  }));
+
+  const handlePressAdd = (event: any) => {
+    event.stopPropagation();
+    if (isRequested) return;
+
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch {}
+
+    btnScale.value = withSequence(
+      withTiming(0.92, { duration: 90 }),
+      withSpring(1, { damping: 12 })
+    );
+
+    setIsRequested(true);
+
+    // Call the independent API request
+    onAddFriend(person.id).catch(() => {
+      // Revert if API failed
+      setIsRequested(false);
+      opacity.value = withTiming(1, { duration: 200 });
+      scale.value = withTiming(1, { duration: 200 });
+      translateY.value = withTiming(0, { duration: 200 });
+    });
+
+    // Clean dwell & smooth exit transition
+    setTimeout(() => {
+      opacity.value = withTiming(0, {
+        duration: 240,
+        easing: Easing.out(Easing.quad),
+      });
+      scale.value = withTiming(0.9, {
+        duration: 240,
+        easing: Easing.out(Easing.quad),
+      });
+      translateY.value = withTiming(
+        -6,
+        { duration: 240, easing: Easing.out(Easing.quad) },
+        (finished) => {
+          if (finished) {
+            runOnJS(onDismiss)(person.id);
+          }
+        }
+      );
+    }, 280);
+  };
+
+  return (
+    <AnimatedPressable
+      layout={Layout.duration(260)}
+      style={[
+        styles.personCard,
+        {
+          width: cardWidth,
+          borderRadius: size(18, 14),
+          backgroundColor: cardColor,
+          borderColor: border,
+        },
+        cardAnimatedStyle,
+      ]}
+      onPress={() =>
+        router.push({
+          pathname: `/profile/${person.id}`,
+          params: {
+            name: person.name,
+            age: person.age?.toString(),
+            photo: person.photo,
+          },
+        } as any)
+      }
+    >
+      <View style={styles.personImageContainer}>
+        <Image
+          source={{ uri: person.photo }}
+          style={styles.personImage}
+          contentFit="cover"
+          transition={180}
+        />
+        <LinearGradient
+          colors={["transparent", "rgba(0,0,0,0.68)"]}
+          locations={[0.5, 1]}
+          style={styles.personImageOverlay}
+        />
+        <View style={[styles.personNameContainer, { left: size(12, 10), right: size(12, 10), bottom: size(12, 10) }]}>
+          <Text style={[styles.personNameAge, { fontSize: size(16, 14) }]} numberOfLines={1}>
+            {person.name || person.username || "Unknown"}
+            {person.age ? `, ${person.age}` : ""}
+          </Text>
+        </View>
+      </View>
+
+      <View style={[styles.personContent, { minHeight: size(142, 126), padding: size(12, 10), gap: size(8, 6) }]}>
+        <View style={styles.personTags}>
+          {(person.tags ?? []).slice(0, 2).map((tag) => (
+            <View
+              key={tag}
+              style={[styles.smallPill, { paddingHorizontal: size(8, 6), backgroundColor: primary + "18" }]}
+            >
+              <Text style={[styles.smallPillText, { fontSize: size(10, 9), color: primary }]}>
+                {tag}
+              </Text>
+            </View>
+          ))}
+        </View>
+
+        <Text style={[styles.personBio, { height: size(36, 32), fontSize: size(13, 12), lineHeight: size(18, 16), color: muted }]} numberOfLines={2}>
+          {person.bio}
+        </Text>
+
+        <AnimatedPressable
+          style={[
+            styles.addFriendBtn,
+            { paddingVertical: size(10, 8), borderRadius: size(20, 16) },
+            isRequested
+              ? {
+                  backgroundColor: primary + "18",
+                  borderWidth: 1,
+                  borderColor: primary + "35",
+                }
+              : { backgroundColor: primary },
+            btnAnimatedStyle,
+          ]}
+          disabled={isRequested}
+          accessibilityRole="button"
+          accessibilityLabel={
+            isRequested
+              ? `Friend request sent to ${person.name || person.username || "this person"}`
+              : `Add ${person.name || person.username || "this person"} as a friend`
+          }
+          onPress={handlePressAdd}
+        >
+          <View style={styles.btnContentRow}>
+            {isRequested ? (
+              <>
+                <Check size={size(14, 12)} color={primary} strokeWidth={2.5} />
+                <Text style={[styles.addFriendText, { fontSize: size(12, 11), color: primary }]}>
+                  Requested
+                </Text>
+              </>
+            ) : (
+              <Text style={[styles.addFriendText, { fontSize: size(12, 11) }]}>Add Friend</Text>
+            )}
+          </View>
+        </AnimatedPressable>
+      </View>
+    </AnimatedPressable>
+  );
+});
+
 export default function FriendsScreen() {
-  const insets = useSafeAreaInsets();
+  const queryClient = useQueryClient();
   const background = useColor("background");
   const cardColor = useColor("card");
   const text = useColor("text");
   const muted = useColor("textMuted");
   const primary = useColor("primary");
   const border = useColor("border");
+  const isDark = useColorScheme() === "dark";
+  const { horizontalPadding, size, width } = useResponsiveLayout();
+  const gridGap = size(16, 10);
+  const cardWidth = (width - horizontalPadding * 2 - gridGap) / 2;
 
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -57,16 +264,24 @@ export default function FriendsScreen() {
     search: debouncedSearch || undefined,
   });
   const requestsQuery = usePendingFriendRequestsQuery();
+  const { refetch: refetchRequests } = requestsQuery;
 
-  const sendMutation = useSendFriendRequestMutation();
   const acceptMutation = useAcceptFriendRequestMutation();
   const declineMutation = useDeclineFriendRequestMutation();
 
   const suggestions = suggestionsQuery.data?.pages.flatMap((page) => page.results) ?? [];
   const requests = requestsQuery.data ?? [];
+  const searchTerm = search.trim();
+  const isSearching =
+    searchTerm !== debouncedSearch ||
+    (Boolean(searchTerm) && suggestionsQuery.isLoading);
 
-  const isRefreshing =
-    suggestionsQuery.isFetching || requestsQuery.isFetching;
+  useFocusEffect(
+    useCallback(() => {
+      refetchRequests();
+    }, [refetchRequests]),
+  );
+
   const isInitialLoading =
     (suggestionsQuery.isLoading || requestsQuery.isLoading) &&
     !suggestionsQuery.data &&
@@ -95,20 +310,62 @@ export default function FriendsScreen() {
     });
   };
 
-  const handleAddFriend = (userId: string) => {
-    sendMutation.mutate(userId, {
-      onError: (err: any) => {
+  const handleAddFriend = useCallback(
+    async (userId: string) => {
+      try {
+        await apiClient.post("/api/friends/send_request/", {
+          user_id: userId,
+        });
+        queryClient.invalidateQueries({ queryKey: ["sentFriendRequests"] });
+      } catch (err: any) {
         if (err?.response?.status === 400) {
           Alert.alert(
             "Cannot send request",
-            err.response.data?.error || "You can&apos;t send a request to this user."
+            err.response.data?.error || "You can't send a request to this user."
           );
         } else {
           Alert.alert("Something went wrong", "Please try again.");
         }
-      },
-    });
-  };
+        throw err;
+      }
+    },
+    [queryClient]
+  );
+
+  const handleDismiss = useCallback(
+    (userId: string) => {
+      queryClient.setQueriesData<InfiniteData<SuggestionsResponse>>(
+        { queryKey: ["friendSuggestions"] },
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              results: page.results.filter((p) => p.id !== userId),
+            })),
+          };
+        }
+      );
+    },
+    [queryClient]
+  );
+
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+      const paddingToBottom = 350;
+      if (
+        layoutMeasurement.height + contentOffset.y >=
+        contentSize.height - paddingToBottom
+      ) {
+        if (suggestionsQuery.hasNextPage && !suggestionsQuery.isFetchingNextPage) {
+          suggestionsQuery.fetchNextPage();
+        }
+      }
+    },
+    [suggestionsQuery]
+  );
 
   const [refreshing, setRefreshing] = useState(false);
   const handleRefresh = async () => {
@@ -131,17 +388,117 @@ export default function FriendsScreen() {
     );
   }
 
+  const declineBg = isDark ? "rgba(255, 255, 255, 0.08)" : "#F3F4F6";
+  const declineBorder = isDark ? "rgba(255, 255, 255, 0.12)" : "#E5E7EB";
+  const declineTextColor = isDark ? "#E5E7EB" : "#4B5563";
+
+  const renderRequestCard = (req: any, isCarousel: boolean) => {
+    const isPending =
+      (acceptMutation.isPending && acceptMutation.variables === req.id) ||
+      (declineMutation.isPending && declineMutation.variables === req.id);
+    const cardItemWidth = isCarousel ? Math.min(width - horizontalPadding * 2 - 24, 310) : "100%";
+
+    return (
+      <AnimatedPressable
+        key={req.id}
+        layout={Layout.springify()}
+        entering={FadeIn}
+        exiting={FadeOut.duration(300)}
+        style={[
+          styles.requestCard,
+          {
+            borderColor: border,
+            backgroundColor: cardColor,
+            width: cardItemWidth,
+            marginBottom: isCarousel ? 0 : 12,
+          },
+        ]}
+        onPress={() =>
+          router.push({
+            pathname: `/profile/${req.sender_id}`,
+            params: {
+              name: req.name,
+              age: req.age?.toString(),
+              photo: req.photo,
+            },
+          } as any)
+        }
+      >
+        <View style={styles.requestInfo}>
+          <Image
+            source={{ uri: req.photo }}
+            style={styles.requestAvatar}
+            contentFit="cover"
+            transition={180}
+          />
+          <View style={styles.requestTextCol}>
+            <Text style={[styles.requestName, { color: text }]} numberOfLines={1}>
+              {req.name}
+            </Text>
+            <Text style={[styles.requestSubtitle, { color: muted }]} numberOfLines={1}>
+              {req.subtitle || "Sent you a friend request"}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.requestActions}>
+          <Pressable
+            style={[
+              styles.actionBtn,
+              { backgroundColor: primary, opacity: isPending ? 0.6 : 1 },
+            ]}
+            disabled={isPending}
+            onPress={(event) => {
+              event.stopPropagation();
+              handleAccept(req.id);
+            }}
+          >
+            <Text style={[styles.actionBtnText, { color: "#FFFFFF" }]}>
+              {acceptMutation.isPending && acceptMutation.variables === req.id
+                ? "Accepting…"
+                : "Accept"}
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[
+              styles.actionBtn,
+              {
+                backgroundColor: declineBg,
+                borderColor: declineBorder,
+                borderWidth: 1,
+                opacity: isPending ? 0.6 : 1,
+              },
+            ]}
+            disabled={isPending}
+            onPress={(event) => {
+              event.stopPropagation();
+              handleDecline(req.id);
+            }}
+          >
+            <Text style={[styles.actionBtnText, { color: declineTextColor }]}>
+              {declineMutation.isPending && declineMutation.variables === req.id
+                ? "Declining…"
+                : "Decline"}
+            </Text>
+          </Pressable>
+        </View>
+      </AnimatedPressable>
+    );
+  };
+
   const renderHeader = () => (
     <>
-      {/* Search Bar */}
-      <View style={styles.searchRow}>
+      {/* Top Search Input & Sent Requests Action */}
+      <View style={styles.searchSection}>
         <View
           style={[
             styles.searchContainer,
-            { borderColor: border, backgroundColor: cardColor },
+            {
+              backgroundColor: isDark ? "#1C1C1E" : "#FFFFFF",
+              borderColor: isDark ? "rgba(255, 255, 255, 0.15)" : "#E5E7EB",
+            },
           ]}
         >
-          <Icon name={Search} size={20} color={muted} />
+          <Ionicons name="search" size={19} color={muted} />
           <TextInput
             style={[styles.searchInput, { color: text }]}
             placeholder="Find people..."
@@ -150,28 +507,31 @@ export default function FriendsScreen() {
             onChangeText={setSearch}
             returnKeyType="search"
           />
-        </View>
-      </View>
-
-      {/* Friend Requests */}
-      <View style={styles.sectionHeader}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-          <Text style={styles.sectionTitle}>Friend Requests</Text>
-          {requests.length > 0 && (
-            <View style={[styles.badge, { backgroundColor: primary }]}>
-              <Text style={styles.badgeText}>
-                {requests.length} New
-              </Text>
-            </View>
+          {search.length > 0 && (
+            <Pressable onPress={() => setSearch("")} hitSlop={8}>
+              <Ionicons name="close-circle" size={18} color={muted} />
+            </Pressable>
           )}
         </View>
-        <Pressable onPress={() => router.push("/sent-requests")}>
-          <Text style={{ color: primary, fontWeight: "600", fontSize: 14 }}>
-            Sent Requests
-          </Text>
-        </Pressable>
+
+        <View style={styles.searchSubRow}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.sentLinkPressable,
+              { opacity: pressed ? 0.65 : 1 },
+            ]}
+            onPress={() => router.push("/sent-requests")}
+            hitSlop={10}
+          >
+            <Text style={[styles.sentLinkText, { color: primary }]}>
+              Sent Requests
+            </Text>
+            <Ionicons name="chevron-forward" size={13} color={primary} />
+          </Pressable>
+        </View>
       </View>
 
+      {/* Friend Requests (Only displayed when there are active requests or error) */}
       {requestsQuery.isError ? (
         <View style={styles.inlineMessage}>
           <Text style={{ color: muted }}>Couldn&apos;t load friend requests.</Text>
@@ -179,93 +539,71 @@ export default function FriendsScreen() {
             <Text style={{ color: primary, fontWeight: "600" }}>Retry</Text>
           </Pressable>
         </View>
-      ) : requests.length === 0 ? (
-        <Text style={[styles.emptyText, { color: muted }]}>
-          No pending requests right now.
-        </Text>
-      ) : (
-        requests.map((req) => {
-          const isPending =
-            acceptMutation.isPending || declineMutation.isPending;
-          return (
-            <AnimatedPressable
-              key={req.id}
-              layout={Layout.springify()}
-              entering={FadeIn}
-              exiting={FadeOut.duration(300)}
-              style={[
-                styles.requestCard,
-                { borderColor: border, backgroundColor: cardColor },
-              ]}
-              onPress={() => router.push({ pathname: `/profile/${req.sender_id}`, params: { name: req.name, photo: req.photo } } as any)}
+      ) : requests.length > 0 ? (
+        <View style={styles.requestsSection}>
+          <View style={styles.sectionHeader}>
+            <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 10 }}>
+              <Text style={[styles.sectionTitle, { color: text }]}>Friend Requests</Text>
+              <View style={[styles.badge, { backgroundColor: primary }]}>
+                <Text style={styles.badgeText}>{requests.length} New</Text>
+              </View>
+            </View>
+            <Pressable
+              style={({ pressed }) => [styles.showAllBtn, { opacity: pressed ? 0.65 : 1 }]}
+              onPress={() => router.push("/friend-requests")}
+              hitSlop={8}
             >
-              <View style={styles.requestInfo}>
-                <Image
-                  source={{ uri: req.photo }}
-                  style={styles.requestAvatar}
-                />
-                <View style={styles.requestTextCol}>
-                  <Text style={styles.requestName}>{req.name}</Text>
-                  <Text style={[styles.requestSubtitle, { color: muted }]}>
-                    {req.subtitle}
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.requestActions}>
-                <Pressable
-                  style={[
-                    styles.actionBtn,
-                    { backgroundColor: primary, opacity: isPending ? 0.6 : 1 },
-                  ]}
-                  disabled={isPending}
-                  onPress={() => handleAccept(req.id)}
-                >
-                  <Text style={[styles.actionBtnText, { color: "#FFF" }]}>
-                    {acceptMutation.isPending &&
-                    acceptMutation.variables === req.id
-                      ? "Accepting…"
-                      : "Accept"}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  style={[
-                    styles.actionBtn,
-                    {
-                      backgroundColor: primary + "20",
-                      opacity: isPending ? 0.6 : 1,
-                    },
-                  ]}
-                  disabled={isPending}
-                  onPress={() => handleDecline(req.id)}
-                >
-                  <Text style={[styles.actionBtnText, { color: "#2B4A4A" }]}>
-                    {declineMutation.isPending &&
-                    declineMutation.variables === req.id
-                      ? "Declining…"
-                      : "Decline"}
-                  </Text>
-                </Pressable>
-              </View>
-            </AnimatedPressable>
-          );
-        })
-      )}
+              <Text style={[styles.showAllText, { color: primary }]}>Show All</Text>
+              <Ionicons name="chevron-forward" size={14} color={primary} />
+            </Pressable>
+          </View>
 
-      <View style={{ height: 24 }} />
+          {requests.length === 1 ? (
+            renderRequestCard(requests[0], false)
+          ) : (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalRequestsList}
+              nestedScrollEnabled
+            >
+              {requests.map((req) => renderRequestCard(req, true))}
+            </ScrollView>
+          )}
+        </View>
+      ) : null}
 
-      {suggestionsQuery.isError && (
+      <Text style={[styles.suggestionsTitle, { color: text }]}>
+        {isSearching
+          ? searchTerm
+            ? `Searching for "${searchTerm}"…`
+            : "People you may know"
+          : debouncedSearch
+            ? `Results for "${debouncedSearch}"`
+            : "People you may know"}
+      </Text>
+
+      {isSearching ? (
+        <View style={styles.searchStatus} accessibilityLiveRegion="polite">
+          <ActivityIndicator color={primary} size="small" />
+          <Text style={{ color: muted }}>
+            {searchTerm ? "Looking for people…" : "Updating suggestions…"}
+          </Text>
+        </View>
+      ) : suggestionsQuery.isError ? (
         <View style={styles.inlineMessage}>
           <Text style={{ color: muted }}>Couldn&apos;t load suggestions.</Text>
           <Pressable onPress={() => suggestionsQuery.refetch()}>
             <Text style={{ color: primary, fontWeight: "600" }}>Retry</Text>
           </Pressable>
         </View>
-      )}
-      {!suggestionsQuery.isError && suggestions.length === 0 && !suggestionsQuery.isLoading && (
+      ) : suggestions.length === 0 ? (
         <Text style={[styles.emptyText, { color: muted }]}>
-          No suggestions right now.
+          {debouncedSearch
+            ? `No people found for "${debouncedSearch}". Try another name or username.`
+            : "No suggestions right now."}
         </Text>
-      )}
+      ) : null}
     </>
   );
 
@@ -274,25 +612,11 @@ export default function FriendsScreen() {
       <View style={[styles.container, { backgroundColor: background }]}>
         <Header title="Friends" />
 
-        <FlatList
-          data={suggestions}
-          keyExtractor={(item) => item.id}
-          numColumns={2}
-          columnWrapperStyle={{ gap: 14, justifyContent: "space-between", marginBottom: 14 }}
-          contentContainerStyle={styles.scrollContent}
+        <ScrollView
           showsVerticalScrollIndicator={false}
-          ListHeaderComponent={renderHeader}
-          onEndReached={() => {
-            if (suggestionsQuery.hasNextPage && !suggestionsQuery.isFetchingNextPage) {
-              suggestionsQuery.fetchNextPage();
-            }
-          }}
-          onEndReachedThreshold={0.3}
-          ListFooterComponent={
-            suggestionsQuery.isFetchingNextPage ? (
-              <ActivityIndicator color={primary} style={{ marginVertical: 20 }} />
-            ) : null
-          }
+          contentContainerStyle={[styles.scrollContent, { paddingHorizontal: horizontalPadding }]}
+          onScroll={handleScroll}
+          scrollEventThrottle={150}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -301,72 +625,31 @@ export default function FriendsScreen() {
               colors={[primary]}
             />
           }
-          renderItem={({ item: person }) => {
-            const isSending = sendMutation.isPending && sendMutation.variables === person.id;
-            return (
-              <AnimatedPressable
-                key={person.id}
-                layout={Layout.springify()}
-                entering={FadeIn}
-                exiting={FadeOut.duration(300)}
-                style={[styles.personCard, { backgroundColor: cardColor }]}
-                onPress={() => router.push({ pathname: `/profile/${person.id}`, params: { name: person.name, photo: person.photo } } as any)}
-              >
-                <View style={styles.personImageContainer}>
-                  <Image
-                    source={{ uri: person.photo }}
-                    style={styles.personImage}
-                  />
-                  <LinearGradient
-                    colors={["transparent", "rgba(0,0,0,0.18)", "rgba(0,0,0,0.72)"]}
-                    locations={[0.4, 0.7, 1]}
-                    style={StyleSheet.absoluteFill}
-                  />
-                  <View style={styles.personNameContainer}>
-                    <Text style={styles.personNameAge}>
-                      {person.name || person.username || "Unknown"}, {person.age ?? ""}
-                    </Text>
-                  </View>
-                </View>
+        >
+          {renderHeader()}
 
-                <View style={styles.personContent}>
-                  <View style={styles.personTags}>
-                    {(person.tags ?? []).slice(0, 2).map((tag) => (
-                      <View
-                        key={tag}
-                        style={[styles.smallPill, { backgroundColor: primary + "18" }]}
-                      >
-                        <Text style={[styles.smallPillText, { color: primary }]}>
-                          {tag}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
+          {!isSearching && !suggestionsQuery.isError && (
+            <View style={[styles.gridContainer, { gap: gridGap }]}>
+              {suggestions.map((person) => (
+                <SuggestionCard
+                  key={person.id}
+                  person={person}
+                  cardColor={cardColor}
+                  primary={primary}
+                  muted={muted}
+                  border={border}
+                  onAddFriend={handleAddFriend}
+                  onDismiss={handleDismiss}
+                  cardWidth={cardWidth}
+                />
+              ))}
+            </View>
+          )}
 
-                  <Text
-                    style={[styles.personBio, { color: muted }]}
-                    numberOfLines={2}
-                  >
-                    {person.bio}
-                  </Text>
-
-                  <Pressable
-                    style={[
-                      styles.addFriendBtn,
-                      { backgroundColor: primary, opacity: isSending ? 0.6 : 1 },
-                    ]}
-                    disabled={isSending}
-                    onPress={() => handleAddFriend(person.id)}
-                  >
-                    <Text style={styles.addFriendText}>
-                      {isSending ? "Sending…" : "Add Friend"}
-                    </Text>
-                  </Pressable>
-                </View>
-              </AnimatedPressable>
-            );
-          }}
-        />
+          {suggestionsQuery.isFetchingNextPage && (
+            <ActivityIndicator color={primary} style={{ marginVertical: 20 }} />
+          )}
+        </ScrollView>
       </View>
     </VerificationOverlay>
   );
@@ -381,62 +664,76 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-    gap: 12,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-  },
   scrollContent: {
-    padding: 20,
+    paddingVertical: 20,
     paddingBottom: 40,
   },
-  searchRow: {
-    flexDirection: "row",
-    gap: 12,
-    marginBottom: 24,
+  searchSection: {
+    marginBottom: 16,
+    marginTop: 2,
   },
   searchContainer: {
-    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 12,
+    borderRadius: 24,
+    paddingHorizontal: 16,
     height: 48,
-    gap: 8,
+    gap: 10,
   },
   searchInput: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 15,
+    fontWeight: "500",
+    paddingVertical: 0,
   },
-  filterBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    borderWidth: 1,
-    justifyContent: "center",
+  searchSubRow: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
     alignItems: "center",
+    marginTop: 8,
+    paddingHorizontal: 6,
+  },
+  sentLinkPressable: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    paddingVertical: 2,
+  },
+  sentLinkText: {
+    fontSize: 13,
+    fontWeight: "600",
+    letterSpacing: -0.1,
+  },
+  requestsSection: {
+    marginBottom: 24,
   },
   sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
+    gap: 12,
+    marginBottom: 14,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: "bold",
+    fontWeight: "800",
+    letterSpacing: -0.3,
+  },
+  sentRequestsLink: {
+    flexShrink: 0,
+  },
+  suggestionsTitle: {
+    fontSize: 19,
+    fontWeight: "800",
+    letterSpacing: -0.4,
+    marginBottom: 14,
+  },
+  searchStatus: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 18,
   },
   badge: {
     paddingHorizontal: 10,
@@ -448,67 +745,80 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "bold",
   },
+  showAllBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+  },
+  showAllText: {
+    fontSize: 13,
+    fontWeight: "600",
+    letterSpacing: -0.1,
+  },
+  horizontalRequestsList: {
+    paddingRight: 16,
+    gap: 12,
+    paddingBottom: 4,
+  },
   requestCard: {
     borderWidth: 1,
     borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
+    padding: 14,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
   requestInfo: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   requestAvatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
   },
   requestTextCol: {
     flex: 1,
   },
   requestName: {
-    fontSize: 16,
-    fontWeight: "bold",
-    marginBottom: 4,
+    fontSize: 15,
+    fontWeight: "700",
+    marginBottom: 2,
   },
   requestSubtitle: {
-    fontSize: 14,
+    fontSize: 13,
   },
   requestActions: {
     flexDirection: "row",
-    gap: 12,
+    gap: 10,
   },
   actionBtn: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: 10,
+    borderRadius: 10,
     alignItems: "center",
+    justifyContent: "center",
   },
   actionBtnText: {
     fontSize: 14,
-    fontWeight: "bold",
+    fontWeight: "600",
   },
-  grid: {
+  gridContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 14,
     justifyContent: "space-between",
+    gap: 16,
   },
   personCard: {
-    width: "47%",
-    borderRadius: 20,
+    borderRadius: 18,
     overflow: "hidden",
-    marginBottom: 4,
     borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.07)",
-    // Soft floating shadow
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.10,
-    shadowRadius: 12,
-    elevation: 5,
   },
   personImageContainer: {
     width: "100%",
@@ -521,27 +831,25 @@ const styles = StyleSheet.create({
   },
   personImageOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.2)",
   },
   personNameContainer: {
     position: "absolute",
-    bottom: 10,
-    left: 10,
-    right: 10,
+    left: 12,
+    right: 12,
+    bottom: 12,
   },
   personNameAge: {
     color: "#FFF",
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: "800",
-    letterSpacing: 0.2,
-    textShadowColor: "rgba(0,0,0,0.5)",
+    textShadowColor: "rgba(0,0,0,0.4)",
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
+    textShadowRadius: 3,
   },
   personContent: {
-    padding: 10,
-    paddingTop: 10,
-    gap: 6,
+    minHeight: 142,
+    padding: 12,
+    gap: 8,
   },
   personTags: {
     flexDirection: "row",
@@ -559,14 +867,22 @@ const styles = StyleSheet.create({
     letterSpacing: 0.1,
   },
   personBio: {
-    fontSize: 11.5,
-    lineHeight: 16,
+    height: 36,
+    fontSize: 13,
+    lineHeight: 18,
   },
   addFriendBtn: {
-    paddingVertical: 9,
+    marginTop: "auto",
+    paddingVertical: 10,
     borderRadius: 20,
     alignItems: "center",
-    marginTop: 2,
+    justifyContent: "center",
+  },
+  btnContentRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
   },
   addFriendText: {
     color: "#FFF",

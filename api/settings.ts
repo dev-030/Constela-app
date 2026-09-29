@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiClient } from './client';
 
 export type SubscriptionTier = 'freemium' | 'light' | 'plus';
@@ -8,11 +8,6 @@ export interface ChangePasswordRequest {
   new_password: string;
 }
 
-export interface UpgradeSubscriptionRequest {
-  tier: SubscriptionTier;
-  amount?: number;
-  stripe_charge_id?: string;
-}
 
 export interface SubscriptionTransaction {
   id: string;
@@ -24,12 +19,6 @@ export interface SubscriptionTransaction {
   created_at: string;
 }
 
-export interface UpgradeSubscriptionResponse {
-  message: string;
-  subscription_tier: SubscriptionTier;
-  subscription_expires: string | null;
-  transaction: SubscriptionTransaction;
-}
 
 export const useChangePasswordMutation = () => {
   return useMutation({
@@ -43,23 +32,6 @@ export const useChangePasswordMutation = () => {
   });
 };
 
-export const useUpgradeSubscriptionMutation = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (data: UpgradeSubscriptionRequest) => {
-      const response = await apiClient.post<UpgradeSubscriptionResponse>(
-        '/api/subscription/upgrade/',
-        data
-      );
-      return response.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['myProfile'] });
-      queryClient.invalidateQueries({ queryKey: ['transactionHistory'] });
-    },
-  });
-};
 
 export const useTransactionHistoryQuery = () => {
   return useQuery({

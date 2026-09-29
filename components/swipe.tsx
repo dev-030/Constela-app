@@ -7,8 +7,8 @@ import {
   Pressable,
   StyleSheet,
   View,
-  Dimensions,
   Text,
+  useWindowDimensions,
 } from "react-native";
 import { Image } from "expo-image";
 import Animated, {
@@ -28,6 +28,8 @@ import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { Heart, Star, X, CheckCircle2 } from "lucide-react-native";
+import { useQueryClient } from "@tanstack/react-query";
+import { fetchProfileDetails } from "@/api/profile";
 
 import { MatchProfile } from "@/api/matching";
 
@@ -48,8 +50,6 @@ interface SwipeProps {
   locked?: boolean;
 }
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("screen");
-const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.22;
 const SWIPE_OUT_DURATION = 280;
 const ROTATION_AMPLITUDE = 15; // degrees at the edge
 
@@ -58,13 +58,16 @@ const Card = React.memo(function Card({
   positionSv,
   topTranslateX,
   topTranslateY,
+  screenWidth,
 }: {
   user: MatchProfile;
   /** 0 = top, 1 = second, 2 = third — updated on the UI thread directly */
   positionSv: SharedValue<number>;
   topTranslateX: SharedValue<number>;
   topTranslateY: SharedValue<number>;
+  screenWidth: number;
 }) {
+  const swipeThreshold = screenWidth * 0.22;
   // Single worklet that blends all three position styles on the UI thread.
   // Because positionSv is a SharedValue it updates without any React re-render,
   // eliminating the "wrong worklet for one frame" flash that JS-boolean switching causes.
@@ -75,7 +78,7 @@ const Card = React.memo(function Card({
       // TOP: translates with the gesture
       const rotateZ = interpolate(
         topTranslateX.value,
-        [-SCREEN_WIDTH, 0, SCREEN_WIDTH],
+        [-screenWidth, 0, screenWidth],
         [-ROTATION_AMPLITUDE, 0, ROTATION_AMPLITUDE],
         Extrapolation.CLAMP
       );
@@ -91,7 +94,7 @@ const Card = React.memo(function Card({
     }
 
     // SECOND / THIRD: scale up as the top card is dragged away
-    const dragProgress = Math.min(Math.abs(topTranslateX.value) / SCREEN_WIDTH, 1);
+    const dragProgress = Math.min(Math.abs(topTranslateX.value) / screenWidth, 1);
     const isSecond = pos === 1;
 
     const scale = isSecond
@@ -116,21 +119,21 @@ const Card = React.memo(function Card({
   const likeBadgeStyle = useAnimatedStyle(() => {
     if (positionSv.value !== 0) return { opacity: 0 };
     return {
-      opacity: interpolate(topTranslateX.value, [0, SWIPE_THRESHOLD], [0, 1], Extrapolation.CLAMP),
+      opacity: interpolate(topTranslateX.value, [0, swipeThreshold], [0, 1], Extrapolation.CLAMP),
     };
   });
 
   const nopeBadgeStyle = useAnimatedStyle(() => {
     if (positionSv.value !== 0) return { opacity: 0 };
     return {
-      opacity: interpolate(topTranslateX.value, [-SWIPE_THRESHOLD, 0], [1, 0], Extrapolation.CLAMP),
+      opacity: interpolate(topTranslateX.value, [-swipeThreshold, 0], [1, 0], Extrapolation.CLAMP),
     };
   });
 
   const superBadgeStyle = useAnimatedStyle(() => {
     if (positionSv.value !== 0) return { opacity: 0 };
     return {
-      opacity: interpolate(topTranslateY.value, [-SWIPE_THRESHOLD, 0], [1, 0], Extrapolation.CLAMP),
+      opacity: interpolate(topTranslateY.value, [-swipeThreshold, 0], [1, 0], Extrapolation.CLAMP),
     };
   });
 
@@ -163,10 +166,10 @@ const Card = React.memo(function Card({
 
           <LinearGradient
             pointerEvents="none"
-            colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.45)", "rgba(0,0,0,0.75)"]}
+            colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.45)", "rgba(0,0,0,0.85)"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 0, y: 1 }}
-            style={styles.bottomGradientLayer}
+            style={[styles.bottomGradientLayer, { height: 160 }]}
           />
 
           {user.has_superliked_me && (
@@ -190,18 +193,18 @@ const Card = React.memo(function Card({
                 {user.bio}
               </Text>
             ) : null}
+
+            {user.tags && user.tags.length > 0 && (
+              <View style={[styles.tagsContainer, { paddingHorizontal: 0, paddingTop: 8, paddingBottom: 0, justifyContent: 'flex-start' }]}>
+                {user.tags.slice(0, 3).map((tag) => (
+                  <View key={tag} style={styles.goldTagPill}>
+                    <Text style={styles.goldTagText}>{tag}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
         </View>
-
-        {user.tags && user.tags.length > 0 && (
-          <View style={styles.tagsContainer}>
-            {user.tags.slice(0, 3).map((tag) => (
-              <View key={tag} style={styles.goldTagPill}>
-                <Text style={styles.goldTagText}>{tag}</Text>
-              </View>
-            ))}
-          </View>
-        )}
 
         <Animated.View pointerEvents="none" style={[styles.badgeLike, likeBadgeStyle]}>
           <View style={[styles.badgeInner, { borderColor: "#10B981" }]}>
@@ -248,7 +251,13 @@ export const Swipe = forwardRef<SwipeHandle, SwipeProps>(function Swipe(
   { profiles, onSwipe, onEmpty, onActiveIndexChange, locked = false },
   ref
 ) {
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const swipeThreshold = screenWidth * 0.22;
   const renderedIds = React.useRef<Set<string>>(new Set());
+  const lockedSv = useSharedValue(locked);
+  React.useEffect(() => {
+    lockedSv.value = locked;
+  }, [locked, lockedSv]);
 
   const buildInitialDeck = React.useCallback((profileList: MatchProfile[]) => {
     const initial = profileList.slice(0, 3);
@@ -356,6 +365,29 @@ export const Swipe = forwardRef<SwipeHandle, SwipeProps>(function Swipe(
     [onSwipe]
   );
 
+  const queryClient = useQueryClient();
+
+  // Prefetch full profile details for the active card and next card in queue
+  // so opening a profile displays image + info together instantly with zero pop-in
+  React.useEffect(() => {
+    const current = slots[topSlotIndex];
+    if (current?.id) {
+      void queryClient.prefetchQuery({
+        queryKey: ["profileDetails", current.id],
+        queryFn: () => fetchProfileDetails(current.id),
+        staleTime: 5 * 60 * 1000,
+      });
+    }
+    const nextSlot = slots[(topSlotIndex + 1) % 3];
+    if (nextSlot?.id) {
+      void queryClient.prefetchQuery({
+        queryKey: ["profileDetails", nextSlot.id],
+        queryFn: () => fetchProfileDetails(nextSlot.id),
+        staleTime: 5 * 60 * 1000,
+      });
+    }
+  }, [topSlotIndex, slots, queryClient]);
+
   const navigateToProfile = React.useCallback((profile: MatchProfile) => {
     router.push({
       pathname: "/profile/[id]",
@@ -364,6 +396,7 @@ export const Swipe = forwardRef<SwipeHandle, SwipeProps>(function Swipe(
         name: profile.name,
         age: profile.age.toString(),
         photo: profile.photo,
+        is_verified: profile.is_verified ? "true" : "false",
       },
     } as any);
   }, []);
@@ -373,21 +406,37 @@ export const Swipe = forwardRef<SwipeHandle, SwipeProps>(function Swipe(
     pendingSwipe.value = true;
     const horizontal =
       direction === "right"
-        ? SCREEN_WIDTH * 1.5
+        ? screenWidth * 1.5
         : direction === "left"
-        ? -SCREEN_WIDTH * 1.5
+        ? -screenWidth * 1.5
         : 0;
-    const vertical = direction === "super" ? -SCREEN_HEIGHT * 1.2 : 0;
+    const vertical = direction === "super" ? -screenHeight * 1.2 : 0;
     
     triggerHaptic(direction === "left" ? "notificationWarning" : "notificationSuccess");
     
     const triggerAnim = () => {
       'worklet';
       const exitEasing = Easing.out(Easing.cubic);
-      translateX.value = withTiming(horizontal, { duration: 400, easing: exitEasing });
-      translateY.value = withTiming(vertical, { duration: 400, easing: exitEasing }, () => {
-        runOnJS(finalizeSwipe)(direction);
-      });
+      const DURATION = 220;
+      if (direction === "super") {
+        translateX.value = withTiming(horizontal, { duration: DURATION, easing: exitEasing });
+        translateY.value = withTiming(vertical, { duration: DURATION, easing: exitEasing }, (finished) => {
+          if (finished) {
+            runOnJS(finalizeSwipe)(direction);
+          } else {
+            pendingSwipe.value = false;
+          }
+        });
+      } else {
+        translateY.value = withTiming(vertical, { duration: DURATION, easing: exitEasing });
+        translateX.value = withTiming(horizontal, { duration: DURATION, easing: exitEasing }, (finished) => {
+          if (finished) {
+            runOnJS(finalizeSwipe)(direction);
+          } else {
+            pendingSwipe.value = false;
+          }
+        });
+      }
     };
     
     runOnUI(triggerAnim)();
@@ -425,63 +474,82 @@ export const Swipe = forwardRef<SwipeHandle, SwipeProps>(function Swipe(
   );
 
   const panGesture = Gesture.Pan()
+    .enabled(!locked)
+    .onBegin(() => {
+      if (locked || lockedSv.value) return;
+    })
     .onUpdate((e) => {
-      if (locked || pendingSwipe.value) return;
+      if (locked || lockedSv.value || pendingSwipe.value) return;
       translateX.value = e.translationX;
       translateY.value = e.translationY;
     })
     .onEnd((e) => {
-      if (locked || pendingSwipe.value) return;
+      if (locked || lockedSv.value || pendingSwipe.value) return;
 
       const farEnoughX =
-        Math.abs(e.translationX) > SWIPE_THRESHOLD || Math.abs(e.velocityX) > 800;
-      const isSwipeUp  = e.translationY < -SWIPE_THRESHOLD || e.velocityY < -800;
+        Math.abs(e.translationX) > swipeThreshold || Math.abs(e.velocityX) > 800;
+      const isSwipeUp  = e.translationY < -swipeThreshold || e.velocityY < -800;
       const isSuperLike = isSwipeUp && Math.abs(e.translationY) > Math.abs(e.translationX);
 
-      const EXIT_DURATION = 400;
+      const EXIT_DURATION = 220;
       const exitEasing = Easing.out(Easing.cubic);
 
       if (isSuperLike) {
         pendingSwipe.value = true;
         runOnJS(triggerHaptic)("notificationSuccess");
         const angle = Math.atan2(e.translationY, e.translationX || 0.001);
-        const exitX = Math.cos(angle) * SCREEN_HEIGHT * 1.5;
+        const exitX = Math.cos(angle) * screenHeight * 1.5;
         translateX.value = withTiming(exitX, { duration: EXIT_DURATION, easing: exitEasing });
         translateY.value = withTiming(
-          -SCREEN_HEIGHT * 1.5,
+          -screenHeight * 1.5,
           { duration: EXIT_DURATION, easing: exitEasing },
-          () => { runOnJS(finalizeSwipe)("super"); }
+          (finished) => {
+            if (finished) {
+              runOnJS(finalizeSwipe)("super");
+            } else {
+              pendingSwipe.value = false;
+            }
+          }
         );
         return;
       } else if (farEnoughX) {
+        const direction = e.translationX > 0 ? "right" : "left";
         pendingSwipe.value = true;
         const dir = e.translationX > 0 ? 1 : -1;
         runOnJS(triggerHaptic)(e.translationX > 0 ? "notificationSuccess" : "notificationWarning");
 
         const angle = Math.atan2(e.translationY, e.translationX || 0.001);
-        const exitDistance = SCREEN_WIDTH * 1.5;
+        const exitDistance = screenWidth * 1.5;
         const exitX = dir * exitDistance;
         const rawExitY = Math.tan(angle) * exitDistance * dir;
-        const exitY = Math.max(-SCREEN_HEIGHT * 0.5, Math.min(SCREEN_HEIGHT * 0.5, rawExitY));
+        const exitY = Math.max(-screenHeight * 0.5, Math.min(screenHeight * 0.5, rawExitY));
 
-        translateX.value = withTiming(exitX, { duration: EXIT_DURATION, easing: exitEasing });
-        translateY.value = withTiming(
-          exitY,
+        translateY.value = withTiming(exitY, { duration: EXIT_DURATION, easing: exitEasing });
+        translateX.value = withTiming(
+          exitX,
           { duration: EXIT_DURATION, easing: exitEasing },
-          () => { runOnJS(finalizeSwipe)(e.translationX > 0 ? "right" : "left"); }
+          (finished) => {
+            if (finished) {
+              runOnJS(finalizeSwipe)(direction);
+            } else {
+              pendingSwipe.value = false;
+            }
+          }
         );
         return;
       }
+
 
       translateX.value = withSpring(0, { damping: 20, stiffness: 200 });
       translateY.value = withSpring(0, { damping: 20, stiffness: 200 });
     });
 
   const tapGesture = Gesture.Tap()
+    .enabled(!locked)
     .maxDuration(250)
     .maxDistance(10)
     .onEnd(() => {
-      if (locked || pendingSwipe.value) return;
+      if (locked || lockedSv.value || pendingSwipe.value) return;
       const profile = slots[topSlotIndex];
       if (profile) runOnJS(navigateToProfile)(profile);
     });
@@ -496,25 +564,32 @@ export const Swipe = forwardRef<SwipeHandle, SwipeProps>(function Swipe(
     );
   }
 
+  const renderCards = () => (
+    <View style={StyleSheet.absoluteFill}>
+      {[thirdSlotIndex, secondSlotIndex, topSlotIndex].map((slotIdx) => {
+        const profile = slots[slotIdx];
+        if (!profile) return null;
+        return (
+          <Card
+            key={`slot-${slotIdx}`}
+            user={profile}
+            positionSv={positionSvs[slotIdx]}
+            topTranslateX={translateX}
+            topTranslateY={translateY}
+            screenWidth={screenWidth}
+          />
+        );
+      })}
+    </View>
+  );
+
   return (
     <View style={[styles.container, { flex: 1, width: "100%" }]}>
-      <GestureDetector gesture={combinedGesture}>
-        <View style={StyleSheet.absoluteFill}>
-          {[thirdSlotIndex, secondSlotIndex, topSlotIndex].map((slotIdx) => {
-            const profile = slots[slotIdx];
-            if (!profile) return null;
-            return (
-              <Card
-                key={`slot-${slotIdx}`}
-                user={profile}
-                positionSv={positionSvs[slotIdx]}
-                topTranslateX={translateX}
-                topTranslateY={translateY}
-              />
-            );
-          })}
-        </View>
-      </GestureDetector>
+      {locked ? renderCards() : (
+        <GestureDetector gesture={combinedGesture}>
+          {renderCards()}
+        </GestureDetector>
+      )}
     </View>
   );
 });
@@ -655,14 +730,18 @@ const styles = StyleSheet.create({
   },
   tagsContainer: {
     flexDirection: "row",
+    flexWrap: "wrap",
     justifyContent: "center",
     alignItems: "center",
     gap: 6,
+    rowGap: 6,
+    paddingHorizontal: 12,
     paddingTop: 10,
-    paddingBottom: 4,
+    paddingBottom: 10,
   },
   goldTagPill: {
     backgroundColor: "#FFC107",
+    maxWidth: "100%",
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 12,
@@ -671,6 +750,7 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 11,
     fontWeight: "700",
+    flexShrink: 1,
   },
   badgeLike: {
     position: "absolute",

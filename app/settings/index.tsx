@@ -212,7 +212,7 @@ export default function SettingsIndexScreen() {
         <View style={styles.profileContainer}>
           <View style={styles.avatarContainer}>
             <Avatar
-              uri={profile?.photos?.[0]?.image}
+              uri={profile?.photos?.find((p) => p.is_main)?.image || profile?.photos?.[0]?.image}
               size={116}
               style={{ borderRadius: 58 }}
               imageStyle={{ borderRadius: 58 }}
