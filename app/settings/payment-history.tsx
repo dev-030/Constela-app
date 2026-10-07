@@ -19,6 +19,7 @@ import {
   useTransactionHistoryQuery,
 } from "@/api/settings";
 import { useAndroidBack } from '@/hooks/useAndroidBack';
+import { useTranslation } from "react-i18next";
 
 function formatDate(iso: string): string {
   if (!iso) return "";
@@ -60,6 +61,7 @@ function statusColor(
 
 export default function PaymentHistoryScreen() {
   useAndroidBack();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
 
   const background = useColor("background");
@@ -234,7 +236,7 @@ export default function PaymentHistoryScreen() {
           </Pressable>
         </View>
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle} numberOfLines={1}>Payment History</Text>
+          <Text style={styles.headerTitle} numberOfLines={1}>{t('settings.payment_history', 'Payment History')}</Text>
         </View>
         <View style={styles.headerRight} />
       </View>
@@ -254,9 +256,9 @@ export default function PaymentHistoryScreen() {
           <View style={styles.heroBadge}>
             <Icon name={Receipt} size={26} color={primary} />
           </View>
-          <Text style={styles.heroTitle}>Subscription transactions</Text>
+          <Text style={styles.heroTitle}>{t('settings_pages.subscription_transactions', 'Subscription transactions')}</Text>
           <Text style={styles.heroSubtitle}>
-            Every charge for Premium Light or Premium Plus, in one place.
+            {t('settings_pages.subscription_transactions_sub', 'Every charge for Premium Light or Premium Plus, in one place.')}
           </Text>
         </View>
 
@@ -264,7 +266,7 @@ export default function PaymentHistoryScreen() {
           <View style={styles.errorBanner}>
             <Text style={styles.errorText}>
               {(historyQuery.error as any)?.response?.data?.error ||
-                "Couldn\u2019t load your transactions."}
+                t('settings_pages.transactions_load_error', "Couldn\u2019t load your transactions.")}
             </Text>
             <Button
               variant="outline"
@@ -272,7 +274,7 @@ export default function PaymentHistoryScreen() {
               icon={RefreshCw}
               style={{ borderRadius: 10, height: 40 }}
             >
-              Retry
+              {t('settings_pages.retry', 'Retry')}
             </Button>
           </View>
         )}
@@ -283,9 +285,9 @@ export default function PaymentHistoryScreen() {
           </View>
         ) : isEmpty ? (
           <View style={styles.empty}>
-            <Text style={styles.emptyText}>No transactions yet.</Text>
+            <Text style={styles.emptyText}>{t('settings_pages.no_transactions', 'No transactions yet.')}</Text>
             <Text style={styles.emptyText}>
-              Upgrade to Premium to see your receipts here.
+              {t('settings_pages.upgrade_for_receipts', 'Upgrade to Premium to see your receipts here.')}
             </Text>
           </View>
         ) : (

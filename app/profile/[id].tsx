@@ -24,8 +24,10 @@ import { ActionButtons } from "@/components/matches/action-buttons";
 import ManageProfileScreen from "../manage-profile";
 import { Button } from "@/components/ui/button";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
+import { useTranslation } from "react-i18next";
 
 export default function ProfileDetailScreen() {
+  const { t } = useTranslation();
   const { id, name, age, photo, is_verified } = useLocalSearchParams<{
     id: string;
     name?: string;
@@ -70,8 +72,8 @@ export default function ProfileDetailScreen() {
         (!currentQuota.resets_at || new Date(currentQuota.resets_at).getTime() > Date.now());
       if (isQuotaDepleted) {
         Alert.alert(
-          "Daily Limit Reached",
-          "You've reached your daily like limit. Upgrade your subscription or wait until midnight to like more profiles."
+          t('profile_detail.daily_limit_reached'),
+          t('profile_detail.daily_limit_desc')
         );
         return;
       }
@@ -91,11 +93,11 @@ export default function ProfileDetailScreen() {
             "Something went wrong. Please try again.";
           
           if (status === 429 || status === 403) {
-            Alert.alert("Limit Reached", message);
+            Alert.alert(t('profile_detail.limit_reached'), message);
           } else if (status === 404) {
-            Alert.alert("Already decided", "You've already responded to this profile.");
+            Alert.alert(t('profile_detail.already_decided'), t('profile_detail.already_decided_desc'));
           } else {
-            Alert.alert("Action failed", message);
+            Alert.alert(t('profile_detail.action_failed'), message);
           }
         }
       }
@@ -242,7 +244,7 @@ export default function ProfileDetailScreen() {
         {/* Neurotype */}
         {fullProfile?.neurotype_labels && fullProfile.neurotype_labels.length > 0 && (
           <>
-            <SectionHeader title="NEUROTYPE" />
+            <SectionHeader title={t('profile_detail.neurotype')} />
             <View style={styles.pillRow}>
               {fullProfile.neurotype_labels.map((label: string, index: number) => (
                 <View key={index} style={[styles.pill, { backgroundColor: "#B2EBF2" }]}>
@@ -251,7 +253,7 @@ export default function ProfileDetailScreen() {
               ))}
               {(fullProfile as any)?.is_neurodivergent && (
                 <View style={[styles.pill, { backgroundColor: "#B2DFDB" }]}>
-                  <Text style={[styles.pillText, { color: "#004D40" }]}>i'm neurodivergent</Text>
+                  <Text style={[styles.pillText, { color: "#004D40" }]}>{t('profile_detail.im_neurodivergent')}</Text>
                 </View>
               )}
             </View>
@@ -261,7 +263,7 @@ export default function ProfileDetailScreen() {
         {/* Bio / Looking For */}
         {fullProfile?.looking_for && (
           <>
-            <SectionHeader title="LOOKING FOR" />
+            <SectionHeader title={t('profile_detail.looking_for')} />
             <Text style={[styles.bio, { color: text }]}>
               {fullProfile.looking_for.charAt(0).toUpperCase() + fullProfile.looking_for.slice(1)}
             </Text>
@@ -271,7 +273,7 @@ export default function ProfileDetailScreen() {
         {/* Interests */}
         {fullProfile?.interests && fullProfile.interests.length > 0 && (
           <>
-            <SectionHeader title="INTERESTS" />
+            <SectionHeader title={t('profile_detail.interests')} />
             <View style={styles.pillRow}>
               {fullProfile.interests.map((interest: string, index: number) => (
                 <View key={index} style={[styles.interestPill, { backgroundColor: "#F5E6D3" }]}>
@@ -285,7 +287,7 @@ export default function ProfileDetailScreen() {
         {/* Qualities */}
         {fullProfile?.qualities && fullProfile.qualities.length > 0 && (
           <>
-            <SectionHeader title="QUALITIES" />
+            <SectionHeader title={t('profile_detail.qualities')} />
             <View style={styles.pillRow}>
               {fullProfile.qualities.map((quality: string, index: number) => (
                 <View key={index} style={[styles.interestPill, { backgroundColor: "#E1BEE7" }]}>
@@ -299,7 +301,7 @@ export default function ProfileDetailScreen() {
         {/* Sensory Needs */}
         {fullProfile?.recharge_methods && fullProfile.recharge_methods.length > 0 && (
           <>
-            <SectionHeader title="HOW I RECHARGE" />
+            <SectionHeader title={t('profile_detail.how_i_recharge')} />
             {fullProfile.recharge_methods.map((method: string, index: number) => (
               <View key={index} style={[styles.sensoryRow, { backgroundColor: cardColor }]}>
                 <View style={styles.sensoryLeft}>
@@ -317,7 +319,7 @@ export default function ProfileDetailScreen() {
         {/* Exhaust Triggers */}
         {fullProfile?.exhaust_triggers && fullProfile.exhaust_triggers.length > 0 && (
           <>
-            <SectionHeader title="WHAT EXHAUSTS ME" />
+            <SectionHeader title={t('profile_detail.what_exhausts_me')} />
             {fullProfile.exhaust_triggers.map((trigger: string, index: number) => (
               <View key={index} style={[styles.sensoryRow, { backgroundColor: cardColor }]}>
                 <View style={styles.sensoryLeft}>
@@ -340,7 +342,7 @@ export default function ProfileDetailScreen() {
         <View
           style={[styles.fabContainer, { paddingBottom: insets.bottom || 24, backgroundColor: background }]}
         >
-          <Button onPress={() => router.push(`/inbox/${id}`)}>Message</Button>
+          <Button onPress={() => router.push(`/inbox/${id}`)}>{t('profile_detail.message')}</Button>
         </View>
       ) : (
         <View style={[styles.fabContainer, { paddingBottom: insets.bottom, backgroundColor: background }]}>
@@ -357,10 +359,10 @@ export default function ProfileDetailScreen() {
       <BottomSheet
         isVisible={isVisible}
         onClose={close}
-        title="Manage Profile"
+        title={t('profile_detail.manage_profile')}
         snapPoints={[0.5, 0.9]}
       >
-        <ManageProfileScreen />
+        <ManageProfileScreen name={fullProfile?.name || (fullProfile as any)?.username || (name as string)} />
       </BottomSheet>
     </View>
   );

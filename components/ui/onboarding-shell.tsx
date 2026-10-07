@@ -9,6 +9,8 @@ import React from "react";
 import { Pressable, View, ViewStyle } from "react-native";
 import { KeyboardAvoidingView, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
+import { LanguagePickerButton } from "@/components/LanguagePickerButton";
 
 type Props = {
   title: string;
@@ -30,13 +32,14 @@ export function OnboardingShell({
   onBack,
   onContinue,
   onSkip,
-  continueLabel = "Continue",
+  continueLabel,
   continueDisabled = false,
   showBack = true,
   children,
   contentStyle,
   showFooter = true,
 }: Props) {
+  const { t } = useTranslation();
   const background = useColor("background");
   const primaryForeground = useColor("primaryForeground");
   const border = useColor("border");
@@ -53,25 +56,27 @@ export function OnboardingShell({
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         {/* Header */}
-        {showBack && (
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              paddingHorizontal: horizontalPadding,
-              paddingVertical: size(12, 10),
-            }}
-          >
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: showBack ? "space-between" : "flex-end",
+            paddingHorizontal: horizontalPadding,
+            paddingVertical: size(12, 10),
+          }}
+        >
+          {showBack ? (
             <Pressable
               onPress={onBack}
               hitSlop={12}
               style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
             >
               <Icon name={ArrowLeft} size={22} color={useColor("text")} />
-              <Text style={{ fontSize: 18, fontWeight: "600" }}>Back</Text>
+              <Text style={{ fontSize: 18, fontWeight: "600" }}>{t("common.back", "Back")}</Text>
             </Pressable>
-          </View>
-        )}
+          ) : <View />}
+          <LanguagePickerButton />
+        </View>
 
         {/* Title block */}
         <View
@@ -121,7 +126,7 @@ export function OnboardingShell({
               disabled={continueDisabled}
               style={{ borderRadius: 28, height: isCompact ? 48 : 52 }}
             >
-              {continueLabel}
+              {continueLabel || t("common.continue", "Continue")}
             </Button>
             {onSkip ? (
               <Pressable
@@ -135,7 +140,7 @@ export function OnboardingShell({
                     color: useColor("text"),
                   }}
                 >
-                  Skip
+                  {t("common.skip", "Skip")}
                 </Text>
               </Pressable>
             ) : null}

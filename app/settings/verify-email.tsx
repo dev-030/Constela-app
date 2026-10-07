@@ -11,9 +11,11 @@ import { Icon } from '@/components/ui/icon';
 import { apiClient } from '@/api/client';
 import { useProfileStore } from '@/store/profileStore';
 import { useAndroidBack } from '@/hooks/useAndroidBack';
+import { useTranslation } from 'react-i18next';
 
 export default function VerifyEmailChangeScreen() {
   useAndroidBack();
+  const { t } = useTranslation();
   const { newEmail } = useLocalSearchParams<{ newEmail: string }>();
   const insets = useSafeAreaInsets();
   const { fetchProfile } = useProfileStore();
@@ -83,12 +85,12 @@ export default function VerifyEmailChangeScreen() {
     try {
       await apiClient.post('/api/settings/verify-email-change/', { otp, new_email: newEmail });
       await fetchProfile(); // Refresh profile so the new email shows up
-      Alert.alert("Success", "Your email has been updated successfully.", [
-        { text: "OK", onPress: () => router.back() }
+      Alert.alert(t('settings_pages.success', "Success"), t('settings_pages.email_updated_success', "Your email has been updated successfully."), [
+        { text: t('settings_pages.ok', "OK"), onPress: () => router.back() }
       ]);
     } catch (error: any) {
-      const errorMsg = error.response?.data?.error || "Invalid verification code.";
-      Alert.alert("Verification Failed", errorMsg);
+      const errorMsg = error.response?.data?.error || t('settings_pages.invalid_code', "Invalid verification code.");
+      Alert.alert(t('settings_pages.verification_failed', "Verification Failed"), errorMsg);
     } finally {
       setIsVerifying(false);
     }
@@ -98,10 +100,13 @@ export default function VerifyEmailChangeScreen() {
     setIsResending(true);
     try {
       await apiClient.post('/api/settings/request-email-change/', { new_email: newEmail });
-      Alert.alert("Code Sent", `A new verification code has been sent to ${newEmail}`);
+      Alert.alert(
+        t('settings_pages.code_sent', "Code Sent"),
+        t('settings_pages.code_sent_to', { email: newEmail, defaultValue: `A new verification code has been sent to ${newEmail}` })
+      );
     } catch (error: any) {
-      const errorMsg = error.response?.data?.error || "Failed to resend code.";
-      Alert.alert("Resend Failed", errorMsg);
+      const errorMsg = error.response?.data?.error || t('settings_pages.failed_resend_code', "Failed to resend code.");
+      Alert.alert(t('settings_pages.resend_failed', "Resend Failed"), errorMsg);
     } finally {
       setIsResending(false);
     }
@@ -115,9 +120,9 @@ export default function VerifyEmailChangeScreen() {
         </Pressable>
       </View>
 
-      <Text style={styles.title}>Verify Email</Text>
+      <Text style={styles.title}>{t('settings_pages.verify_email_title', 'Verify Email')}</Text>
       <Text style={styles.subtitle}>
-        We sent a verification code to{'\n'}
+        {t('settings_pages.verify_email_sent_to', 'We sent a verification code to')}{'\n'}
         <Text style={styles.emailText}>{newEmail}</Text>
       </Text>
 
@@ -134,14 +139,14 @@ export default function VerifyEmailChangeScreen() {
         loading={isVerifying}
         disabled={otp.length < 4 || isVerifying}
       >
-        Verify and Update
+        {t('settings_pages.verify_and_update', 'Verify and Update')}
       </Button>
 
       <View style={styles.resendContainer}>
-        <Text style={styles.resendText}>Didn't receive the code? </Text>
+        <Text style={styles.resendText}>{t('settings_pages.didnt_receive_code', "Didn't receive the code? ")}</Text>
         <Pressable onPress={handleResend} disabled={isResending}>
           <Text style={[styles.resendLink, isResending && { opacity: 0.5 }]}>
-            {isResending ? 'Resending...' : 'Resend'}
+            {isResending ? t('settings_pages.resending', 'Resending...') : t('settings_pages.resend', 'Resend')}
           </Text>
         </Pressable>
       </View>

@@ -20,6 +20,8 @@ import { useColor } from "@/hooks/useColor";
 import { useOnboarding } from "@/providers/onboarding-context";
 import { updateMyProfile } from "@/api/profile";
 import { useProfileStore } from "@/store/profileStore";
+import { useTranslation } from "react-i18next";
+import { LanguagePickerButton } from "@/components/LanguagePickerButton";
 
 function SectionHeader({
   title,
@@ -38,7 +40,46 @@ function SectionHeader({
   );
 }
 
+const RECHARGE_FR: Record<string, { title: string; subtitle: string }> = {
+  "Silence": { title: "Silence", subtitle: "Réduction du bruit, de la lumière, des mouvements" },
+  "Cocoon Spaces": { title: "Espaces cocooning", subtitle: "Pièce calme, coin couverture, lumière douce" },
+  "Reduced Stimulation": { title: "Stimulation réduite", subtitle: "Casque antibruit, verres teintés, lumière tamisée" },
+};
+
+const EXHAUSTS_FR: Record<string, string> = {
+  "Absorbs other people's moods": "Absorber l'humeur des autres",
+  "Feels everything deeply": "Tout ressentir intensément",
+  "Loud or unpredictable noises": "Bruits forts ou imprévisibles",
+  "Bright lights": "Lumières vives",
+  "Fast movements around me": "Mouvements rapides autour de moi",
+  "Strong smells": "Odeurs fortes",
+  "Unpleasant textures": "Textures désagréables",
+};
+
+const NEEDS_FR: Record<string, string> = {
+  "Predictability": "Prévisibilité",
+  "Consistency in behavior": "Cohérence dans le comportement",
+  "Absence of judgement": "Absence de jugement",
+  "Clear communication": "Communication claire",
+  "Deep talk": "Conversations profondes",
+  "Need to be alone sometimes": "Besoin d'être seul(e) parfois",
+};
+
+const SOOTHES_FR: Record<string, string> = {
+  "Silence or soft sounds": "Silence ou sons doux",
+  "Dim light": "Lumière tamisée",
+  "Massage": "Massage",
+  "Sensory objects": "Objets sensoriels",
+  "Chosen solitude": "Solitude choisie",
+  "Comforting routines": "Routines réconfortantes",
+  "Predictability": "Prévisibilité",
+  "Clear Communication": "Communication claire",
+  "Hyperfocus on an interest": "Hyperfocalisation sur un centre d'intérêt",
+};
+
 export default function OnboardingEmotionalScreen() {
+  const { t, i18n } = useTranslation();
+  const isFrench = i18n.language?.startsWith("fr");
   const insets = useSafeAreaInsets();
   const background = useColor("background");
   const text = useColor("text");
@@ -69,9 +110,12 @@ export default function OnboardingEmotionalScreen() {
         Man: "man",
         "Non-binary": "non_binary",
         Other: "other",
+        Everyone: "everyone",
       };
       if (data.gender)
         formData.append("gender", genderMap[data.gender] || data.gender);
+      if (data.genderPreference)
+        formData.append("gender_preference", genderMap[data.genderPreference] || data.genderPreference);
 
       if (data.maritalStatus)
         formData.append("marital_status", data.maritalStatus);
@@ -174,7 +218,7 @@ export default function OnboardingEmotionalScreen() {
           }
         }
       }
-      Alert.alert("Submission Failed", errMsg);
+      Alert.alert(t("onboarding.submission_failed", "Submission Failed"), errMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -219,46 +263,49 @@ export default function OnboardingEmotionalScreen() {
       <View
         style={[
           styles.header,
-          { paddingTop: insets.top + 16, paddingBottom: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", position: "relative" },
+          {
+            paddingTop: insets.top + 16,
+            paddingBottom: 12,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            paddingHorizontal: 20,
+          },
         ]}
       >
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={12}
-          style={{ position: "absolute", left: 20, top: insets.top + 16 }}
-        >
+        <Pressable onPress={() => router.back()} hitSlop={12}>
           <Icon name={ArrowLeft} size={24} color={text} />
         </Pressable>
         <View style={styles.headerCenter}>
           <Text style={[styles.headerTitle, { color: text }]}>
-            Emotional Landscape
+            {t("onboarding.step7_title", "Emotional Profile")}
           </Text>
         </View>
+        <LanguagePickerButton />
       </View>
 
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Text style={[styles.introText, { color: muted }]}>
-          Understanding your emotional needs helps us find connections who truly
-          "get" your rhythm. Skip anything you're not ready to share.
+          {t("onboarding.emotional_intro", "Understanding your emotional needs helps us find connections who truly \"get\" your rhythm. Skip anything you're not ready to share.")}
         </Text>
 
-        <SectionHeader title="HOW I RECHARGE" icon={BatteryMedium} />
+        <SectionHeader title={t("onboarding.recharge_title", "HOW I RECHARGE")} icon={BatteryMedium} />
         <FilterListItem
-          title="Silence"
-          subtitle="Reducing noise, Lights, Movement"
+          title={isFrench ? RECHARGE_FR["Silence"].title : "Silence"}
+          subtitle={isFrench ? RECHARGE_FR["Silence"].subtitle : "Reducing noise, Lights, Movement"}
           selected={rechargeMethods.includes("Silence")}
           onPress={() => toggleRecharge("Silence")}
         />
         <FilterListItem
-          title="Cocoon Spaces"
-          subtitle="Quiet room, Blanket corner, Soft light"
+          title={isFrench ? RECHARGE_FR["Cocoon Spaces"].title : "Cocoon Spaces"}
+          subtitle={isFrench ? RECHARGE_FR["Cocoon Spaces"].subtitle : "Quiet room, Blanket corner, Soft light"}
           selected={rechargeMethods.includes("Cocoon Spaces")}
           onPress={() => toggleRecharge("Cocoon Spaces")}
         />
         <FilterListItem
-          title="Reduced Stimulation"
-          subtitle="Noise-cancelling headphones, tinted glasses, Dim light"
+          title={isFrench ? RECHARGE_FR["Reduced Stimulation"].title : "Reduced Stimulation"}
+          subtitle={isFrench ? RECHARGE_FR["Reduced Stimulation"].subtitle : "Noise-cancelling headphones, tinted glasses, Dim light"}
           selected={rechargeMethods.includes("Reduced Stimulation")}
           onPress={() => toggleRecharge("Reduced Stimulation")}
         />
@@ -266,7 +313,7 @@ export default function OnboardingEmotionalScreen() {
         <View style={styles.spacing} />
 
         <SectionHeader
-          title="WHAT EXHAUSTS ME"
+          title={t("onboarding.exhausts_title", "WHAT EXHAUSTS ME")}
           icon={BatteryWarning}
           color="#C62828"
         />
@@ -281,7 +328,7 @@ export default function OnboardingEmotionalScreen() {
         ].map((item) => (
           <FilterListItem
             key={item}
-            title={item}
+            title={isFrench ? EXHAUSTS_FR[item] || item : item}
             selected={exhaustTriggers.includes(item)}
             onPress={() => toggleExhausts(item)}
           />
@@ -290,7 +337,7 @@ export default function OnboardingEmotionalScreen() {
         <View style={styles.spacing} />
 
         <SectionHeader
-          title="MY EMOTIONAL NEEDS"
+          title={t("onboarding.needs_title", "MY EMOTIONAL NEEDS")}
           icon={Heart}
           color="#795548"
         />
@@ -304,7 +351,7 @@ export default function OnboardingEmotionalScreen() {
         ].map((item) => (
           <FilterListItem
             key={item}
-            title={item}
+            title={isFrench ? NEEDS_FR[item] || item : item}
             selected={emotionalNeeds.includes(item)}
             onPress={() => toggleNeeds(item)}
           />
@@ -312,11 +359,11 @@ export default function OnboardingEmotionalScreen() {
 
         <View style={styles.spacing} />
 
-        <SectionHeader title="SECOND-DEGREE HUMOR" icon={Smile} color="#2E7D32" />
+        <SectionHeader title={t("onboarding.humor_title", "SECOND-DEGREE HUMOR")} icon={Smile} color="#2E7D32" />
         {["Yes", "No"].map((item) => (
           <FilterListItem
             key={item}
-            title={item}
+            title={item === "Yes" ? t("common.yes", "Yes") : t("common.no", "No")}
             selected={humor === item}
             onPress={() => setHumor(item)}
           />
@@ -324,7 +371,7 @@ export default function OnboardingEmotionalScreen() {
 
         <View style={styles.spacing} />
 
-        <SectionHeader title="WHAT SOOTHES ME" icon={Leaf} color="#00695C" />
+        <SectionHeader title={t("onboarding.soothes_title", "WHAT SOOTHES ME")} icon={Leaf} color="#00695C" />
         <View style={styles.pillRow}>
           {[
             "Silence or soft sounds",
@@ -339,7 +386,7 @@ export default function OnboardingEmotionalScreen() {
           ].map((item) => (
             <FilterPill
               key={item}
-              label={item}
+              label={isFrench ? SOOTHES_FR[item] || item : item}
               selected={soothesMethods.includes(item)}
               onPress={() => toggleArrayItem(soothesMethods, setSoothes, item)}
             />
@@ -372,7 +419,9 @@ export default function OnboardingEmotionalScreen() {
                 onPress={() => !isSubmitting && handleNext(true)}
                 disabled={isSubmitting}
               >
-                <Text style={[styles.skipText, { color: text, opacity: isSubmitting ? 0.5 : 1 }]}>Skip</Text>
+                <Text style={[styles.skipText, { color: text, opacity: isSubmitting ? 0.5 : 1 }]}>
+                  {t("common.skip", "Skip")}
+                </Text>
               </Pressable>
               <Button
                 onPress={() => handleNext(false)}
@@ -383,7 +432,7 @@ export default function OnboardingEmotionalScreen() {
                 {isSubmitting ? (
                   <ActivityIndicator color={primaryForeground} />
                 ) : (
-                  "Continue"
+                  t("common.continue", "Continue")
                 )}
               </Button>
             </View>

@@ -14,8 +14,10 @@ import { Sparkles, SlidersHorizontal, ChevronRight } from "lucide-react-native";
 import { useRouter, Link } from "expo-router";
 import VerificationOverlay from "@/components/VerificationOverlay";
 import Header from "../../../components/header";
+import { useTranslation } from "react-i18next";
 
 export default function MatchesScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const background = useColor("background");
   const primary = useColor("primary");
@@ -33,8 +35,8 @@ export default function MatchesScreen() {
           >
             <Sparkles size={18} color="#B8860B" />
             <View style={{ flex: 1, marginLeft: 10 }}>
-              <Text style={styles.bannerTitle}>Perfect Match Analysis</Text>
-              <Text style={styles.bannerSub}>View top 5 compatible profiles</Text>
+              <Text style={styles.bannerTitle}>{t('matches.analysis_banner_title')}</Text>
+              <Text style={styles.bannerSub}>{t('matches.analysis_banner_sub')}</Text>
             </View>
             <ChevronRight size={18} color="#B8860B" style={{ opacity: 0.6 }} />
           </Pressable>

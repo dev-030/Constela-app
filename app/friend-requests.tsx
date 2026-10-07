@@ -33,6 +33,7 @@ import {
   type FriendRequest,
 } from "@/api/friends";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
+import { useTranslation } from "react-i18next";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -44,7 +45,7 @@ interface ReceivedRequestCardProps {
   border: string;
   text: string;
   isDark: boolean;
-  onAccept: (friendshipId: string, onComplete?: () => void) => void;
+  onAccept: (req: FriendRequest, onComplete?: () => void) => void;
   onDecline: (friendshipId: string, onComplete?: () => void) => void;
   isPending: boolean;
 }
@@ -61,6 +62,7 @@ const ReceivedRequestCard = React.memo(function ReceivedRequestCard({
   onDecline,
   isPending,
 }: ReceivedRequestCardProps) {
+  const { t } = useTranslation();
   const [isActing, setIsActing] = useState(false);
   const opacity = useSharedValue(1);
   const scale = useSharedValue(1);
@@ -94,7 +96,7 @@ const ReceivedRequestCard = React.memo(function ReceivedRequestCard({
   const handlePressAccept = (e: any) => {
     e.stopPropagation();
     if (isActing || isPending) return;
-    animateOut(() => onAccept(req.id, () => setIsActing(false)));
+    animateOut(() => onAccept(req, () => setIsActing(false)));
   };
 
   const handlePressDecline = (e: any) => {
@@ -156,7 +158,7 @@ const ReceivedRequestCard = React.memo(function ReceivedRequestCard({
           onPress={handlePressAccept}
         >
           <Text style={[styles.actionBtnText, { color: "#FFFFFF" }]}>
-            {isActing ? "Accepting…" : "Accept"}
+            {isActing ? t('friend_requests.accepting') : t('friend_requests.accept')}
           </Text>
         </Pressable>
 
@@ -174,7 +176,7 @@ const ReceivedRequestCard = React.memo(function ReceivedRequestCard({
           onPress={handlePressDecline}
         >
           <Text style={[styles.actionBtnText, { color: declineTextColor }]}>
-            {isActing ? "Declining…" : "Decline"}
+            {isActing ? t('friend_requests.declining') : t('friend_requests.decline')}
           </Text>
         </Pressable>
       </View>
@@ -183,6 +185,7 @@ const ReceivedRequestCard = React.memo(function ReceivedRequestCard({
 });
 
 export default function FriendRequestsScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   useAndroidBack();
 
@@ -210,8 +213,8 @@ export default function FriendRequestsScreen() {
     }
   };
 
-  const handleAccept = (friendshipId: string, onComplete?: () => void) => {
-    acceptMutation.mutate(friendshipId, {
+  const handleAccept = (req: FriendRequest, onComplete?: () => void) => {
+    acceptMutation.mutate(req, {
       onError: (err: any) => {
         onComplete?.();
         const msg = err?.response?.data?.error || "Couldn't accept request. Please try again.";
@@ -243,7 +246,7 @@ export default function FriendRequestsScreen() {
           <ChevronLeft size={28} color={text} />
         </Pressable>
         <View style={styles.titleRow}>
-          <Text style={[styles.headerTitle, { color: text }]}>Friend Requests</Text>
+          <Text style={[styles.headerTitle, { color: text }]}>{t('friend_requests.title')}</Text>
           {requests.length > 0 && (
             <View style={[styles.badge, { backgroundColor: primary }]}>
               <Text style={styles.badgeText}>{requests.length}</Text>
@@ -271,23 +274,26 @@ export default function FriendRequestsScreen() {
           </View>
         ) : requestsQuery.isError ? (
           <View style={styles.inlineMessage}>
-            <Text style={{ color: muted }}>Couldn&apos;t load friend requests.</Text>
+            <Text style={{ color: muted }}>{t('friend_requests.load_error')}</Text>
             <Pressable onPress={() => requestsQuery.refetch()}>
-              <Text style={{ color: primary, fontWeight: "600", marginTop: 8 }}>Retry</Text>
+              <Text style={{ color: primary, fontWeight: "600", marginTop: 8 }}>{t('friend_requests.retry')}</Text>
             </Pressable>
           </View>
         ) : requests.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Text style={[styles.emptyTitle, { color: text }]}>No Pending Requests</Text>
+            <Text style={[styles.emptyTitle, { color: text }]}>{t('friend_requests.empty_title')}</Text>
             <Text style={[styles.emptyText, { color: muted }]}>
-              You don&apos;t have any pending friend requests at the moment.
+              {t('friend_requests.empty_desc')}
             </Text>
           </View>
         ) : (
           <View style={styles.listContainer}>
             {requests.map((req) => {
               const isPending =
-                (acceptMutation.isPending && acceptMutation.variables === req.id) ||
+                (acceptMutation.isPending &&
+                  (typeof acceptMutation.variables === "string"
+                    ? acceptMutation.variables === req.id
+                    : acceptMutation.variables?.id === req.id)) ||
                 (declineMutation.isPending && declineMutation.variables === req.id);
               return (
                 <ReceivedRequestCard

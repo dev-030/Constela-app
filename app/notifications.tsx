@@ -12,6 +12,7 @@ import { useInfiniteNotificationsQuery, Notification, useMarkNotificationsReadMu
 import { ActivityIndicator, FlatList, RefreshControl } from "react-native";
 import { useEffect } from "react";
 import { Avatar } from "@/components/ui/avatar";
+import { useTranslation } from "react-i18next";
 
 const getIconForType = (type: string) => {
   switch (type) {
@@ -23,6 +24,7 @@ const getIconForType = (type: string) => {
 };
 
 export default function NotificationsScreen() {
+  const { t } = useTranslation();
   useAndroidBack();
   const background = useColor("background");
   const card = useColor("card");
@@ -91,7 +93,7 @@ export default function NotificationsScreen() {
         <Pressable onPress={() => router.back()} style={styles.backButton}>
           <ChevronLeft size={28} color={text} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: text }]}>Notifications</Text>
+        <Text style={[styles.headerTitle, { color: text }]}>{t('notifications.title')}</Text>
         <View style={styles.headerRight} />
       </View>
 
@@ -108,7 +110,7 @@ export default function NotificationsScreen() {
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={{ padding: 20, alignItems: "center", marginTop: 40 }}>
-              <Text style={{ color: muted }}>You have no notifications yet.</Text>
+              <Text style={{ color: muted }}>{t('notifications.empty')}</Text>
             </View>
           }
           refreshControl={

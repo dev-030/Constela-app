@@ -19,6 +19,8 @@ import { useAuthStore } from '@/store/authStore';
 import * as ImagePicker from 'expo-image-picker';
 import { Avatar } from '@/components/ui/avatar';
 import { uploadPhoto, deletePhoto, setMainPhoto } from '@/api/profile';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
+import { useTranslation } from 'react-i18next';
 
 const InfoRow = ({ icon: IconComp, label, value, isLast = false }: any) => {
   const text = useColor('text');
@@ -87,9 +89,10 @@ const InfoTagsRow = ({ icon: IconComp, label, tags, layout = 'column', isLast = 
 const SectionHeader = ({ title, onEdit }: { title: string; onEdit?: () => void }) => {
   const text = useColor('text');
   const primary = useColor('primary');
+  const { horizontalPadding } = useResponsiveLayout();
 
   return (
-    <View style={styles.sectionHeader}>
+    <View style={[styles.sectionHeader, { paddingHorizontal: horizontalPadding + 2 }]}>
       <Text style={[styles.sectionTitle, { color: text }]}>{title}</Text>
       {onEdit && (
         <Pressable onPress={onEdit} hitSlop={10}>
@@ -108,6 +111,7 @@ const LOOKING_FOR_MAP: Record<string, string> = {
 };
 
 export default function ProfileScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const background = useColor('background');
   const cardColor = useColor('card');
@@ -117,9 +121,11 @@ export default function ProfileScreen() {
   const border = useColor('border');
   const isDark = useColorScheme() === 'dark';
 
-  const screenWidth = Dimensions.get('window').width;
-  const cardWidth = Math.floor((screenWidth - 32 - 16) / 3);
+  const { isCompact, horizontalPadding, width } = useResponsiveLayout();
+  const cardGap = isCompact ? 8 : 8;
+  const cardWidth = Math.floor((width - horizontalPadding * 2 - cardGap * 2) / 3);
   const cardHeight = Math.round(cardWidth * 1.32);
+  const avatarSize = isCompact ? 88 : 110;
 
   const { profile, fetchProfile, isLoading } = useProfileStore();
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
@@ -248,12 +254,12 @@ export default function ProfileScreen() {
 
     const options: any[] = [];
     if (!isMain) {
-      options.push({ text: 'Set as Main', onPress: () => handleSetMain(photo.id) });
+      options.push({ text: t('profile.set_as_main'), onPress: () => handleSetMain(photo.id) });
     }
-    options.push({ text: 'Change Photo', onPress: () => handleReplacePhoto(photo.id) });
-    options.push({ text: 'Cancel', style: 'cancel' });
+    options.push({ text: t('profile.change_photo'), onPress: () => handleReplacePhoto(photo.id) });
+    options.push({ text: t('profile.cancel'), style: 'cancel' });
 
-    Alert.alert('Photo Options', isMain ? 'This is your main profile photo.' : 'Choose an action for this photo:', options);
+    Alert.alert(t('profile.photo_options'), isMain ? t('profile.main_photo_desc') : t('profile.choose_action'), options);
   };
 
   const handleAvatarPress = () => {
@@ -278,15 +284,15 @@ export default function ProfileScreen() {
         <Pressable onPress={() => router.canGoBack() ? router.back() : router.push('/(tabs)/home')} hitSlop={10} style={styles.backBtn}>
           <Icon name={ChevronLeft} size={24} color={text} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: text }]}>Profile</Text>
+        <Text style={[styles.headerTitle, { color: text }]}>{t('profile.title')}</Text>
         <View style={styles.backBtn} />
       </View>
 
-      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom + 24, 40) }]} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom + 40, 110) }]} showsVerticalScrollIndicator={false}>
         {/* Profile Header */}
-        <View style={styles.overview}>
+        <View style={[styles.overview, isCompact && { paddingVertical: 14 }]}>
           <Pressable onPress={handleAvatarPress} style={styles.avatarContainer}>
-            <Avatar uri={mainPhoto?.image} size={110} style={styles.avatar} />
+            <Avatar uri={mainPhoto?.image} size={avatarSize} style={[styles.avatar, isCompact && { borderRadius: avatarSize / 2 }]} />
             {isUploadingPhoto && uploadingSlot === null ? (
               <View style={[styles.avatarOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
                 <ActivityIndicator color="#FFF" />
@@ -297,14 +303,14 @@ export default function ProfileScreen() {
               </View>
             )}
           </Pressable>
-          <Text style={[styles.name, { color: text }]}>{profile.user?.first_name || profile.username}, {profile.age}</Text>
+          <Text style={[styles.name, { color: text }, isCompact && { fontSize: 19 }]}>{profile.user?.first_name || profile.username}, {profile.age}</Text>
           {userEmail ? (
             <Text style={[styles.emailSubtext, { color: muted }]}>{userEmail}</Text>
           ) : null}
-          <View style={[styles.inlineStats, { marginTop: userEmail ? 10 : 16 }]}>
-            <Text style={[styles.inlineStatText, { color: text }]}><Text style={{fontWeight: 'bold'}}>0</Text> Friends</Text>
+          <View style={[styles.inlineStats, { marginTop: userEmail ? (isCompact ? 6 : 10) : (isCompact ? 10 : 16) }]}>
+            <Text style={[styles.inlineStatText, { color: text }]}><Text style={{fontWeight: 'bold'}}>0</Text> {t('profile.friends_count')}</Text>
             <Text style={[styles.inlineStatDot, { color: muted }]}>•</Text>
-            <Text style={[styles.inlineStatText, { color: text }]}><Text style={{fontWeight: 'bold'}}>0</Text> Dating</Text>
+            <Text style={[styles.inlineStatText, { color: text }]}><Text style={{fontWeight: 'bold'}}>0</Text> {t('profile.dating_count')}</Text>
           </View>
         </View>
 
@@ -312,16 +318,19 @@ export default function ProfileScreen() {
         {profile.profile_completion_pct < 100 ? (
           <View style={[styles.completionCard, { 
             backgroundColor: isDark ? 'rgba(235, 78, 97, 0.10)' : 'rgba(235, 78, 97, 0.05)',
-            borderColor: isDark ? 'rgba(235, 78, 97, 0.25)' : 'rgba(235, 78, 97, 0.16)' 
+            borderColor: isDark ? 'rgba(235, 78, 97, 0.25)' : 'rgba(235, 78, 97, 0.16)',
+            marginHorizontal: horizontalPadding,
+            padding: isCompact ? 12 : 16,
+            marginBottom: isCompact ? 16 : 24,
           }]}>
             <View style={styles.completionTopRow}>
               <View style={[styles.completionIconBadge, { backgroundColor: primary + '20' }]}>
                 <Icon name={Sparkles} size={16} color={primary} />
               </View>
               <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={[styles.completionHeadline, { color: text }]}>Complete Your Profile</Text>
+                <Text style={[styles.completionHeadline, { color: text }]}>{t('profile.complete_title')}</Text>
                 <Text style={[styles.completionSubtitle, { color: muted }]}>
-                  {profile.profile_completion_pct}% completed • More photos get 3x matches
+                  {t('profile.complete_subtitle', { pct: profile.profile_completion_pct })}
                 </Text>
               </View>
               <View style={[styles.percentPill, { backgroundColor: primary }]}>
@@ -353,10 +362,10 @@ export default function ProfileScreen() {
                   </View>
                   <View style={{ flex: 1, marginLeft: 10 }}>
                     <Text style={[styles.actionItemTitle, { color: text }]}>
-                      Upload {3 - sortedPhotos.length} more photo{3 - sortedPhotos.length > 1 ? 's' : ''}
+                      {t('profile.add_more_photos')}
                     </Text>
                     <Text style={[styles.actionItemSub, { color: muted }]}>
-                      Profiles with 3 photos receive up to 3x more interest
+                      {t('profile.add_photos_sub')}
                     </Text>
                   </View>
                   <View style={[styles.pointBadge, { backgroundColor: primary + '18' }]}>
@@ -386,10 +395,10 @@ export default function ProfileScreen() {
                   </View>
                   <View style={{ flex: 1, marginLeft: 10 }}>
                     <Text style={[styles.actionItemTitle, { color: text }]}>
-                      Set Dating Intentions
+                      {t('profile.set_intentions')}
                     </Text>
                     <Text style={[styles.actionItemSub, { color: muted }]}>
-                      Specify what connection you are looking for
+                      {t('profile.set_intentions_sub')}
                     </Text>
                   </View>
                   <View style={[styles.pointBadge, { backgroundColor: primary + '18' }]}>
@@ -409,8 +418,8 @@ export default function ProfileScreen() {
               <Icon name={CheckCircle2} size={18} color="#22C55E" />
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={[styles.completedTitle, { color: text }]}>Profile 100% Complete! 🎉</Text>
-              <Text style={[styles.completedSub, { color: muted }]}>Your profile has maximum discovery and matching reach.</Text>
+              <Text style={[styles.completedTitle, { color: text }]}>{t('profile.profile_complete_title')}</Text>
+              <Text style={[styles.completedSub, { color: muted }]}>{t('profile.profile_complete_sub')}</Text>
             </View>
           </View>
         )}
@@ -419,7 +428,7 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Text style={[styles.sectionTitle, { color: text }]}>Photos</Text>
+              <Text style={[styles.sectionTitle, { color: text }]}>{t('profile.photos')}</Text>
               <View style={[styles.countBadge, { backgroundColor: primary + '15' }]}>
                 <Text style={[styles.countBadgeText, { color: primary }]}>
                   {sortedPhotos.length}/3
@@ -428,7 +437,7 @@ export default function ProfileScreen() {
             </View>
             {sortedPhotos.length < 3 && (
               <Pressable onPress={() => handleAddPhoto()} hitSlop={10}>
-                <Text style={[styles.editText, { color: primary }]}>+ Add</Text>
+                <Text style={[styles.editText, { color: primary }]}>{t('profile.add')}</Text>
               </Pressable>
             )}
           </View>
@@ -492,7 +501,7 @@ export default function ProfileScreen() {
                       <View style={[styles.addIconCircle, { backgroundColor: primary + '18' }]}>
                         <Icon name={ImagePlus} size={18} color={primary} />
                       </View>
-                      <Text style={[styles.addPhotoSlotText, { color: text }]}>Add Photo</Text>
+                      <Text style={[styles.addPhotoSlotText, { color: text }]}>{t('profile.add_photo')}</Text>
                       <View style={[styles.slotRewardBadge, { backgroundColor: primary + '15' }]}>
                         <Text style={[styles.slotRewardText, { color: primary }]}>+5%</Text>
                       </View>
@@ -506,7 +515,7 @@ export default function ProfileScreen() {
 
         {/* Face Verification Section */}
         <View style={styles.section}>
-          <SectionHeader title="Verification" />
+          <SectionHeader title={t('profile.verification')} />
           <View style={[styles.card, { backgroundColor: cardColor }]}>
             {profile.face_verification_status === "approved" ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', padding: 16 }}>
@@ -514,8 +523,8 @@ export default function ProfileScreen() {
                   <Icon name={Smile} size={16} color="#22C55E" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 16, color: text }}>Verified Account</Text>
-                  <Text style={{ fontSize: 13, color: muted, marginTop: 2 }}>Your identity is verified.</Text>
+                  <Text style={{ fontSize: 16, color: text }}>{t('profile.verified_account')}</Text>
+                  <Text style={{ fontSize: 13, color: muted, marginTop: 2 }}>{t('profile.verified_sub')}</Text>
                 </View>
               </View>
             ) : profile.face_verification_status === "pending" ? (
@@ -524,8 +533,8 @@ export default function ProfileScreen() {
                   <Icon name={Smile} size={16} color="#EAB308" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 16, color: text }}>Verification Pending</Text>
-                  <Text style={{ fontSize: 13, color: muted, marginTop: 2 }}>Admin review in progress.</Text>
+                  <Text style={{ fontSize: 16, color: text }}>{t('profile.verification_pending')}</Text>
+                  <Text style={{ fontSize: 13, color: muted, marginTop: 2 }}>{t('profile.pending_sub')}</Text>
                 </View>
               </View>
             ) : (
@@ -537,8 +546,8 @@ export default function ProfileScreen() {
                   <Icon name={Smile} size={16} color={primary} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 16, color: primary, fontWeight: '600' }}>Get Face Verified</Text>
-                  <Text style={{ fontSize: 13, color: muted, marginTop: 2 }}>Earn the blue tick & boost matches!</Text>
+                  <Text style={{ fontSize: 16, color: primary, fontWeight: '600' }}>{t('profile.get_verified')}</Text>
+                  <Text style={{ fontSize: 13, color: muted, marginTop: 2 }}>{t('profile.get_verified_sub')}</Text>
                 </View>
               </Pressable>
             )}
@@ -547,69 +556,70 @@ export default function ProfileScreen() {
 
         {/* Basic Info */}
         <View style={styles.section}>
-          <SectionHeader title="Basic Info" onEdit={() => router.push('/profile/edit-basic')} />
+          <SectionHeader title={t('profile.basic_info')} onEdit={() => router.push('/profile/edit-basic')} />
           <View style={[styles.card, { backgroundColor: cardColor }]}>
-            <InfoRow icon={User} label="Name" value={profile.user?.first_name || '—'} />
-            <InfoRow icon={User} label="Username" value={profile.username || '—'} />
-            <InfoRow icon={Mail} label="Email" value={userEmail || '—'} />
-            <InfoRow icon={Smile} label="Gender" value={profile.gender ? profile.gender.charAt(0).toUpperCase() + profile.gender.slice(1).replace('_', '-') : '—'} />
-            <InfoRow icon={Heart} label="Marital Status" value={profile.marital_status ? profile.marital_status.charAt(0).toUpperCase() + profile.marital_status.slice(1) : '—'} />
-            <InfoTagsRow icon={Search} label="Looking For" tags={profile.looking_for ? [LOOKING_FOR_MAP[profile.looking_for] || (profile.looking_for.charAt(0).toUpperCase() + profile.looking_for.slice(1))] : []} layout="row" />
-            <InfoTagsRow icon={Globe} label="Languages" tags={profile.spoken_languages} layout="row" />
-            <InfoRow icon={MapPin} label="City" value={profile.city || '—'} />
-            <InfoRow icon={Activity} label="Height/Weight" value={[profile.height_cm ? `${profile.height_cm}cm` : null, profile.weight_kg ? `${profile.weight_kg}kg` : null].filter(Boolean).join(', ') || '—'} />
-            <InfoRow icon={BookOpen} label="Education" value={profile.education_level || '—'} isLast />
+            <InfoRow icon={User} label={t('profile.name')} value={profile.user?.first_name || '—'} />
+            <InfoRow icon={User} label={t('profile.username')} value={profile.username || '—'} />
+            <InfoRow icon={Mail} label={t('profile.email')} value={userEmail || '—'} />
+            <InfoRow icon={Smile} label={t('profile.gender')} value={profile.gender ? profile.gender.charAt(0).toUpperCase() + profile.gender.slice(1).replace('_', '-') : '—'} />
+            <InfoRow icon={Heart} label={t('profile.pref_gender')} value={profile.gender_preference ? profile.gender_preference.charAt(0).toUpperCase() + profile.gender_preference.slice(1).replace('_', '-') : '—'} />
+            <InfoRow icon={Heart} label={t('profile.marital_status')} value={profile.marital_status ? profile.marital_status.charAt(0).toUpperCase() + profile.marital_status.slice(1) : '—'} />
+            <InfoTagsRow icon={Search} label={t('profile.looking_for')} tags={profile.looking_for ? [LOOKING_FOR_MAP[profile.looking_for] || (profile.looking_for.charAt(0).toUpperCase() + profile.looking_for.slice(1))] : []} layout="row" />
+            <InfoTagsRow icon={Globe} label={t('profile.languages')} tags={profile.spoken_languages} layout="row" />
+            <InfoRow icon={MapPin} label={t('profile.city')} value={profile.city || '—'} />
+            <InfoRow icon={Activity} label={t('profile.height_weight')} value={[profile.height_cm ? `${profile.height_cm}cm` : null, profile.weight_kg ? `${profile.weight_kg}kg` : null].filter(Boolean).join(', ') || '—'} />
+            <InfoRow icon={BookOpen} label={t('profile.education')} value={profile.education_level || '—'} isLast />
           </View>
         </View>
 
         {/* My Qualities */}
         <View style={styles.section}>
-          <SectionHeader title="My Qualities" onEdit={() => router.push('/profile/edit-qualities')} />
+          <SectionHeader title={t('profile.my_qualities')} onEdit={() => router.push('/profile/edit-qualities')} />
           <View style={[styles.card, { backgroundColor: cardColor }]}>
-            <InfoTagsRow icon={Star} label="My Qualities" tags={profile.qualities} isLast />
+            <InfoTagsRow icon={Star} label={t('profile.my_qualities')} tags={profile.qualities} isLast />
           </View>
         </View>
 
         {/* My Interests */}
         <View style={styles.section}>
-          <SectionHeader title="My Interests" onEdit={() => router.push('/profile/edit-interests')} />
+          <SectionHeader title={t('profile.my_interests')} onEdit={() => router.push('/profile/edit-interests')} />
           <View style={[styles.card, { backgroundColor: cardColor }]}>
-            <InfoTagsRow icon={Compass} label="My Interests" tags={profile.interests} isLast />
+            <InfoTagsRow icon={Compass} label={t('profile.my_interests')} tags={profile.interests} isLast />
           </View>
         </View>
 
         {/* Neurodivergence */}
         {profile.neurotype_labels && profile.neurotype_labels.length > 0 && (
           <View style={styles.section}>
-            <SectionHeader title="Neurodivergence" onEdit={() => router.push('/profile/edit-neuro')} />
+            <SectionHeader title={t('profile.neurodivergence')} onEdit={() => router.push('/profile/edit-neuro')} />
             <View style={[styles.card, { backgroundColor: cardColor }]}>
-              <InfoTagsRow icon={Brain} label="Neurodivergence" tags={profile.neurotype_labels} isLast />
+              <InfoTagsRow icon={Brain} label={t('profile.neurodivergence')} tags={profile.neurotype_labels} isLast />
             </View>
           </View>
         )}
 
         {/* Emotional Landscape */}
         <View style={styles.section}>
-          <SectionHeader title="Emotional Landscape" onEdit={() => router.push('/profile/edit-emotional')} />
+          <SectionHeader title={t('profile.emotional_landscape')} onEdit={() => router.push('/profile/edit-emotional')} />
           <View style={[styles.card, { backgroundColor: cardColor }]}>
-            <InfoTagsRow icon={Battery} label="Recharge Methods" tags={profile.recharge_methods} />
-            <InfoTagsRow icon={Zap} label="Exhaust Triggers" tags={profile.exhaust_triggers} />
-            <InfoRow icon={Smile} label="Humor" value={profile.second_degree_humor ? 'Second-Degree' : 'Normal'} />
-            <InfoTagsRow icon={Heart} label="Soothes" tags={profile.soothe_methods} isLast />
+            <InfoTagsRow icon={Battery} label={t('profile.recharge_methods')} tags={profile.recharge_methods} />
+            <InfoTagsRow icon={Zap} label={t('profile.exhaust_triggers')} tags={profile.exhaust_triggers} />
+            <InfoRow icon={Smile} label={t('profile.humor')} value={profile.second_degree_humor ? t('profile.humor_second') : t('profile.humor_normal')} />
+            <InfoTagsRow icon={Heart} label={t('profile.soothes')} tags={profile.soothe_methods} isLast />
           </View>
         </View>
 
         {/* Lifestyle & Relationship */}
         <View style={styles.section}>
-          <SectionHeader title="Lifestyle" onEdit={() => router.push('/profile/edit-lifestyle')} />
+          <SectionHeader title={t('profile.lifestyle')} onEdit={() => router.push('/profile/edit-lifestyle')} />
           <View style={[styles.card, { backgroundColor: cardColor }]}>
-            <InfoRow icon={Users} label="Has Children" value={profile.has_children ? 'Yes' : 'No'} />
-            <InfoRow icon={Users} label="Wants Children" value={profile.wants_children ? 'Yes' : 'No'} />
-            <InfoRow icon={Activity} label="Smoking" value={profile.smoking ? 'Yes' : 'No'} />
-            <InfoRow icon={Wine} label="Alcohol" value={profile.alcohol ? 'Yes' : 'No'} />
-            <InfoRow icon={Smile} label="Pets" value={profile.pets ? 'Yes' : 'No'} />
-            <InfoRow icon={Activity} label="Sport" value={profile.sport || '—'} />
-            <InfoRow icon={Utensils} label="Eating Habits" value={profile.eating_habits || '—'} isLast />
+            <InfoRow icon={Users} label={t('profile.has_children')} value={profile.has_children ? t('profile.yes') : t('profile.no')} />
+            <InfoRow icon={Users} label={t('profile.wants_children')} value={profile.wants_children ? t('profile.yes') : t('profile.no')} />
+            <InfoRow icon={Activity} label={t('profile.smoking')} value={profile.smoking ? t('profile.yes') : t('profile.no')} />
+            <InfoRow icon={Wine} label={t('profile.alcohol')} value={profile.alcohol ? t('profile.yes') : t('profile.no')} />
+            <InfoRow icon={Smile} label={t('profile.pets')} value={profile.pets ? t('profile.yes') : t('profile.no')} />
+            <InfoRow icon={Activity} label={t('profile.sport')} value={profile.sport || '—'} />
+            <InfoRow icon={Utensils} label={t('profile.eating_habits')} value={profile.eating_habits || '—'} isLast />
           </View>
         </View>
 
@@ -816,7 +826,7 @@ const styles = StyleSheet.create({
   photosGridRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
   },
   photoCard: {
     borderRadius: 14,
@@ -886,14 +896,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   section: {
-    marginBottom: 32,
+    marginBottom: 24,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 24,
-    marginBottom: 12,
+    paddingHorizontal: 14,
+    marginBottom: 10,
   },
   sectionTitle: {
     fontSize: 18,
@@ -904,7 +914,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   card: {
-    marginHorizontal: 16,
+    marginHorizontal: 12,
     borderRadius: 16,
     overflow: 'hidden',
   },

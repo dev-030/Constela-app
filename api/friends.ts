@@ -114,28 +114,36 @@ export const useAcceptFriendRequestMutation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (friendshipId: string) => {
-      const response = await apiClient.post(`/api/friends/${friendshipId}/accept/`);
+    mutationFn: async (request: string | FriendRequest) => {
+      const id = typeof request === 'string' ? request : request.id;
+      const response = await apiClient.post(`/api/friends/${id}/accept/`);
       return response.data;
     },
-    onMutate: async (friendshipId) => {
+    onMutate: async (request) => {
+      const id = typeof request === 'string' ? request : request.id;
       await queryClient.cancelQueries({ queryKey: ['pendingFriendRequests'] });
       const previous = queryClient.getQueryData<FriendRequest[]>(['pendingFriendRequests']);
       queryClient.setQueryData<FriendRequest[]>(
         ['pendingFriendRequests'],
-        (requests = []) => requests.filter((request) => request.id !== friendshipId),
+        (requests = []) => requests.filter((r) => r.id !== id),
       );
       return { previous };
     },
-    onError: (_error, _friendshipId, context) => {
+    onError: (_error, _request, context) => {
       queryClient.setQueryData(['pendingFriendRequests'], context?.previous);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['messageThreads'] });
+      // Force an immediate background fetch — not just invalidate — so the
+      // Friends inbox has fresh data ready before the user navigates there.
+      queryClient.invalidateQueries({ queryKey: ['messageThreads', 'friends'] });
+      queryClient.refetchQueries({ queryKey: ['messageThreads', 'friends'], type: 'all' });
       queryClient.invalidateQueries({ queryKey: ['friends'] });
+      queryClient.invalidateQueries({ queryKey: ['myFriends'] });
+      queryClient.invalidateQueries({ queryKey: ['pendingFriendRequests'] });
     },
   });
 };
+
 
 export const useDeclineFriendRequestMutation = () => {
   const queryClient = useQueryClient();
@@ -185,6 +193,33 @@ export const useCancelFriendRequestMutation = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['friendSuggestions'] });
+      queryClient.invalidateQueries({ queryKey: ['myFriends'] });
     },
+  });
+};
+
+export interface FriendContact {
+  friendship_id: string;
+  id: string;
+  name: string;
+  username?: string;
+  age?: number;
+  bio?: string;
+  photo?: string | null;
+  location?: string;
+  created_at?: string;
+}
+
+export const fetchMyFriends = async (search?: string): Promise<FriendContact[]> => {
+  const params = search ? `?search=${encodeURIComponent(search)}` : '';
+  const response = await apiClient.get<FriendContact[]>(`/api/friends/my_friends/${params}`);
+  return response.data;
+};
+
+export const useMyFriendsQuery = (search?: string) => {
+  return useQuery({
+    queryKey: ['myFriends', search || ''],
+    queryFn: () => fetchMyFriends(search),
+    staleTime: 30 * 1000,
   });
 };

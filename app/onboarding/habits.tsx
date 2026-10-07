@@ -10,6 +10,7 @@ import {
 } from "@/providers/onboarding-context";
 import { useRouter } from "expo-router";
 import { ScrollView, View } from "react-native";
+import { useTranslation } from "react-i18next";
 
 const SPORT: Sport[] = ["Intense", "Moderate", "No Sport"];
 const EATING: EatingHabits[] = [
@@ -21,6 +22,7 @@ const EATING: EatingHabits[] = [
 ];
 
 export default function OnboardingStep4() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { data, update } = useOnboarding();
 
@@ -45,13 +47,12 @@ export default function OnboardingStep4() {
 
   return (
     <OnboardingShell
-      title="Lifestyle Habits"
-      subtitle="These help us understand your daily routine."
+      title={t("onboarding.step4_title", "Daily Habits")}
+      subtitle={t("onboarding.step4_subtitle", "Your daily routine and lifestyle habits.")}
       onBack={() => router.back()}
       onContinue={() => router.push("/onboarding/qualities")}
       continueDisabled={!isFormValid}
       onSkip={() => router.push("/onboarding/qualities")}
-      continueLabel="Continue"
     >
       <ScrollView
         contentContainerStyle={{ paddingBottom: 24 }}
@@ -59,12 +60,12 @@ export default function OnboardingStep4() {
         keyboardShouldPersistTaps="handled"
       >
         {/* Smoking */}
-        <SectionLabel>Smoking</SectionLabel>
+        <SectionLabel>{t("onboarding.habits.smoking", "Smoking")}</SectionLabel>
         <View style={{ flexDirection: "row", gap: 10, marginBottom: 24 }}>
           {(["Yes", "No"] as YesNo[]).map((v) => (
             <SelectablePill
               key={v}
-              label={v}
+              label={v === "Yes" ? t("common.yes", "Yes") : t("common.no", "No")}
               selected={data.smoking === v}
               onPress={() => update("smoking", v)}
             />
@@ -72,12 +73,12 @@ export default function OnboardingStep4() {
         </View>
 
         {/* Alcohol */}
-        <SectionLabel>Alcohol</SectionLabel>
+        <SectionLabel>{t("onboarding.habits.alcohol", "Alcohol")}</SectionLabel>
         <View style={{ flexDirection: "row", gap: 10, marginBottom: 24 }}>
           {(["Yes", "No"] as YesNo[]).map((v) => (
             <SelectablePill
               key={v}
-              label={v}
+              label={v === "Yes" ? t("common.yes", "Yes") : t("common.no", "No")}
               selected={data.alcohol === v}
               onPress={() => update("alcohol", v)}
             />
@@ -85,12 +86,12 @@ export default function OnboardingStep4() {
         </View>
 
         {/* Pets */}
-        <SectionLabel>Pets</SectionLabel>
+        <SectionLabel>{t("onboarding.habits.pets", "Pets")}</SectionLabel>
         <View style={{ flexDirection: "row", gap: 10, marginBottom: 24 }}>
           {(["Yes", "No"] as YesNo[]).map((v) => (
             <SelectablePill
               key={v}
-              label={v}
+              label={v === "Yes" ? t("common.yes", "Yes") : t("common.no", "No")}
               selected={data.pets === v}
               onPress={() => update("pets", v)}
             />
@@ -98,7 +99,7 @@ export default function OnboardingStep4() {
         </View>
 
         {/* Sport */}
-        <SectionLabel>Sport</SectionLabel>
+        <SectionLabel>{t("onboarding.habits.sport", "Sport")}</SectionLabel>
         <View
           style={{
             flexDirection: "row",
@@ -110,7 +111,7 @@ export default function OnboardingStep4() {
           {SPORT.map((v) => (
             <SelectablePill
               key={v}
-              label={v}
+              label={t(`onboarding.habits.sport_${v.toLowerCase().replace(/[^a-z]/g, '_')}`, v)}
               selected={data.sport === v}
               onPress={() => update("sport", v)}
             />
@@ -118,12 +119,12 @@ export default function OnboardingStep4() {
         </View>
 
         {/* Eating Habits */}
-        <SectionLabel>Eating Habits</SectionLabel>
+        <SectionLabel>{t("onboarding.habits.eating_habits", "Eating Habits")}</SectionLabel>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
           {EATING.map((v) => (
             <SelectablePill
               key={v}
-              label={v}
+              label={t(`onboarding.habits.eating_${v.toLowerCase().replace(/[^a-z]/g, '_')}`, v)}
               selected={data.eatingHabits.includes(v)}
               onPress={() => toggleEating(v)}
             />

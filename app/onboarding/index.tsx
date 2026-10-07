@@ -5,14 +5,16 @@ import { useOnboarding, type Gender } from "@/providers/onboarding-context";
 import { useColor } from "@/hooks/useColor";
 import * as ImagePicker from "expo-image-picker";
 import { Camera, ImagePlus, Check, X } from "lucide-react-native";
-import { useRouter } from "expo-router";
 import { useState, useEffect } from "react";
 import { Image, Pressable, ScrollView, TextInput, View, ActivityIndicator } from "react-native";
 import { useCheckUsernameQuery } from "@/api/auth";
+import { useTranslation } from "react-i18next";
+import { useRouter } from "expo-router";
 
 const GENDERS: Gender[] = ["Woman", "Man", "Non-binary", "Other"];
 
 export default function OnboardingStep1() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { data, update } = useOnboarding();
   const border = useColor("border");
@@ -59,25 +61,25 @@ export default function OnboardingStep1() {
   const validateAndContinue = () => {
     let ok = true;
     if (!data.username.trim()) {
-      setUsernameError("Username is required");
+      setUsernameError(t("onboarding.username_required", "Username is required"));
       ok = false;
     } else if (isChecking) {
-      setUsernameError("Checking username availability...");
+      setUsernameError(t("onboarding.username_checking", "Checking username availability..."));
       ok = false;
     } else if (usernameCheck && !usernameCheck.available) {
-      setUsernameError("Username is already taken");
+      setUsernameError(t("onboarding.username_taken", "Username is already taken"));
       ok = false;
     } else {
       setUsernameError("");
     }
     if (!data.age.trim()) {
-      setAgeError("Age is required");
+      setAgeError(t("onboarding.age_required", "Age is required"));
       ok = false;
     } else {
       setAgeError("");
     }
     if (!data.height.trim()) {
-      setHeightError("Height is required");
+      setHeightError(t("onboarding.height_required", "Height is required"));
       ok = false;
     } else {
       setHeightError("");
@@ -162,12 +164,13 @@ export default function OnboardingStep1() {
     usernameCheck?.available === true &&
     data.age.trim().length > 0 &&
     data.height.trim().length > 0 &&
-    data.gender !== null;
+    data.gender !== null &&
+    data.genderPreference !== null;
 
   return (
     <OnboardingShell
-      title="About You"
-      subtitle="Help us understand you better to find the most compatible connections."
+      title={t("onboarding.step1_title", "About You")}
+      subtitle={t("onboarding.step1_subtitle", "Help us understand you better to find the most compatible connections.")}
       showBack={false}
       onContinue={validateAndContinue}
       continueDisabled={!isFormValid}
@@ -194,21 +197,21 @@ export default function OnboardingStep1() {
               color: muted,
             }}
           >
-            UPLOAD PHOTOS
+            {t("onboarding.upload_photos", "UPLOAD PHOTOS")}
           </Text>
           <Text style={{ fontSize: 12, fontWeight: "500", color: muted }}>
-            1 required, 2 optional
+            {t("onboarding.photos_hint", "1 required, 2 optional")}
           </Text>
         </View>
 
         <View style={{ flexDirection: "row", gap: 10, marginBottom: 20 }}>
-          <PhotoSlot slot={0} label="Main" showLabel />
-          <PhotoSlot slot={1} label="Optional" showLabel />
-          <PhotoSlot slot={2} label="Optional" showLabel />
+          <PhotoSlot slot={0} label={t("onboarding.photo_main", "Main")} showLabel />
+          <PhotoSlot slot={1} label={t("onboarding.photo_optional", "Optional")} showLabel />
+          <PhotoSlot slot={2} label={t("onboarding.photo_optional", "Optional")} showLabel />
         </View>
 
         {/* Username */}
-        <FieldLabel>Username *</FieldLabel>
+        <FieldLabel>{t("onboarding.username", "Username")} *</FieldLabel>
         <View
           style={{
             borderWidth: 1,
@@ -227,7 +230,7 @@ export default function OnboardingStep1() {
             onChangeText={(v) => update("username", v.replace(/[^a-zA-Z0-9_]/g, ''))}
             autoCapitalize="none"
             autoCorrect={false}
-            placeholder="e.g. SamiWander"
+            placeholder={t("onboarding.username_placeholder", "e.g. SamiWander")}
             placeholderTextColor={muted}
             style={{ color: text, fontSize: 15, padding: 0, flex: 1 }}
           />
@@ -248,7 +251,7 @@ export default function OnboardingStep1() {
                     fontWeight: "600",
                   }}
                 >
-                  {usernameCheck.available ? "Available" : "Taken"}
+                  {usernameCheck.available ? t("common.available", "Available") : t("common.taken", "Taken")}
                 </Text>
               </View>
             )
@@ -259,7 +262,7 @@ export default function OnboardingStep1() {
         {/* Age + Height */}
         <View style={{ flexDirection: "row", gap: 12, marginBottom: 16 }}>
           <View style={{ flex: 1 }}>
-            <FieldLabel>Age *</FieldLabel>
+            <FieldLabel>{t("onboarding.age", "Age")} *</FieldLabel>
             <View
               style={{
                 borderWidth: 1,
@@ -282,7 +285,7 @@ export default function OnboardingStep1() {
             </View>
           </View>
           <View style={{ flex: 1 }}>
-            <FieldLabel>Height (cm) *</FieldLabel>
+            <FieldLabel>{t("onboarding.height", "Height (cm)")} *</FieldLabel>
             <View
               style={{
                 borderWidth: 1,
@@ -310,16 +313,37 @@ export default function OnboardingStep1() {
         ) : null}
 
         {/* Gender */}
-        <FieldLabel>Gender *</FieldLabel>
+        <FieldLabel>{t("onboarding.i_am_a", "I am a")} *</FieldLabel>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+          {GENDERS.map((g) => {
+            const genderKey = g.toLowerCase().replace("-", "_");
+            const label = t(`onboarding.genders.${genderKey}`, g);
+            return (
+              <SelectablePill
+                key={g}
+                label={label}
+                selected={data.gender === g}
+                onPress={() => update("gender", g)}
+              />
+            );
+          })}
+        </View>
+
+        {/* Gender Preference */}
+        <FieldLabel>{t("onboarding.interested_in", "Looking for")} *</FieldLabel>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-          {GENDERS.map((g) => (
-            <SelectablePill
-              key={g}
-              label={g}
-              selected={data.gender === g}
-              onPress={() => update("gender", g)}
-            />
-          ))}
+          {[...GENDERS, "Everyone"].map((g) => {
+            const genderKey = g.toLowerCase().replace("-", "_");
+            const label = t(`onboarding.genders.${genderKey}`, g);
+            return (
+              <SelectablePill
+                key={g}
+                label={label}
+                selected={data.genderPreference === g}
+                onPress={() => update("genderPreference", g as any)}
+              />
+            );
+          })}
         </View>
       </ScrollView>
     </OnboardingShell>

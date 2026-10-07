@@ -10,8 +10,10 @@ import { Avatar } from "@/components/ui/avatar";
 import { useColor } from "@/hooks/useColor";
 import { useBlockedUsersQuery, useUnblockUserMutation, BlockedUserEntry } from "@/api/matching";
 import { useAndroidBack } from '@/hooks/useAndroidBack';
+import { useTranslation } from "react-i18next";
 
 export default function BlockedUsersScreen() {
+  const { t } = useTranslation();
   useAndroidBack();
   const background = useColor("background");
   const text = useColor("text");
@@ -25,12 +27,12 @@ export default function BlockedUsersScreen() {
 
   const handleUnblock = (user: BlockedUserEntry) => {
     Alert.alert(
-      "Unblock User",
-      `Are you sure you want to unblock @${user.username}?`,
+      t('settings_pages.unblock_user'),
+      t('settings_pages.unblock_confirm', { username: user.username }),
       [
-        { text: "Cancel", style: "cancel" },
+        { text: t('common.cancel'), style: "cancel" },
         {
-          text: "Unblock",
+          text: t('settings_pages.unblock'),
           style: "destructive",
           onPress: () => {
             unblockMutation.mutate(user.profile_id, {
@@ -38,7 +40,7 @@ export default function BlockedUsersScreen() {
                 // query invalidation is handled in the mutation
               },
               onError: () => {
-                Alert.alert("Error", "Could not unblock the user. Please try again.");
+                Alert.alert(t('edit_profile.error'), "Could not unblock the user. Please try again.");
               }
             });
           }
@@ -56,7 +58,7 @@ export default function BlockedUsersScreen() {
         <View style={styles.textContainer}>
           <Text style={[styles.username, { color: text }]}>@{item.username}</Text>
           <Text style={[styles.date, { color: muted }]}>
-            Blocked on {new Date(item.blocked_at).toLocaleDateString()}
+            {t('settings_pages.blocked_on', { date: new Date(item.blocked_at).toLocaleDateString() })}
           </Text>
         </View>
       </View>
@@ -70,7 +72,7 @@ export default function BlockedUsersScreen() {
         onPress={() => handleUnblock(item)}
         disabled={unblockMutation.isPending}
       >
-        <Text style={[styles.unblockBtnText, { color: text }]}>Unblock</Text>
+        <Text style={[styles.unblockBtnText, { color: text }]}>{t('settings_pages.unblock')}</Text>
       </Pressable>
     </View>
   );
@@ -85,7 +87,7 @@ export default function BlockedUsersScreen() {
           </Pressable>
         </View>
         <View style={styles.headerCenter}>
-          <Text style={[styles.headerTitle, { color: text }]} numberOfLines={1}>Blocked Users</Text>
+          <Text style={[styles.headerTitle, { color: text }]} numberOfLines={1}>{t('settings_pages.blocked_users')}</Text>
         </View>
         <View style={styles.headerRight} />
       </View>
@@ -96,9 +98,9 @@ export default function BlockedUsersScreen() {
         </View>
       ) : isError ? (
         <View style={styles.center}>
-          <Text style={{ color: muted, marginBottom: 12 }}>Failed to load blocked users.</Text>
+          <Text style={{ color: muted, marginBottom: 12 }}>{t('settings_pages.failed_load_blocked')}</Text>
           <Pressable onPress={() => refetch()}>
-            <Text style={{ color: primary, fontWeight: "600" }}>Try Again</Text>
+            <Text style={{ color: primary, fontWeight: "600" }}>{t('connections.retry')}</Text>
           </Pressable>
         </View>
       ) : (
@@ -113,7 +115,7 @@ export default function BlockedUsersScreen() {
               <View style={[styles.emptyIconBox, { backgroundColor: card, borderColor: border }]}>
                 <Icon name={UserX} size={32} color={muted} />
               </View>
-              <Text style={[styles.emptyTitle, { color: text }]}>No Blocked Users</Text>
+              <Text style={[styles.emptyTitle, { color: text }]}>{t('settings_pages.no_blocked_users')}</Text>
               <Text style={[styles.emptyText, { color: muted }]}>
                 When you block someone, they will appear here. You can unblock them at any time.
               </Text>

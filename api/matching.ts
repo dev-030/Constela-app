@@ -61,6 +61,8 @@ type SwipeActionVariables = {
   targetId: string;
   action: 'liked' | 'disliked' | 'superliked' | 'undo';
   previousQuota?: QuotaSnapshot;
+  // Snapshot of the profile being swiped on, used for instant thread injection on match
+  profileSnapshot?: { id: string; name: string; photo: string; username?: string };
 };
 
 export function reserveLocalLikeQuota(): { allowed: boolean; previousQuota?: QuotaSnapshot } {
@@ -162,7 +164,13 @@ export const useSwipeActionMutation = () => {
       const reservation = reserveLocalLikeQuota();
       return { previousQuota: reservation.previousQuota };
     },
-    onSuccess: (_data) => {
+    onSuccess: (data, _variables) => {
+      if (data.status === 'matched') {
+        // Force an immediate background fetch of the Dating inbox so fresh data
+        // is ready before the user navigates to Messages.
+        queryClient.invalidateQueries({ queryKey: ['messageThreads', 'dating'] });
+        queryClient.refetchQueries({ queryKey: ['messageThreads', 'dating'], type: 'all' });
+      }
       // Swipe succeeded — keep local optimistic quota untouched!
       queryClient.invalidateQueries({ queryKey: ['perfectMatch'] });
       queryClient.invalidateQueries({ queryKey: ['perfectMatchInfinite'] });
@@ -170,6 +178,7 @@ export const useSwipeActionMutation = () => {
       queryClient.invalidateQueries({ queryKey: ['likesSent'] });
       queryClient.invalidateQueries({ queryKey: ['matchAnalysis'] });
     },
+
     onError: (error: any, _variables, context) => {
       const status = error?.response?.status;
       const quota = error?.response?.data?.quota;
@@ -455,6 +464,8 @@ export const useUnfriendMutation = () => {
     onSuccess: (_, targetProfileId) => {
       queryClient.removeQueries({ queryKey: ['directHistory', targetProfileId] });
       queryClient.invalidateQueries({ queryKey: ['friends'] });
+      queryClient.invalidateQueries({ queryKey: ['myFriends'] });
+      queryClient.refetchQueries({ queryKey: ['myFriends'], type: 'all' });
       queryClient.invalidateQueries({ queryKey: ['friendSuggestions'] });
       queryClient.invalidateQueries({ queryKey: ['perfectMatch'] });
       queryClient.invalidateQueries({ queryKey: ['messageThreads'] });

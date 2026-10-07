@@ -25,6 +25,8 @@ import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { BottomSheet, useBottomSheet } from "@/components/ui/bottom-sheet";
 import { WebView } from "react-native-webview";
 import { useAuthLayout } from "@/hooks/useAuthLayout";
+import { useTranslation } from "react-i18next";
+import { LanguagePickerButton } from "@/components/LanguagePickerButton";
 
 const SNAP_POINTS = [0.55, 0.9];
 
@@ -54,6 +56,7 @@ const CheckboxRow = ({ value, onValueChange, children }: any) => {
 };
 
 export default function SignupScreen() {
+  const { t } = useTranslation();
   const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -204,7 +207,19 @@ export default function SignupScreen() {
         bottomOffset={60}
       >
         <View style={{ width: "100%", maxWidth: layout.contentMaxWidth }}>
-          {/* Header - Globe Icon */}
+          {/* Top Bar with Language Switcher */}
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "flex-end",
+              alignItems: "center",
+              width: "100%",
+              paddingTop: layout.isCompact ? 2 : 6,
+              paddingBottom: 4,
+            }}
+          >
+            <LanguagePickerButton />
+          </View>
 
           {/* Logo */}
           <View style={{ alignItems: "center", marginBottom: layout.isCompact ? 4 : 12 }}>
@@ -221,19 +236,19 @@ export default function SignupScreen() {
             variant="title"
             style={{ fontSize: layout.isCompact ? 26 : 28, fontWeight: "bold", marginBottom: 8 }}
           >
-            Welcome
+            {t("auth.welcome", "Welcome")}
           </Text>
           <Text style={{ color: muted, textAlign: "center" }}>
-            Sign up to join your community.
+            {t("auth.sign_up_prompt", "Sign up to join your community.")}
           </Text>
         </View>
 
         {/* Form */}
         <View style={{ gap: layout.isCompact ? 8 : 10 }}>
           <View style={{ gap: 8 }}>
-            <Text style={{ fontWeight: "600", fontSize: 14 }}>Name</Text>
+            <Text style={{ fontWeight: "600", fontSize: 14 }}>{t("auth.name", "Name")}</Text>
             <Input
-              placeholder="e.g. Alex Smith"
+              placeholder={t("auth.name_placeholder", "e.g. Alex Smith")}
               variant="outline"
               inputStyle={{ paddingVertical: layout.isCompact ? 10 : 14 }}
               value={name}
@@ -242,9 +257,9 @@ export default function SignupScreen() {
           </View>
 
           <View style={{ gap: 8 }}>
-            <Text style={{ fontWeight: "600", fontSize: 14 }}>Email</Text>
+            <Text style={{ fontWeight: "600", fontSize: 14 }}>{t("auth.email", "Email")}</Text>
             <Input
-              placeholder="e.g. alex@example.com"
+              placeholder={t("auth.email_placeholder", "e.g. alex@example.com")}
               variant="outline"
               inputStyle={{ paddingVertical: 14 }}
               value={email}
@@ -255,7 +270,7 @@ export default function SignupScreen() {
           </View>
 
           <View style={{ gap: 8 }}>
-            <Text style={{ fontWeight: "600", fontSize: 14 }}>Password</Text>
+            <Text style={{ fontWeight: "600", fontSize: 14 }}>{t("auth.password", "Password")}</Text>
             <Input
               placeholder="........"
               secureTextEntry={!showPassword}
@@ -276,7 +291,7 @@ export default function SignupScreen() {
 
           <View style={{ gap: 8 }}>
             <Text style={{ fontWeight: "600", fontSize: 14 }}>
-              Confirm Password
+              {t("auth.confirm_password", "Confirm Password")}
             </Text>
             <Input
               placeholder="........"
@@ -302,19 +317,19 @@ export default function SignupScreen() {
             disabled={signup.isPending}
             loading={signup.isPending}
           >
-            Sign Up
+            {t("auth.sign_up", "Sign Up")}
           </Button>
         </View>
 
         {/* Footer */}
         <View style={{ alignItems: "center", marginTop: 12 }}>
           <Text>
-            Have an account?{" "}
+            {t("auth.already_have_account", "Have an account?")}{" "}
             <Text
               style={{ color: orange }}
               onPress={() => router.push("/(auth)/login")}
             >
-              Sign in
+              {t("auth.log_in", "Sign in")}
             </Text>
           </Text>
         </View>
@@ -330,7 +345,7 @@ export default function SignupScreen() {
           >
             <View style={{ flex: 1, height: 1, backgroundColor: border }} />
             <Text style={{ marginHorizontal: 16, color: muted, fontSize: 12 }}>
-              or continue with
+              {t("auth.or_continue", "or continue with")}
             </Text>
             <View style={{ flex: 1, height: 1, backgroundColor: border }} />
           </View>

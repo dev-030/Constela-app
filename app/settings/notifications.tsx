@@ -10,8 +10,10 @@ import { useAndroidBack } from '@/hooks/useAndroidBack';
 import { useProfileStore } from '@/store/profileStore';
 import { apiClient } from '@/api/client';
 import { useThemeContext } from '@/providers/theme-context';
+import { useTranslation } from 'react-i18next';
 
 export default function NotificationsScreen() {
+  const { t } = useTranslation();
   useAndroidBack();
   const insets = useSafeAreaInsets();
 
@@ -162,7 +164,7 @@ export default function NotificationsScreen() {
         <Pressable onPress={() => router.back()} hitSlop={10} style={styles.backBtn}>
           <Icon name={ChevronLeft} size={24} color={text} />
         </Pressable>
-        <Text style={styles.headerTitle}>Push Notifications</Text>
+        <Text style={styles.headerTitle}>{t('settings_pages.push_notifications')}</Text>
         <View style={styles.backBtn} />
       </View>
 
@@ -172,8 +174,8 @@ export default function NotificationsScreen() {
       >
         <View style={styles.section}>
           {renderRow(
-            'New Matches',
-            'Get notified when you get a mutual match.',
+            t('settings_pages.new_matches'),
+            t('settings_pages.new_matches_sub'),
             Sparkles,
             matchesEnabled,
             (val) => updateSetting('likes_push', val),
@@ -182,8 +184,8 @@ export default function NotificationsScreen() {
 
         <View style={styles.section}>
           {renderRow(
-            'Friend Requests',
-            'Find out when someone sends or accepts a friend request.',
+            t('settings_pages.friend_requests'),
+            t('settings_pages.friend_requests_sub'),
             Users,
             friendsEnabled,
             (val) => updateSetting('messages_push', val),

@@ -189,8 +189,8 @@ export default function LanguageScreen() {
           {t('settings.choose_preferred')}
         </Text>
 
-        {renderOption('en', 'English', 'EN')}
-        {renderOption('fr', 'French', 'FR')}
+        {renderOption('en', t('settings.english', 'English'), 'EN')}
+        {renderOption('fr', t('settings.french', 'Français'), 'FR')}
       </View>
 
       {/* Footer */}

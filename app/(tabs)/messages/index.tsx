@@ -10,12 +10,13 @@ import {
   View,
   InteractionManager,
 } from "react-native";
-import { router } from "expo-router";
-import { useEffect, useState } from "react";
-import { Mic } from "lucide-react-native";
+import { router, useFocusEffect } from "expo-router";
+import { useEffect, useState, memo, useCallback, useMemo } from "react";
+import { Mic, MoreVertical } from "lucide-react-native";
+import * as Haptics from "expo-haptics";
+import { useTranslation } from "react-i18next";
 import Header from "../../../components/header";
 import VerificationOverlay from "@/components/VerificationOverlay";
-import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { directHistoryQueryOptions, MessageThread, ThreadType, useThreadsQuery } from "@/api/messages";
 import { Avatar } from "@/components/ui/avatar";
 import { useChatSocket } from "@/api/ChatSocketProvider";
@@ -27,9 +28,10 @@ import Animated, {
   Easing,
 } from "react-native-reanimated";
 import { useColorScheme } from "@/hooks/useColorScheme";
+import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 
 // Format a UTC timestamp as "10:45 AM", "Yesterday", or "N days ago".
-function formatThreadTime(iso: string): string {
+function formatThreadTime(iso: string, t?: (key: string, opts?: any) => string): string {
   if (!iso) {
     return "";
   }
@@ -50,10 +52,10 @@ function formatThreadTime(iso: string): string {
     });
   }
   if (dayDiff === 1) {
-    return "Yesterday";
+    return t ? t('messages.yesterday') : "Yesterday";
   }
   if (dayDiff < 7) {
-    return `${dayDiff} days ago`;
+    return t ? t('messages.days_ago', { count: dayDiff }) : `${dayDiff} days ago`;
   }
   return date.toLocaleDateString(undefined, {
     month: "short",
@@ -74,6 +76,8 @@ function SegmentedControl({
   activeTab: ThreadType;
   onChange: (value: ThreadType) => void;
 }) {
+  const { t } = useTranslation();
+  const { isCompact } = useResponsiveLayout();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
@@ -101,10 +105,14 @@ function SegmentedControl({
   const pillBg = isDark ? "#3A3A3C" : cardColor;
   const activeTextColor = isDark ? "#FFFFFF" : textColor;
   const inactiveTextColor = isDark ? "#8E8E93" : "#8E8E93";
+  const controlHeight = isCompact ? 36 : 40;
 
   return (
     <View
-      style={[segStyles.wrapper, { backgroundColor: containerBg }]}
+      style={[
+        segStyles.wrapper,
+        { backgroundColor: containerBg, height: controlHeight },
+      ]}
       onLayout={(e) => {
         const w = e.nativeEvent.layout.width;
         setPillWidth((w - 6) / TABS.length);
@@ -126,7 +134,10 @@ function SegmentedControl({
           key={tab.value}
           onPress={() => onChange(tab.value)}
           activeOpacity={0.75}
-          style={[segStyles.tab, pillWidth > 0 && { width: pillWidth }]}
+          style={[
+            segStyles.tab,
+            pillWidth > 0 && { width: pillWidth },
+          ]}
         >
           <Text
             style={[
@@ -138,9 +149,10 @@ function SegmentedControl({
                     : inactiveTextColor,
                 fontWeight: activeTab === tab.value ? "700" : "500",
               },
+              isCompact && { fontSize: 13 },
             ]}
           >
-            {tab.label}
+            {tab.value === "dating" ? t('messages.tabs_dating') : t('messages.tabs_friends')}
           </Text>
         </TouchableOpacity>
       ))}
@@ -153,25 +165,24 @@ const segStyles = StyleSheet.create({
     flexDirection: "row",
     borderRadius: 30,
     padding: 3,
-    marginHorizontal: 16,
-    marginTop: 10,
-    marginBottom: 6,
     position: "relative",
+    alignItems: "center",
   },
   pill: {
     position: "absolute",
     top: 3,
     left: 3,
     bottom: 3,
-    borderRadius: 30,
+    borderRadius: 24,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
   },
   tab: {
-    paddingVertical: 9,
+    flex: 1,
+    height: "100%",
     alignItems: "center",
     justifyContent: "center",
     zIndex: 1,
@@ -182,7 +193,203 @@ const segStyles = StyleSheet.create({
   },
 });
 
-// ── Conversation list ────────────────────────────────────────────────────────
+// ── Memoized rows — prevent re-renders (and avatar flash) on background refetch ──
+const TopAvatarItem = memo(
+  function TopAvatarItem({
+    thread,
+    type,
+    primary,
+    background,
+    text,
+    isOnline,
+  }: {
+    thread: MessageThread;
+    type: "dating" | "friends";
+    primary: string;
+    background: string;
+    text: string;
+    isOnline: boolean;
+  }) {
+    const { isCompact } = useResponsiveLayout();
+    const queryClient = useQueryClient();
+    const pid = String(thread.profile.id);
+    const firstName = thread.profile.name.split(' ')[0];
+
+    const handlePressIn = useCallback(() => {
+      void queryClient.prefetchQuery(
+        directHistoryQueryOptions(pid, true)
+      );
+    }, [queryClient, pid]);
+
+    const handlePress = useCallback(() => {
+      router.push({
+        pathname: "/inbox/[id]",
+        params: { 
+          id: thread.profile.id, 
+          type,
+          photo: thread.profile.photo,
+          name: thread.profile.name,
+          username: thread.profile.username
+        },
+      });
+    }, [type, thread.profile]);
+
+    const avatarSize = isCompact ? 50 : 58;
+    const ringSize = isCompact ? 54 : 64;
+
+    return (
+      <Pressable
+        key={`active-${thread.profile.id}`}
+        style={[styles.activeItem, isCompact && { width: 58, marginHorizontal: 4 }]}
+        onPressIn={handlePressIn}
+        onPress={handlePress}
+      >
+        <View style={[styles.activeAvatarWrap, isCompact && { width: ringSize, height: ringSize, marginBottom: 5 }]}>
+          <View style={[
+            styles.activeAvatarRing,
+            { borderColor: type === "friends" && isOnline ? "#22C55E" : primary },
+            isCompact && { width: ringSize, height: ringSize, borderRadius: ringSize / 2 }
+          ]}>
+            <Avatar uri={thread.profile.photo} size={avatarSize} rounded />
+          </View>
+          {isOnline && (
+            <View style={[styles.statusDotActive, { borderColor: background }, isCompact && { width: 13, height: 13, borderRadius: 6.5 }]} />
+          )}
+        </View>
+        <Text style={[styles.activeName, { color: text }, isCompact && { fontSize: 11 }]} numberOfLines={1}>{firstName}</Text>
+      </Pressable>
+    );
+  },
+  (prev, next) => {
+    const prevBase = prev.thread.profile.photo?.split('?')[0];
+    const nextBase = next.thread.profile.photo?.split('?')[0];
+    return (
+      prev.thread.profile.id === next.thread.profile.id &&
+      prev.thread.profile.name === next.thread.profile.name &&
+      prevBase === nextBase &&
+      prev.isOnline === next.isOnline &&
+      prev.type === next.type &&
+      prev.primary === next.primary &&
+      prev.background === next.background &&
+      prev.text === next.text
+    );
+  }
+);
+
+const ConversationRow = memo(
+  function ConversationRow({
+    thread,
+    type,
+    background,
+    text,
+    textMuted,
+    isOnline,
+  }: {
+    thread: MessageThread;
+    type: "dating" | "friends";
+    background: string;
+    text: string;
+    textMuted: string;
+    isOnline: boolean;
+  }) {
+    const { t } = useTranslation();
+    const { isCompact } = useResponsiveLayout();
+    const queryClient = useQueryClient();
+    const pid = String(thread.profile.id);
+
+    const handlePressIn = useCallback(() => {
+      void queryClient.prefetchQuery(
+        directHistoryQueryOptions(pid, true)
+      );
+    }, [queryClient, pid]);
+
+    const handlePress = useCallback(() => {
+      router.push({
+        pathname: "/inbox/[id]",
+        params: { 
+          id: thread.profile.id, 
+          type,
+          photo: thread.profile.photo,
+          name: thread.profile.name,
+          username: thread.profile.username
+        },
+      });
+    }, [type, thread.profile]);
+
+    const avatarSize = isCompact ? 48 : 56;
+
+    return (
+      <Pressable
+        style={[
+          styles.conversationRow,
+          isCompact && { paddingHorizontal: 12, marginBottom: 18, minHeight: 54 }
+        ]}
+        onPressIn={handlePressIn}
+        onPress={handlePress}
+      >
+        <View style={[styles.avatarWrap, isCompact && { width: avatarSize, height: avatarSize, marginRight: 12 }]}>
+          <Avatar
+            uri={thread.profile.photo}
+            size={avatarSize}
+            rounded
+          />
+          {isOnline && (
+            <View
+              style={[
+                styles.statusDot,
+                { borderColor: background },
+                isCompact && { width: 12, height: 12, borderRadius: 6 }
+              ]}
+            />
+          )}
+        </View>
+
+        <View style={styles.conversationBody}>
+          <View style={styles.conversationTop}>
+            <Text style={[styles.name, { color: text }, isCompact && { fontSize: 13.5 }]}>{thread.profile.name}</Text>
+            <Text style={[styles.time, isCompact && { fontSize: 11.5 }]}>
+              {formatThreadTime(thread.last_message_time, t)}
+            </Text>
+          </View>
+          <View style={styles.previewRow}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+              {thread.last_message === "Voice message" && (
+                <Mic size={isCompact ? 13 : 14} color={textMuted} style={{ marginRight: 4 }} />
+              )}
+              <Text numberOfLines={1} style={[styles.messagePreview, { color: textMuted }, isCompact && { fontSize: 13.5, lineHeight: 18 }]}>
+                {thread.last_message}
+              </Text>
+            </View>
+            {thread.unread_count > 0 ? (
+              <View style={[styles.unreadBadge, isCompact && { minWidth: 18, height: 18, borderRadius: 9 }]}>
+                <Text style={[styles.unreadText, isCompact && { fontSize: 11 }]}>{thread.unread_count}</Text>
+              </View>
+            ) : null}
+          </View>
+        </View>
+      </Pressable>
+    );
+  },
+  (prev, next) => {
+    const prevBase = prev.thread.profile.photo?.split('?')[0];
+    const nextBase = next.thread.profile.photo?.split('?')[0];
+    return (
+      prev.thread.profile.id === next.thread.profile.id &&
+      prev.thread.profile.name === next.thread.profile.name &&
+      prevBase === nextBase &&
+      prev.thread.last_message === next.thread.last_message &&
+      prev.thread.last_message_time === next.thread.last_message_time &&
+      prev.thread.unread_count === next.thread.unread_count &&
+      prev.isOnline === next.isOnline &&
+      prev.type === next.type &&
+      prev.background === next.background &&
+      prev.text === next.text &&
+      prev.textMuted === next.textMuted
+    );
+  }
+);
+
+// ── Main conversation list ────────────────────────────────────────────────────
 function ConversationList({
   threads,
   isLoading,
@@ -200,6 +407,7 @@ function ConversationList({
   emptyText: string;
   type: "dating" | "friends";
 }) {
+  const { t } = useTranslation();
   const isDark = useColorScheme() === "dark";
   const background = useColor("background");
   const primary = useColor("primary");
@@ -209,8 +417,6 @@ function ConversationList({
   const queryClient = useQueryClient();
 
   // Only show a full-page spinner on the very first load (no data yet).
-  // When a background refetch is triggered by invalidateQueries, we already
-  // have data in the cache — continue showing it without blocking the screen.
   if (isLoading && threads.length === 0) {
     return (
       <View style={styles.centered}>
@@ -231,9 +437,9 @@ function ConversationList({
           />
         }
       >
-        <Text style={[styles.emptyText, { color: textMuted }]}>Couldn&apos;t load conversations.</Text>
+        <Text style={[styles.emptyText, { color: textMuted }]}>{t('messages.load_error')}</Text>
         <Pressable onPress={onRefresh}>
-          <Text style={[styles.retryText, { color: primary }]}>Retry</Text>
+          <Text style={[styles.retryText, { color: primary }]}>{t('messages.retry')}</Text>
         </Pressable>
       </ScrollView>
     );
@@ -256,9 +462,24 @@ function ConversationList({
     );
   }
 
+  const topBarThreads = useMemo(() => {
+    if (type === "friends") {
+      // Friends tab: ONLY show friends who are currently online/active
+      return threads.filter((thread) => {
+        const pid = String(thread.profile.id);
+        return !!onlineUsers[pid] || !!onlineUsers[pid.toLowerCase()];
+      });
+    }
+    // Dating tab: ONLY show new matches where no conversation has started yet
+    return threads.filter((thread) => {
+      return thread.last_message === "You've matched! Say hi.";
+    });
+  }, [threads, onlineUsers, type]);
+
   return (
     <ScrollView
       showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ paddingBottom: 130 }}
       refreshControl={
         <RefreshControl
           refreshing={isRefreshing}
@@ -267,70 +488,55 @@ function ConversationList({
         />
       }
     >
+      {topBarThreads.length > 0 && (
+        <View style={styles.activeRowContainer}>
+          <View style={styles.activeRowHeader}>
+            <Text style={[styles.activeRowTitle, { color: text }]}>
+              {type === "dating" ? t('messages.new_matches') : t('messages.active_now')}
+            </Text>
+            {type === "friends" && (
+              <View style={styles.activeCountBadge}>
+                <View style={styles.activeDot} />
+                <Text style={styles.activeCountText}>
+                  {topBarThreads.length}
+                </Text>
+              </View>
+            )}
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.activeRowScroll}>
+            {topBarThreads.map((thread) => {
+              const pid = String(thread.profile.id);
+              const isOnline = !!onlineUsers[pid] || !!onlineUsers[pid.toLowerCase()];
+              return (
+                <TopAvatarItem
+                  key={`active-${thread.profile.id}`}
+                  thread={thread}
+                  type={type}
+                  isOnline={isOnline}
+                  primary={primary}
+                  background={background}
+                  text={text}
+                />
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
+
       <View style={styles.messageList}>
         {threads.map((thread) => {
           const pid = String(thread.profile.id);
           const isOnline = !!onlineUsers[pid] || !!onlineUsers[pid.toLowerCase()];
           return (
-            <Pressable
+            <ConversationRow
               key={thread.profile.id}
-              style={styles.conversationRow}
-              onPressIn={() => {
-                void queryClient.prefetchQuery(
-                  directHistoryQueryOptions(String(thread.profile.id), true)
-                );
-              }}
-              onPress={() => router.push({
-                pathname: "/inbox/[id]",
-                params: { 
-                  id: thread.profile.id, 
-                  type,
-                  photo: thread.profile.photo,
-                  name: thread.profile.name,
-                  username: thread.profile.username
-                },
-              })}
-            >
-              <View style={styles.avatarWrap}>
-                <Avatar
-                  uri={thread.profile.photo}
-                  size={56}
-                  rounded
-                />
-                {isOnline && (
-                  <View
-                    style={[
-                      styles.statusDot,
-                      { borderColor: background },
-                    ]}
-                  />
-                )}
-              </View>
-
-              <View style={styles.conversationBody}>
-                <View style={styles.conversationTop}>
-                  <Text style={[styles.name, { color: text }]}>{thread.profile.name}</Text>
-                  <Text style={styles.time}>
-                    {formatThreadTime(thread.last_message_time)}
-                  </Text>
-                </View>
-                <View style={styles.previewRow}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                    {thread.last_message === "Voice message" && (
-                      <Mic size={14} color={textMuted} style={{ marginRight: 4 }} />
-                    )}
-                    <Text numberOfLines={1} style={[styles.messagePreview, { color: textMuted }]}>
-                      {thread.last_message}
-                    </Text>
-                  </View>
-                  {thread.unread_count > 0 ? (
-                    <View style={styles.unreadBadge}>
-                      <Text style={styles.unreadText}>{thread.unread_count}</Text>
-                    </View>
-                  ) : null}
-                </View>
-              </View>
-            </Pressable>
+              thread={thread}
+              type={type}
+              isOnline={isOnline}
+              background={background}
+              text={text}
+              textMuted={textMuted}
+            />
           );
         })}
       </View>
@@ -339,13 +545,25 @@ function ConversationList({
 }
 
 export default function MessagesScreen() {
+  const { t } = useTranslation();
+  const { isCompact } = useResponsiveLayout();
   const background = useColor("background");
+  const cardColor = useColor("card");
+  const primary = useColor("primary");
+  const text = useColor("text");
+  const isDark = useColorScheme() === "dark";
   const queryClient = useQueryClient();
 
   const [tab, setTab] = useState<ThreadType>("dating");
 
   const datingQuery = useThreadsQuery("dating");
   const friendsQuery = useThreadsQuery("friends");
+  useFocusEffect(
+    useCallback(() => {
+      void datingQuery.refetch();
+      void friendsQuery.refetch();
+    }, [datingQuery.refetch, friendsQuery.refetch])
+  );
 
   useEffect(() => {
     const threads = tab === "dating" ? datingQuery.data : friendsQuery.data;
@@ -381,15 +599,40 @@ export default function MessagesScreen() {
       <View style={[styles.container, { backgroundColor: background }]}>
         <Header />
 
-        <SegmentedControl activeTab={tab} onChange={setTab} />
+        <View style={[styles.topControlRow, isCompact && { marginHorizontal: 10, gap: 8, marginTop: 6, marginBottom: 4 }]}>
+          <View style={{ flex: 1 }}>
+            <SegmentedControl activeTab={tab} onChange={setTab} />
+          </View>
+          <TouchableOpacity
+            onPress={() => {
+              try {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              } catch {}
+              router.push({
+                pathname: "/connections",
+                params: { tab: tab === "dating" ? "matches" : "friends" },
+              });
+            }}
+            activeOpacity={0.7}
+            style={[
+              styles.moreRoundedBtn,
+              {
+                backgroundColor: isDark ? "#2C2C2E" : cardColor,
+                borderColor: isDark ? "rgba(255, 255, 255, 0.12)" : "rgba(0, 0, 0, 0.08)",
+                width: isCompact ? 36 : 40,
+                height: isCompact ? 36 : 40,
+                borderRadius: isCompact ? 18 : 20,
+              },
+            ]}
+            accessibilityLabel={t('messages.all_connections')}
+            accessibilityRole="button"
+          >
+            <MoreVertical size={isCompact ? 16 : 18} color={isDark ? "#FFFFFF" : "#374151"} />
+          </TouchableOpacity>
+        </View>
 
-        <Tabs
-          value={tab}
-          onValueChange={(v) => setTab(v as ThreadType)}
-          enableSwipe={false}
-          style={{ flex: 1 }}
-        >
-          <TabsContent value="dating" style={{ paddingTop: 0, flex: 1 }}>
+        <View style={{ flex: 1 }}>
+          <View style={{ flex: 1, display: tab === "dating" ? "flex" : "none" }}>
             <ConversationList
               threads={datingQuery.data ?? []}
               isLoading={datingQuery.isLoading}
@@ -397,11 +640,11 @@ export default function MessagesScreen() {
               onRefresh={handleDatingRefresh}
               isRefreshing={refreshingDating}
               type="dating"
-              emptyText="No matches yet. Start liking profiles to begin a thread."
+              emptyText={t('messages.empty_dating')}
             />
-          </TabsContent>
+          </View>
 
-          <TabsContent value="friends" style={{ paddingTop: 0, flex: 1 }}>
+          <View style={{ flex: 1, display: tab === "friends" ? "flex" : "none" }}>
             <ConversationList
               threads={friendsQuery.data ?? []}
               isLoading={friendsQuery.isLoading}
@@ -409,10 +652,10 @@ export default function MessagesScreen() {
               onRefresh={handleFriendsRefresh}
               isRefreshing={refreshingFriends}
               type="friends"
-              emptyText="No friends to chat with yet."
+              emptyText={t('messages.empty_friends')}
             />
-          </TabsContent>
-        </Tabs>
+          </View>
+        </View>
       </View>
     </VerificationOverlay>
   );
@@ -421,6 +664,27 @@ export default function MessagesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  topControlRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 16,
+    marginTop: 10,
+    marginBottom: 6,
+    gap: 10,
+  },
+  moreRoundedBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
   },
   messageList: {
     paddingTop: 20,
@@ -514,5 +778,78 @@ const styles = StyleSheet.create({
   retryText: {
     color: "#9A3B00",
     fontWeight: "700",
+  },
+  activeRowContainer: {
+    paddingTop: 16,
+    paddingBottom: 4,
+  },
+  activeRowHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 18,
+    marginBottom: 12,
+  },
+  activeRowTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  activeCountBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginLeft: 8,
+    backgroundColor: "rgba(34, 197, 94, 0.12)",
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  activeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#22C55E",
+    marginRight: 4,
+  },
+  activeCountText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#22C55E",
+  },
+  activeRowScroll: {
+    paddingHorizontal: 14,
+  },
+  activeItem: {
+    alignItems: "center",
+    marginHorizontal: 6,
+    width: 68,
+  },
+  activeAvatarWrap: {
+    width: 64,
+    height: 64,
+    marginBottom: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  activeAvatarRing: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  activeName: {
+    fontSize: 12,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  statusDotActive: {
+    position: "absolute",
+    right: 0,
+    bottom: 0,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: "#22C55E",
+    borderWidth: 2.5,
   },
 });

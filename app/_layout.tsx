@@ -60,6 +60,14 @@ function RootLayoutContent() {
     );
   }, [colorScheme]);
 
+  useEffect(() => {
+    if (isAuthenticated && profile) {
+      import("@/utils/pushNotifications").then((m) => {
+        m.registerForPushNotificationsAsync().catch(console.error);
+      });
+    }
+  }, [isAuthenticated, profile?.id]);
+
   return (
     <ThemeProvider>
       <StatusBar style={colorScheme === "dark" ? "light" : "dark"} animated />
@@ -146,6 +154,12 @@ function RootLayoutContent() {
         />
         <Stack.Screen
           name="notifications"
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="connections"
           options={{
             headerShown: false,
           }}

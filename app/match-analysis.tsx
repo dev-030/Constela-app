@@ -10,6 +10,7 @@ import { useProfileStore } from "@/store/profileStore";
 import { canAccessMatchAnalysis } from "@/api/profile";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
 import { isAxiosError } from "axios";
+import { useTranslation } from "react-i18next";
 
 const GOLD = "#FFD700";
 const GOLD_TEXT = "#B8860B";
@@ -17,6 +18,7 @@ const GOLD_TEXT = "#B8860B";
 export default function MatchAnalysisScreen() {
   const router = useRouter();
   useAndroidBack();
+  const { t } = useTranslation();
   const { profile } = useProfileStore();
   const hasAnalysisAccess = canAccessMatchAnalysis(profile);
   const { data: matches, isLoading, error, refetch, isRefetching } = useMatchAnalysisQuery(hasAnalysisAccess);
@@ -38,15 +40,15 @@ export default function MatchAnalysisScreen() {
         </View>
         <View style={styles.centerContent}>
           <Sparkles size={48} color="#EF4444" style={{ marginBottom: 16 }} />
-          <Text style={[styles.title, { color: text, textAlign: 'center' }]}>Action Required</Text>
+          <Text style={[styles.title, { color: text, textAlign: 'center' }]}>{t('match_analysis.action_required')}</Text>
           <Text style={[styles.subtitle, { color: text, opacity: 0.6, textAlign: 'center', marginHorizontal: 32 }]}>
-            Your account has received multiple reports. You must verify your face to unlock Premium Match Analysis and card swiping.
+            {t('match_analysis.action_required_desc')}
           </Text>
           <Pressable 
             style={[styles.upgradeBtn, { backgroundColor: "#EF4444" }]}
             onPress={() => router.push("/onboarding/face-verification" as any)}
           >
-            <Text style={styles.upgradeBtnText}>Verify Face Now</Text>
+            <Text style={styles.upgradeBtnText}>{t('match_analysis.verify_face_now')}</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -64,15 +66,15 @@ export default function MatchAnalysisScreen() {
         </View>
         <View style={styles.centerContent}>
           <Sparkles size={48} color={GOLD_TEXT} style={{ marginBottom: 16 }} />
-          <Text style={[styles.title, { color: text, textAlign: 'center' }]}>Profile Incomplete</Text>
+          <Text style={[styles.title, { color: text, textAlign: 'center' }]}>{t('match_analysis.profile_incomplete')}</Text>
           <Text style={[styles.subtitle, { color: text, opacity: 0.6, textAlign: 'center', marginHorizontal: 32 }]}>
-            You must complete at least 80% of your profile to unlock Perfect Match Analysis. This ensures our AI can find your truly compatible matches!
+            {t('match_analysis.profile_incomplete_desc')}
           </Text>
           <Pressable 
             style={[styles.upgradeBtn, { backgroundColor: GOLD_TEXT }]}
             onPress={() => router.push("/profile" as any)}
           >
-            <Text style={styles.upgradeBtnText}>Complete Profile Now</Text>
+            <Text style={styles.upgradeBtnText}>{t('match_analysis.complete_profile_now')}</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -91,20 +93,26 @@ export default function MatchAnalysisScreen() {
         </View>
         <View style={styles.centerContent}>
           <Sparkles size={48} color={GOLD_TEXT} style={{ marginBottom: 16 }} />
-          <Text style={[styles.title, { color: text, textAlign: 'center' }]}>{isForbidden ? 'Premium Feature' : 'Could not load analysis'}</Text>
+          <Text style={[styles.title, { color: text, textAlign: 'center' }]}>{isForbidden ? t('match_analysis.premium_feature') : t('match_analysis.could_not_load')}</Text>
           <Text style={[styles.subtitle, { color: text, opacity: 0.6, textAlign: 'center', marginHorizontal: 32 }]}>
-            {isForbidden ? 'Purchase the Perfect Match Analysis add-on to unlock your top 5 compatible profiles!' : 'Please check your connection and try again.'}
+            {isForbidden ? t('match_analysis.purchase_addon') : t('match_analysis.check_connection')}
           </Text>
           <Pressable 
             style={[styles.upgradeBtn, { backgroundColor: GOLD_TEXT }]}
             onPress={() => isForbidden ? router.push("/settings/subscription") : void refetch()}
           >
-            <Text style={styles.upgradeBtnText}>{isForbidden ? 'View Subscription Options' : 'Retry'}</Text>
+            <Text style={styles.upgradeBtnText}>{isForbidden ? t('match_analysis.view_subscription') : t('match_analysis.retry')}</Text>
           </Pressable>
         </View>
       </SafeAreaView>
     );
   }
+
+  const targetGenderText = profile?.gender?.toLowerCase() === 'man'
+    ? t('match_analysis.women')
+    : profile?.gender?.toLowerCase() === 'woman'
+    ? t('match_analysis.men')
+    : t('match_analysis.matches');
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: background }]} edges={["top"]}>
@@ -113,13 +121,13 @@ export default function MatchAnalysisScreen() {
         <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
           <ArrowLeft size={22} color={text} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: text }]}>Perfect Matches</Text>
+        <Text style={[styles.headerTitle, { color: text }]}>{t('match_analysis.perfect_matches')}</Text>
       </View>
 
       {isLoading ? (
         <View style={styles.centerContent}>
           <ActivityIndicator size="large" color={GOLD_TEXT} />
-          <Text style={{ color: muted, marginTop: 16, fontSize: 15 }}>Running deep compatibility analysis...</Text>
+          <Text style={{ color: muted, marginTop: 16, fontSize: 15 }}>{t('match_analysis.running_analysis')}</Text>
         </View>
       ) : (
         <ScrollView 
@@ -136,9 +144,12 @@ export default function MatchAnalysisScreen() {
         >
           <View style={styles.heroSection}>
             <Sparkles size={32} color={GOLD_TEXT} />
-            <Text style={[styles.heroTitle, { color: text }]}>Your Top 5 Matches</Text>
+            <Text style={[styles.heroTitle, { color: text }]}>{t('match_analysis.top_5_matches')}</Text>
             <Text style={[styles.heroSubtitle, { color: text, opacity: 0.8 }]}>
-              Based on your profile gender ({profile?.gender || 'not set'}), we are showing highly compatible {profile?.gender?.toLowerCase() === 'man' ? 'women' : profile?.gender?.toLowerCase() === 'woman' ? 'men' : 'matches'}. We analyzed thousands of data points across personality, lifestyle, and sensory needs to find these profiles just for you.
+              {t('match_analysis.top_5_desc', {
+                gender: profile?.gender || t('match_analysis.not_set'),
+                target: targetGenderText,
+              })}
             </Text>
           </View>
 
@@ -156,7 +167,7 @@ export default function MatchAnalysisScreen() {
                 </View>
                 <View style={[styles.scoreBadge, { backgroundColor: GOLD_TEXT + '22' }]}>
                   <Text style={[styles.scoreText, { color: GOLD_TEXT }]}>
-                    {Math.round(match.compatibility_score || 0)}% Match
+                    {t('match_analysis.match_pct', { score: Math.round(match.compatibility_score || 0) })}
                   </Text>
                 </View>
               </View>

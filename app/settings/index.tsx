@@ -37,6 +37,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { useLogout, useDeleteAccountMutation } from "@/api/auth";
 import { useTranslation } from "react-i18next";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
+import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 
 export default function SettingsIndexScreen() {
   const { t, i18n } = useTranslation();
@@ -64,6 +65,10 @@ export default function SettingsIndexScreen() {
     themePreference === "dark" ||
     (themePreference === "system" && colorScheme === "dark");
 
+  const { isCompact, horizontalPadding } = useResponsiveLayout();
+  const avatarSize = isCompact ? 88 : 116;
+  const avatarBoxSize = isCompact ? 92 : 120;
+
   const styles = useMemo(
     () =>
       StyleSheet.create({
@@ -90,45 +95,45 @@ export default function SettingsIndexScreen() {
           flex: 1,
         },
         scrollContent: {
-          paddingHorizontal: 20,
-          paddingTop: 24,
+          paddingHorizontal: horizontalPadding,
+          paddingTop: isCompact ? 14 : 24,
           paddingBottom: 40,
         },
         profileContainer: {
           flexDirection: "column",
           alignItems: "center",
-          marginBottom: 32,
-          marginTop: 16,
-          gap: 12,
+          marginBottom: isCompact ? 20 : 32,
+          marginTop: isCompact ? 8 : 16,
+          gap: isCompact ? 8 : 12,
         },
         avatarContainer: {
-          width: 120,
-          height: 120,
-          borderRadius: 60,
+          width: avatarBoxSize,
+          height: avatarBoxSize,
+          borderRadius: avatarBoxSize / 2,
           borderWidth: 2,
           borderColor: border,
           overflow: "hidden",
         },
         name: {
-          fontSize: 24,
+          fontSize: isCompact ? 20 : 24,
           fontWeight: "800",
           color: text,
           textAlign: "center",
           marginBottom: 2,
         },
         email: {
-          fontSize: 15,
+          fontSize: isCompact ? 13.5 : 15,
           color: muted,
           textAlign: "center",
         },
         section: {
-          marginBottom: 28,
+          marginBottom: isCompact ? 18 : 28,
         },
         sectionTitle: {
-          fontSize: 12,
+          fontSize: isCompact ? 11 : 12,
           fontWeight: "700",
           color: muted,
-          marginBottom: 8,
+          marginBottom: isCompact ? 6 : 8,
           marginLeft: 4,
           letterSpacing: 0.8,
           textTransform: "uppercase",
@@ -144,21 +149,21 @@ export default function SettingsIndexScreen() {
           flexDirection: "row",
           alignItems: "center",
           justifyContent: "space-between",
-          paddingVertical: 16,
-          paddingHorizontal: 16,
+          paddingVertical: isCompact ? 12 : 16,
+          paddingHorizontal: isCompact ? 13 : 16,
           borderBottomWidth: 1,
           borderBottomColor: colorScheme === 'dark' ? '#38383A' : '#E5E5EA',
         },
         itemIconBox: {
-          width: 32,
-          height: 32,
+          width: isCompact ? 28 : 32,
+          height: isCompact ? 28 : 32,
           borderRadius: 8,
           alignItems: "center",
           justifyContent: "center",
-          marginRight: 12,
+          marginRight: isCompact ? 10 : 12,
         },
         itemText: {
-          fontSize: 16,
+          fontSize: isCompact ? 14.5 : 16,
           fontWeight: "400",
           color: text,
         },
@@ -177,18 +182,18 @@ export default function SettingsIndexScreen() {
           color: '#ef4444',
         }
       }),
-    [background, cardColor, text, muted, border, secondary, primary, colorScheme],
+    [background, cardColor, text, muted, border, secondary, primary, colorScheme, isCompact, horizontalPadding, avatarBoxSize],
   );
 
   const renderItem = (title: string, icon: any, route: any, isLast = false) => (
     <Pressable style={[styles.itemRow, isLast && { borderBottomWidth: 0 }]} onPress={() => router.push(route)}>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <View style={styles.itemIconBox}>
-          <Icon name={icon} size={20} color={text} />
+          <Icon name={icon} size={isCompact ? 18 : 20} color={text} />
         </View>
         <Text style={styles.itemText}>{title}</Text>
       </View>
-      <Icon name={ChevronRight} size={20} color={muted} />
+      <Icon name={ChevronRight} size={isCompact ? 18 : 20} color={muted} />
     </Pressable>
   );
 
@@ -205,7 +210,7 @@ export default function SettingsIndexScreen() {
 
       <ScrollView
         style={styles.content}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom + 24, 40) }]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom + 40, 110) }]}
         showsVerticalScrollIndicator={false}
       >
         {/* Profile Section */}
@@ -213,9 +218,9 @@ export default function SettingsIndexScreen() {
           <View style={styles.avatarContainer}>
             <Avatar
               uri={profile?.photos?.find((p) => p.is_main)?.image || profile?.photos?.[0]?.image}
-              size={116}
-              style={{ borderRadius: 58 }}
-              imageStyle={{ borderRadius: 58 }}
+              size={avatarSize}
+              style={{ borderRadius: avatarSize / 2 }}
+              imageStyle={{ borderRadius: avatarSize / 2 }}
             />
           </View>
           <View style={{ alignItems: "center" }}>

@@ -28,10 +28,12 @@ import Header from "../../../components/header";
 import { useProfileStore } from "@/store/profileStore";
 import { ShieldAlert } from "lucide-react-native";
 import { useColorScheme } from "@/hooks/useColorScheme";
+import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 
 export default function HomeScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const { isCompact, horizontalPadding } = useResponsiveLayout();
   const background = useColor("background");
   const primary = useColor("primary");
   const text = useColor("text");
@@ -89,7 +91,14 @@ export default function HomeScreen() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingHorizontal: horizontalPadding,
+            paddingTop: isCompact ? 10 : 16,
+            paddingBottom: 130,
+          },
+        ]}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={primary} />
         }
@@ -98,26 +107,39 @@ export default function HomeScreen() {
         <View
           style={[
             styles.donationBanner,
+            isCompact && styles.donationBannerCompact,
             {
               backgroundColor: isDark ? "rgba(222, 65, 119, 0.15)" : "#FFF1F5",
               borderColor: isDark ? "rgba(222, 65, 119, 0.3)" : "#FFE4E6",
             },
           ]}
         >
-          <View style={[styles.donationIconWrap, { backgroundColor: primary }]}>
-            <Icon name={HandHeart} size={14} color="#FFF" />
+          <View style={[styles.donationIconWrap, isCompact && styles.donationIconWrapCompact, { backgroundColor: primary }]}>
+            <Icon name={HandHeart} size={isCompact ? 12 : 14} color="#FFF" />
           </View>
-          <Text style={[styles.donationText, { color: primary }]}>
+          <Text style={[styles.donationText, isCompact && styles.donationTextCompact, { color: primary }]}>
             {t('dashboard.donate_desc')}
           </Text>
         </View>
 
         {/* Greeting */}
-        <View style={styles.greetingContainer}>
-          <Text style={[styles.greetingTitle, { color: isDark ? "#F8FAFC" : "#0F172A" }]}>
+        <View style={[styles.greetingContainer, isCompact && { marginBottom: 14 }]}>
+          <Text
+            style={[
+              styles.greetingTitle,
+              isCompact && { fontSize: 20, marginBottom: 2 },
+              { color: isDark ? "#F8FAFC" : "#0F172A" },
+            ]}
+          >
             {displayName ? `${t('dashboard.hello')}, ${displayName}` : t('dashboard.hello')}
           </Text>
-          <Text style={[styles.greetingSubtitle, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+          <Text
+            style={[
+              styles.greetingSubtitle,
+              isCompact && { fontSize: 13, lineHeight: 17 },
+              { color: isDark ? "#94A3B8" : "#64748B" },
+            ]}
+          >
             {t('dashboard.what_to_do')}
           </Text>
         </View>
@@ -170,6 +192,13 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     borderWidth: 1,
   },
+  donationBannerCompact: {
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    gap: 8,
+    marginBottom: 14,
+    borderRadius: 12,
+  },
   donationIconWrap: {
     width: 26,
     height: 26,
@@ -177,11 +206,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  donationIconWrapCompact: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+  },
   donationText: {
     fontSize: 12.5,
     fontWeight: "500",
     flex: 1,
     lineHeight: 17,
+  },
+  donationTextCompact: {
+    fontSize: 11.5,
+    lineHeight: 15,
   },
   greetingContainer: {
     marginBottom: 20,

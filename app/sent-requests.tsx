@@ -22,6 +22,7 @@ import {
   type FriendRequest,
 } from "@/api/friends";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
+import { useTranslation } from "react-i18next";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -42,6 +43,7 @@ const SentRequestCard = React.memo(function SentRequestCard({
   border,
   onCancel,
 }: SentRequestCardProps) {
+  const { t } = useTranslation();
   const [isCanceling, setIsCanceling] = useState(false);
   const opacity = useSharedValue(1);
   const scale = useSharedValue(1);
@@ -153,7 +155,7 @@ const SentRequestCard = React.memo(function SentRequestCard({
           onPress={handlePressCancel}
         >
           <Text style={styles.cancelBtnText}>
-            {isCanceling ? "Canceling…" : "Cancel"}
+            {isCanceling ? t('sent_requests.canceling') : t('sent_requests.cancel')}
           </Text>
         </Pressable>
       </View>
@@ -162,6 +164,7 @@ const SentRequestCard = React.memo(function SentRequestCard({
 });
 
 export default function SentRequestsScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   useAndroidBack();
 
@@ -192,7 +195,7 @@ export default function SentRequestsScreen() {
         <Pressable onPress={() => router.back()} style={styles.backButton} hitSlop={8}>
           <ChevronLeft size={28} color={text} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: text }]}>Sent Requests</Text>
+        <Text style={[styles.headerTitle, { color: text }]}>{t('sent_requests.title')}</Text>
         <View style={styles.headerRight} />
       </View>
 
@@ -203,15 +206,15 @@ export default function SentRequestsScreen() {
           </View>
         ) : sentRequestsQuery.isError ? (
           <View style={styles.inlineMessage}>
-            <Text style={{ color: muted }}>Couldn&apos;t load sent requests.</Text>
+            <Text style={{ color: muted }}>{t('sent_requests.load_error')}</Text>
             <Pressable onPress={() => sentRequestsQuery.refetch()}>
-              <Text style={{ color: primary, fontWeight: "600", marginTop: 8 }}>Retry</Text>
+              <Text style={{ color: primary, fontWeight: "600", marginTop: 8 }}>{t('sent_requests.retry')}</Text>
             </Pressable>
           </View>
         ) : sentRequests.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Text style={[styles.emptyText, { color: muted }]}>
-              You haven&apos;t sent any friend requests yet.
+              {t('sent_requests.empty')}
             </Text>
           </View>
         ) : (

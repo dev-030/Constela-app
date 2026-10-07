@@ -10,6 +10,7 @@ import {
   View,
   Alert,
 } from "react-native";
+import { useTranslation } from "react-i18next";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -45,6 +46,7 @@ import {
 import { canAccessCommunity } from "@/api/profile";
 import { syncSubscription } from "@/api/purchases";
 import { useProfileStore } from "@/store/profileStore";
+import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 
 // Cycle accent palettes so each room card has a distinctive visual identity.
 // Mirrors the per-card backgrounds/borders/accent/badge styling in the original mock.
@@ -351,7 +353,9 @@ function GroupCard({
   onOpen: (room: ChatRoom) => void;
   joinPending: boolean;
 }) {
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
+  const { isCompact } = useResponsiveLayout();
   const palette = ROOM_PALETTES[index % ROOM_PALETTES.length];
   const avatars = room.member_avatars.slice(0, 3);
   const isToggling = joinPending;
@@ -361,6 +365,7 @@ function GroupCard({
       onPress={() => onOpen(room)}
       style={[
         styles.groupCard,
+        isCompact && styles.groupCardCompact,
         {
           backgroundColor:
             colorScheme === "dark" ? "#121212" : palette.background,
@@ -372,6 +377,7 @@ function GroupCard({
       <Text
         style={[
           styles.groupTitle,
+          isCompact && styles.groupTitleCompact,
           { color: colorScheme === "dark" ? "#FFF" : "#222222" },
         ]}
       >
@@ -423,7 +429,7 @@ function GroupCard({
             { color: room.is_joined ? palette.accent : "#FFFFFF" },
           ]}
         >
-          {room.is_joined ? "Open chat" : joinPending ? "Joining…" : "Join"}
+          {room.is_joined ? t('community.open_chat') : joinPending ? t('community.joining') : t('community.join')}
         </Text>
       </Pressable>
     </Pressable>
@@ -431,6 +437,7 @@ function GroupCard({
 }
 
 function PremiumUpsell() {
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
@@ -439,26 +446,27 @@ function PremiumUpsell() {
       <View style={styles.upsellBadge}>
         <Lock size={22} color="#FFFFFF" />
       </View>
-      <Text style={[styles.upsellTitle, isDark && { color: "#FFFFFF" }]}>Premium Community</Text>
+      <Text style={[styles.upsellTitle, isDark && { color: "#FFFFFF" }]}>{t('community.premium_title')}</Text>
       <Text style={[styles.upsellBody, isDark && { color: "#A1A1AA" }]}>
-        Upgrade to Premium to access community chat rooms and connect with
-        people who share your neurotype.
+        {t('community.premium_body')}
       </Text>
       <Pressable
         onPress={() => router.push("/settings/subscription")}
         style={styles.upsellBtn}
       >
-        <Text style={styles.upsellBtnText}>Upgrade to Premium</Text>
+        <Text style={styles.upsellBtnText}>{t('community.upgrade_btn')}</Text>
       </Pressable>
     </View>
   );
 }
 
 export default function CommunityScreen() {
+  const { t } = useTranslation();
   const background = useColor("background");
   const text = useColor("text");
   const primary = useColor("primary");
   const colorScheme = useColorScheme();
+  const { isCompact, horizontalPadding } = useResponsiveLayout();
   const { profile, fetchProfile } = useProfileStore();
   const hasCommunityAccess = canAccessCommunity(profile);
 
@@ -544,9 +552,9 @@ export default function CommunityScreen() {
     joinMutation.mutate(roomId, {
       onError: (err: any) => {
         if (isPremiumRequiredError(err)) {
-          Alert.alert("Premium required", "Upgrade to join community rooms.");
+          Alert.alert(t('community.premium_required_alert'), t('community.upgrade_alert_desc'));
         } else {
-          Alert.alert("Couldn't join", "Please try again in a moment.");
+          Alert.alert(t('community.join_error_alert'), t('community.join_error_desc'));
         }
       },
     });
@@ -558,7 +566,14 @@ export default function CommunityScreen() {
         <Header />
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingHorizontal: horizontalPadding,
+            paddingTop: isCompact ? 14 : 23,
+            paddingBottom: 110,
+          },
+        ]}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -571,40 +586,41 @@ export default function CommunityScreen() {
           colors={colorScheme === "dark" ? ["#0F291E", "#0B1D15"] : ["#ECFDF5", "#D1FAE5"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={[styles.hero, colorScheme === "dark" && styles.heroDark]}
+          style={[styles.hero, isCompact && styles.heroCompact, colorScheme === "dark" && styles.heroDark]}
         >
-          <View style={styles.heroTopRow}>
-            <View style={[styles.heroTag, colorScheme === "dark" && { backgroundColor: "rgba(52, 211, 153, 0.15)" }]}>
-              <Text style={[styles.heroTagText, colorScheme === "dark" && { color: "#6EE7B7" }]}>
-                SAFE SPACES
+          <View style={[styles.heroTopRow, isCompact && { marginBottom: 8 }]}>
+            <View style={[styles.heroTag, isCompact && styles.heroTagCompact, colorScheme === "dark" && { backgroundColor: "rgba(52, 211, 153, 0.15)" }]}>
+              <Text style={[styles.heroTagText, isCompact && { fontSize: 10 }, colorScheme === "dark" && { color: "#6EE7B7" }]}>
+                {t('community.safe_spaces')}
               </Text>
             </View>
-            <View style={[styles.heroIconContainer, colorScheme === "dark" && { backgroundColor: "rgba(52, 211, 153, 0.15)", borderColor: "rgba(52, 211, 153, 0.25)" }]}>
-              <Ionicons name="planet" size={23} color={colorScheme === "dark" ? "#6EE7B7" : "#059669"} />
+            <View style={[styles.heroIconContainer, isCompact && styles.heroIconContainerCompact, colorScheme === "dark" && { backgroundColor: "rgba(52, 211, 153, 0.15)", borderColor: "rgba(52, 211, 153, 0.25)" }]}>
+              <Ionicons name="planet" size={isCompact ? 18 : 23} color={colorScheme === "dark" ? "#6EE7B7" : "#059669"} />
             </View>
           </View>
 
           <Text
             style={[
               styles.heroTitle,
+              isCompact && { fontSize: 18, marginBottom: 3 },
               colorScheme === "dark" && { color: "#F0FDF4" },
             ]}
           >
-            Find your community
+            {t('community.hero_title')}
           </Text>
           <Text
             style={[
               styles.heroBody,
+              isCompact && { fontSize: 12.5, lineHeight: 17 },
               colorScheme === "dark" && { color: "#A7F3D0" },
             ]}
           >
-            A low-pressure space to connect with people who share your neurotype
-            and sensory preferences.
+            {t('community.hero_body')}
           </Text>
         </LinearGradient>
 
-        <Text style={[styles.exploreTitle, { color: text }]}>
-          Explore Groups
+        <Text style={[styles.exploreTitle, isCompact && { fontSize: 15, marginBottom: 12 }, { color: text }]}>
+          {t('community.explore_groups')}
         </Text>
 
         {!profile ? (
@@ -616,13 +632,13 @@ export default function CommunityScreen() {
         ) : isResolvingPremiumBlock ? (
           <View style={styles.centered}>
             <ActivityIndicator color={primary} />
-            <Text style={{ color: text }}>Checking your subscription…</Text>
+            <Text style={{ color: text }}>{t('community.checking_sub')}</Text>
           </View>
         ) : accessVerificationFailed ? (
           <View style={styles.centered}>
-            <Text style={{ color: text }}>Couldn&apos;t verify your subscription.</Text>
+            <Text style={{ color: text }}>{t('community.verify_sub_error')}</Text>
             <Pressable onPress={retryAccessVerification}>
-              <Text style={styles.retryText}>Retry</Text>
+              <Text style={styles.retryText}>{t('community.retry')}</Text>
             </Pressable>
           </View>
         ) : isPremiumBlocked ? (
@@ -633,17 +649,17 @@ export default function CommunityScreen() {
           </View>
         ) : isGenericError ? (
           <View style={styles.centered}>
-            <Text style={{ color: text }}>Couldn&apos;t load rooms.</Text>
+            <Text style={{ color: text }}>{t('community.rooms_error')}</Text>
             <Pressable onPress={() => roomsQuery.refetch()}>
-              <Text style={styles.retryText}>Retry</Text>
+              <Text style={styles.retryText}>{t('community.retry')}</Text>
             </Pressable>
           </View>
         ) : (roomsQuery.data ?? []).length === 0 ? (
           <Text style={styles.emptyText}>
-            No community rooms available yet.
+            {t('community.empty_rooms')}
           </Text>
         ) : (
-          <View style={styles.groupGrid}>
+          <View style={[styles.groupGrid, isCompact && { columnGap: 8, rowGap: 8 }]}>
             {(roomsQuery.data ?? []).map((room, index) => (
               <GroupCard
                 key={room.id}
@@ -671,7 +687,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 22,
     paddingTop: 23,
-    paddingBottom: 118,
+    paddingBottom: 130,
   },
   hero: {
     borderRadius: 22,
@@ -684,6 +700,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 10,
     elevation: 3,
+  },
+  heroCompact: {
+    padding: 13,
+    marginBottom: 14,
+    borderRadius: 16,
   },
   heroDark: {
     backgroundColor: "transparent",
@@ -702,6 +723,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
+  },
+  heroTagCompact: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
   },
   heroTagText: {
     fontSize: 11,
@@ -736,6 +761,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 6,
     elevation: 2,
+  },
+  heroIconContainerCompact: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
   },
   sectionHeader: {
     flexDirection: "row",
@@ -785,6 +815,14 @@ const styles = StyleSheet.create({
     paddingTop: 9,
     paddingBottom: 15,
   },
+  groupCardCompact: {
+    width: "48%",
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 12,
+    minHeight: 150,
+    borderRadius: 16,
+  },
   badgeCircle: {
     width: 48,
     height: 48,
@@ -805,6 +843,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "800",
     marginBottom: 14,
+  },
+  groupTitleCompact: {
+    fontSize: 13,
+    marginBottom: 8,
   },
   groupFooter: {
     flexDirection: "row",

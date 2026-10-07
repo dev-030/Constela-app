@@ -5,8 +5,10 @@ import React from "react";
 import { ActivityIndicator, View, Text, Pressable } from "react-native";
 import { useColor } from "@/hooks/useColor";
 import { WifiOff } from "lucide-react-native";
+import { useTranslation } from "react-i18next";
 
 export default function IndexScreen() {
+  const { t } = useTranslation();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const isRestoring = useAuthStore((state) => state.isRestoring);
   const { profile, fetchProfile, isLoading: isProfileLoading, error, hasHydrated } = useProfileStore();
@@ -63,12 +65,12 @@ export default function IndexScreen() {
         </View>
         
         <Text style={{ color: text, fontSize: 20, fontWeight: "700", textAlign: "center", marginBottom: 8 }}>
-          {isNetworkError ? "Connection Error" : "Oops, something went wrong"}
+          {isNetworkError ? t('common.connection_error', "Connection Error") : t('common.something_went_wrong', "Oops, something went wrong")}
         </Text>
         
         <Text style={{ color: textMuted, fontSize: 15, textAlign: "center", marginBottom: 32, lineHeight: 22 }}>
           {isNetworkError 
-            ? "We couldn't reach the server. Please check your internet connection."
+            ? t('common.network_error_desc', "We couldn't reach the server. Please check your internet connection.")
             : error}
         </Text>
         
@@ -92,7 +94,9 @@ export default function IndexScreen() {
           {isProfileLoading ? (
             <ActivityIndicator color="#fff" size="small" />
           ) : (
-            <Text style={{ color: "#fff", fontWeight: "700", fontSize: 16, textAlign: 'center' }}>Try Again</Text>
+            <Text style={{ color: "#fff", fontWeight: "700", fontSize: 16, textAlign: 'center' }}>
+              {t('common.try_again', "Try Again")}
+            </Text>
           )}
         </Pressable>
       </View>

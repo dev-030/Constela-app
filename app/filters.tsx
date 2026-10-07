@@ -22,7 +22,10 @@ import { FilterCard } from "@/components/ui/filter-card";
 import { FilterListItem } from "@/components/ui/filter-list-item";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { useColor } from "@/hooks/useColor";
+import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
+import { useProfileStore } from "@/store/profileStore";
+import { updateMyProfile } from "@/api/profile";
 import { useFilterStore } from "@/store/filterStore";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
 import { LANGUAGES } from "@/constants/languages";
@@ -31,6 +34,7 @@ import { Search } from "lucide-react-native";
 import { TextInput } from "react-native";
 
 export default function FiltersScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   useAndroidBack();
   const background = useColor("background");
@@ -39,8 +43,9 @@ export default function FiltersScreen() {
   const primary = useColor("primary");
   const { width, height } = useWindowDimensions();
 
-  const [activeTab, setActiveTab] = useState("Basic");
+  const [activeTabIndex, setActiveTabIndex] = useState(0);
   const globalFilters = useFilterStore(state => state.filters);
+  const { profile, fetchProfile } = useProfileStore();
 
   // Basic States
   const [ageRange, setAgeRange] = useState({ 
@@ -80,10 +85,23 @@ export default function FiltersScreen() {
   const handleApply = async () => {
     setIsApplying(true);
     
-    // Map gender values to match backend choices
-    let mappedGender: string | undefined = selectedGender || undefined;
+    let mappedGender: string | undefined = undefined;
+    if (selectedGender === "Woman") mappedGender = "woman";
+    if (selectedGender === "Man") mappedGender = "man";
     if (selectedGender === "Non-binary") mappedGender = "non_binary";
     if (selectedGender === "Other") mappedGender = "other";
+    if (selectedGender === "Everyone") mappedGender = "everyone";
+
+    if (mappedGender && profile && profile.gender_preference !== mappedGender) {
+      try {
+        const formData = new FormData();
+        formData.append("gender_preference", mappedGender);
+        await updateMyProfile(formData);
+        await fetchProfile();
+      } catch (err) {
+        console.error("Failed to update gender preference", err);
+      }
+    }
     
     const newFilters = {
       age_min: ageRange.low !== 18 ? ageRange.low : undefined,
@@ -118,7 +136,25 @@ export default function FiltersScreen() {
     }
   };
 
-  const [selectedGender, setSelectedGender] = useState(globalFilters.gender || "");
+  const reverseGenderMap: Record<string, string> = {
+    woman: "Woman",
+    man: "Man",
+    non_binary: "Non-binary",
+    other: "Other",
+    everyone: "Everyone"
+  };
+
+  const initGender = () => {
+    if (globalFilters.gender) {
+      return reverseGenderMap[globalFilters.gender.toLowerCase()] || globalFilters.gender;
+    }
+    if (profile?.gender_preference) {
+      return reverseGenderMap[profile.gender_preference.toLowerCase()] || profile.gender_preference;
+    }
+    return "";
+  };
+
+  const [selectedGender, setSelectedGender] = useState(initGender());
   const [selectedMaritalStatus, setSelectedMaritalStatus] = useState<string[]>(
     globalFilters.marital_status ? globalFilters.marital_status.split(',') : []
   );
@@ -181,7 +217,7 @@ export default function FiltersScreen() {
   const renderBasicTab = () => (
     <>
       <View style={styles.section}>
-        {renderSectionHeader("Age Range", `${ageRange.low} - ${ageRange.high}`)}
+        {renderSectionHeader(t('filters.age_range'), `${ageRange.low} - ${ageRange.high}`)}
         <RangeSlider
           min={18}
           max={100}
@@ -192,9 +228,9 @@ export default function FiltersScreen() {
       </View>
 
       <View style={styles.section}>
-        {renderSectionHeader("Looking for")}
+        {renderSectionHeader(t('filters.looking_for'))}
         <View style={styles.wrapContainer}>
-          {["Woman", "Man", "Non-binary", "Other"].map((g) => (
+          {["Woman", "Man", "Non-binary", "Other", "Everyone"].map((g) => (
             <FilterPill
               key={g}
               label={g}
@@ -206,7 +242,7 @@ export default function FiltersScreen() {
       </View>
 
       <View style={styles.section}>
-        {renderSectionHeader("Height", `${heightRange.low} - ${heightRange.high}cm`)}
+        {renderSectionHeader(t('filters.height'), `${heightRange.low} - ${heightRange.high}cm`)}
         <RangeSlider
           min={140}
           max={220}
@@ -217,7 +253,7 @@ export default function FiltersScreen() {
       </View>
 
       <View style={styles.section}>
-        {renderSectionHeader("Marital Status")}
+        {renderSectionHeader(t('filters.marital_status'))}
         <View style={styles.wrapContainer}>
           {["Single", "Married", "Divorced", "Widowed"].map((status) => (
             <FilterPill
@@ -233,7 +269,7 @@ export default function FiltersScreen() {
       </View>
 
       <View style={styles.section}>
-        {renderSectionHeader("Spoken Languages")}
+        {renderSectionHeader(t('filters.spoken_languages'))}
         <View style={styles.wrapContainer}>
           {selectedLanguages.slice(0, 4).map((lang) => (
             <FilterPill
@@ -261,7 +297,7 @@ export default function FiltersScreen() {
       <BottomSheet
         isVisible={languagesSheetOpen}
         onClose={() => setLanguagesSheetOpen(false)}
-        title="Select Languages"
+        title={t('filters.spoken_languages')}
         snapPoints={[0.6]}
         headerComponent={
           <View style={{ paddingHorizontal: 16, marginTop: 8 }}>
@@ -282,7 +318,7 @@ export default function FiltersScreen() {
               <TextInput
                 value={languageSearch}
                 onChangeText={setLanguageSearch}
-                placeholder="Search languages..."
+                placeholder={t('filters.search_languages')}
                 placeholderTextColor={muted}
                 style={{ color: text, fontSize: 16, flex: 1, padding: 0 }}
               />
@@ -370,7 +406,7 @@ export default function FiltersScreen() {
         {renderBasicTab()}
 
         <View style={styles.section}>
-          {renderSectionHeader("Education")}
+          {renderSectionHeader(t('filters.education'))}
           <View style={styles.wrapContainer}>
             {["Bachelors", "Masters", "PhD", "Before Bachelor"].map((edu) => (
               <FilterPill
@@ -385,7 +421,7 @@ export default function FiltersScreen() {
 
         <View style={styles.section}>
           <View style={styles.rowBetween}>
-            <Text style={styles.sectionTitle}>Smoking</Text>
+            <Text style={styles.sectionTitle}>{t('filters.smoking')}</Text>
             <Switch
               value={smoking}
               onValueChange={setSmoking}
@@ -394,7 +430,7 @@ export default function FiltersScreen() {
             />
           </View>
           <View style={[styles.rowBetween, { marginTop: 16 }]}>
-            <Text style={styles.sectionTitle}>Alcohol</Text>
+            <Text style={styles.sectionTitle}>{t('filters.alcohol')}</Text>
             <Switch
               value={alcohol}
               onValueChange={setAlcohol}
@@ -405,7 +441,7 @@ export default function FiltersScreen() {
         </View>
 
         <View style={styles.section}>
-          {renderSectionHeader("Sport")}
+          {renderSectionHeader(t('filters.sport'))}
           <View style={styles.wrapContainer}>
             {["Intense", "Moderate", "Sedentary"].map((sport) => (
               <FilterPill
@@ -419,7 +455,7 @@ export default function FiltersScreen() {
         </View>
 
         <View style={styles.section}>
-          {renderSectionHeader("Interests")}
+          {renderSectionHeader(t('filters.interests'))}
           <View style={styles.wrapContainer}>
             {INTERESTS_POOL.map((interest) => {
               const isSelected = selectedInterests.includes(interest);
@@ -558,7 +594,7 @@ export default function FiltersScreen() {
           </View>
 
           <View style={styles.header}>
-            <Text style={styles.title}>Filters</Text>
+            <Text style={styles.title}>{t('filters.title')}</Text>
             <View style={styles.headerRight}>
               <Pressable
                 onPress={() => {
@@ -583,7 +619,7 @@ export default function FiltersScreen() {
                 hitSlop={10} 
                 style={styles.resetBtn}
               >
-                <Text style={[styles.resetText, { color: primary }]}>Reset</Text>
+                <Text style={[styles.resetText, { color: primary }]}>{t('filters.reset')}</Text>
               </Pressable>
               <Pressable
                 onPress={handleClose}
@@ -596,9 +632,9 @@ export default function FiltersScreen() {
           </View>
 
           <SegmentedTabs
-            tabs={["Basic", "Advanced"]}
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
+            tabs={[t('filters.tab_basic'), t('filters.tab_advanced')]}
+            activeTab={activeTabIndex === 0 ? t('filters.tab_basic') : t('filters.tab_advanced')}
+            onTabChange={(tab) => setActiveTabIndex(tab === t('filters.tab_basic') ? 0 : 1)}
           />
         </View>
 
@@ -609,14 +645,14 @@ export default function FiltersScreen() {
             scrollEnabled
           >
             <View style={[styles.filterContent, { width }]}>
-              {activeTab === "Basic" ? renderBasicTab() : renderAdvancedTab()}
+              {activeTabIndex === 0 ? renderBasicTab() : renderAdvancedTab()}
             </View>
           </ScrollView>
         </View>
 
         <View style={[styles.footer, { paddingBottom: insets.bottom || 24, backgroundColor: background }]}>
           <Button onPress={handleApply} style={styles.applyBtn} disabled={isApplying}>
-            {isApplying ? <ActivityIndicator color="#FFF" /> : "Apply Filters"}
+            {isApplying ? <ActivityIndicator color="#FFF" /> : t('filters.apply')}
           </Button>
         </View>
       </Animated.View>

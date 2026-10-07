@@ -69,6 +69,7 @@ import { API_URL } from "@/constants/config";
 import { useBlockUserMutation, useUnmatchMutation, useUnfriendMutation } from "@/api/matching";
 import { useReportUserMutation } from "@/api/settings";
 import type { DirectMessage } from "@/api/messages";
+import { useTranslation } from "react-i18next";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
 
 const QUICK_EMOJIS = [
@@ -90,11 +91,11 @@ function absoluteMediaUrl(url: string) {
   return /^(https?|file):/i.test(url) ? url : `${API_URL}${url}`;
 }
 
-function getReplyPreviewText(msg: { content?: string | null; image_url?: string | null; audio_url?: string | null }) {
+function getReplyPreviewText(msg: { content?: string | null; image_url?: string | null; audio_url?: string | null }, t?: any) {
   if (msg.image_url) {
     return msg.content ? `📷 Photo: ${msg.content}` : "📷 Photo";
   }
-  if (msg.audio_url) return "Voice message";
+  if (msg.audio_url) return t ? t('chat.voice_message', "Voice message") : "Voice message";
   return msg.content || "";
 }
 
@@ -103,23 +104,23 @@ function formatDuration(seconds: number) {
   return `${Math.floor(wholeSeconds / 60)}:${String(wholeSeconds % 60).padStart(2, "0")}`;
 }
 
-function formatDayLabel(timestamp: string): string {
+function formatDayLabel(timestamp: string, t: any): { label: string; isToday: boolean } {
   const date = new Date(timestamp);
-  if (isToday(date)) return "Today";
-  if (isYesterday(date)) return "Yesterday";
-  return format(date, "MMMM d, yyyy");
+  if (isToday(date)) return { label: t ? t('chat.today', "Today") : "Today", isToday: true };
+  if (isYesterday(date)) return { label: t ? t('chat.yesterday', "Yesterday") : "Yesterday", isToday: false };
+  return { label: format(date, "MMMM d, yyyy"), isToday: false };
 }
 
 // Group messages by day so we can render day-separator labels
-function groupMessagesByDay(messages: DirectMessage[]) {
-  const groups: { label: string; data: DirectMessage[] }[] = [];
+function groupMessagesByDay(messages: DirectMessage[], t: any) {
+  const groups: { label: string; isToday: boolean; data: DirectMessage[] }[] = [];
   let lastLabel = "";
   // messages are newest-first; reverse to oldest-first for grouping
   const sorted = [...messages].reverse();
   for (const msg of sorted) {
-    const label = formatDayLabel(msg.timestamp);
+    const { label, isToday: msgIsToday } = formatDayLabel(msg.timestamp, t);
     if (label !== lastLabel) {
-      groups.push({ label, data: [msg] });
+      groups.push({ label, isToday: msgIsToday, data: [msg] });
       lastLabel = label;
     } else {
       groups[groups.length - 1].data.push(msg);
@@ -132,7 +133,7 @@ function groupMessagesByDay(messages: DirectMessage[]) {
       items.push(msg);
     }
     // In an inverted list, appending the separator makes it render above its day.
-    if (g.label !== "Today") items.push({ type: "day", label: g.label });
+    if (!g.isToday) items.push({ type: "day", label: g.label });
   }
   return items;
 }
@@ -858,6 +859,7 @@ export default function ChatScreen() {
 
   const isDark = useColorScheme() === "dark";
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const goToMessages = useCallback(() => {
     router.dismissTo("/(tabs)/messages");
   }, []);
@@ -1010,11 +1012,11 @@ export default function ChatScreen() {
     if (type !== "friends") {
       items.push({
         key: "unmatch",
-        label: "Remove from Matches",
+        label: t('chat.unmatch_user', "Remove from Matches"),
         onPress: () => {
           unmatchUser(recipientId, {
             onSuccess: () => {
-              Alert.alert("Success", "User unmatched.");
+              Alert.alert(t('settings_pages.success', "Success"), t('chat.user_unmatched', "User unmatched."));
               goToMessages();
             }
           });
@@ -1025,11 +1027,11 @@ export default function ChatScreen() {
     if (type !== "dating") {
       items.push({
         key: "unfriend",
-        label: "Unfriend",
+        label: t('chat.unfriend_user', "Unfriend"),
         onPress: () => {
           unfriendUser(recipientId, {
             onSuccess: () => {
-              Alert.alert("Success", "Removed from friends.");
+              Alert.alert(t('settings_pages.success', "Success"), t('chat.removed_from_friends', "Removed from friends."));
               goToMessages();
             }
           });
@@ -1039,27 +1041,27 @@ export default function ChatScreen() {
 
     items.push({
       key: "report",
-      label: "Report User",
+      label: t('chat.report_user', "Report User"),
       onPress: () => {
-        Alert.alert("Report User", "Please select a reason", [
-          { text: "Fake Profile", onPress: () => reportUser({ reported_user: recipientId, reason: "fake_profile" }, { onSuccess: () => Alert.alert("Reported", "Thank you for keeping the community safe.") }) },
-          { text: "Offensive Language", onPress: () => reportUser({ reported_user: recipientId, reason: "offensive_language" }, { onSuccess: () => Alert.alert("Reported", "Thank you for keeping the community safe.") }) },
-          { text: "Harassment", onPress: () => reportUser({ reported_user: recipientId, reason: "harassment" }, { onSuccess: () => Alert.alert("Reported", "Thank you for keeping the community safe.") }) },
-          { text: "Cancel", style: "cancel" },
+        Alert.alert(t('chat.report_user', "Report User"), t('chat.report_reason_prompt', "Please select a reason"), [
+          { text: t('chat.report_fake', "Fake Profile"), onPress: () => reportUser({ reported_user: recipientId, reason: "fake_profile" }, { onSuccess: () => Alert.alert(t('chat.reported', "Reported"), t('chat.report_thank_you', "Thank you for keeping the community safe.")) }) },
+          { text: t('chat.report_offensive', "Offensive Language"), onPress: () => reportUser({ reported_user: recipientId, reason: "offensive_language" }, { onSuccess: () => Alert.alert(t('chat.reported', "Reported"), t('chat.report_thank_you', "Thank you for keeping the community safe.")) }) },
+          { text: t('chat.report_harassment', "Harassment"), onPress: () => reportUser({ reported_user: recipientId, reason: "harassment" }, { onSuccess: () => Alert.alert(t('chat.reported', "Reported"), t('chat.report_thank_you', "Thank you for keeping the community safe.")) }) },
+          { text: t('chat.cancel', "Cancel"), style: "cancel" },
         ]);
       },
     });
 
     items.push({
       key: "block",
-      label: "Block User",
+      label: t('chat.block_user', "Block User"),
       onPress: () => {
-        Alert.alert("Confirm Block", "Are you sure you want to block this user?", [
-          { text: "Cancel", style: "cancel" },
-          { text: "Block", style: "destructive", onPress: () => {
+        Alert.alert(t('chat.confirm_block', "Confirm Block"), t('chat.confirm_block_desc', "Are you sure you want to block this user?"), [
+          { text: t('chat.cancel', "Cancel"), style: "cancel" },
+          { text: t('chat.block', "Block"), style: "destructive", onPress: () => {
             blockUser(recipientId, {
               onSuccess: () => {
-                Alert.alert("Blocked", "User has been blocked.");
+                Alert.alert(t('chat.block', "Blocked"), t('chat.user_blocked', "User has been blocked."));
                 goToMessages();
               }
             });
@@ -1070,7 +1072,7 @@ export default function ChatScreen() {
 
     setChatMenuItems(items);
     setChatMenuOpen(true);
-  }, [recipientId, type, blockUser, unmatchUser, unfriendUser, reportUser, goToMessages]);
+  }, [recipientId, type, blockUser, unmatchUser, unfriendUser, reportUser, goToMessages, t]);
 
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isTypingSent = useRef(false);
@@ -1297,7 +1299,7 @@ export default function ChatScreen() {
 
   // Build the flat-list data
   const rawMessages = useMemo(() => historyQuery.data ?? [], [historyQuery.data]);
-  const listData = useMemo(() => groupMessagesByDay(rawMessages), [rawMessages]);
+  const listData = useMemo(() => groupMessagesByDay(rawMessages, t), [rawMessages, t]);
 
   useEffect(() => {
     if (!historyQuery.isSuccess || initialHistoryPageFor.current === recipientId) return;
@@ -1436,7 +1438,7 @@ export default function ChatScreen() {
           <View style={{ marginLeft: 10 }}>
             <Text style={[styles.headerName, { color: textColor }]}>{recipientUsername}</Text>
             <Text style={[styles.headerSub, { color: isRecipientOnline ? "#22C55E" : muted, fontWeight: isRecipientOnline ? "600" : "400" }]}>
-              {recipientTyping ? "typing…" : isRecipientOnline ? "Active now" : "Offline"}
+              {recipientTyping ? t('chat.typing', "typing…") : isRecipientOnline ? t('chat.active_now', "Active now") : t('chat.offline', "Offline")}
             </Text>
           </View>
         </Pressable>
@@ -1458,9 +1460,9 @@ export default function ChatScreen() {
           </View>
         ) : historyQuery.isError ? (
           <View style={styles.centered}>
-            <Text style={{ color: muted, marginBottom: 12 }}>Couldn&apos;t load messages.</Text>
+            <Text style={{ color: muted, marginBottom: 12 }}>{t('chat.couldnt_load_messages', "Couldn't load messages.")}</Text>
             <Pressable onPress={() => historyQuery.refetch()}>
-              <Text style={{ color: primary, fontWeight: "700" }}>Retry</Text>
+              <Text style={{ color: primary, fontWeight: "700" }}>{t('common.retry', "Retry")}</Text>
             </Pressable>
           </View>
         ) : (
@@ -1501,10 +1503,10 @@ export default function ChatScreen() {
               <View style={styles.emptyWrap}>
                 <Text style={{ fontSize: 36, marginBottom: 12 }}>👋</Text>
                 <Text style={[styles.emptyTitle, { color: textColor }]}>
-                  Say hi to {recipientUsername}!
+                  {t('chat.say_hi', { name: recipientUsername, defaultValue: `Say hi to ${recipientUsername}!` })}
                 </Text>
                 <Text style={[styles.emptySub, { color: muted }]}>
-                  This is the beginning of your conversation.
+                  {t('chat.beginning_conversation_dm', "This is the beginning of your conversation.")}
                 </Text>
               </View>
             }
@@ -1575,7 +1577,7 @@ export default function ChatScreen() {
           >
             <Lock size={18} color="#EF4444" />
             <Text style={[styles.limitBannerText, { color: textColor }]}>
-              Daily limit reached ({dmQuota?.used}/{dmQuota?.limit}). Resets at midnight.
+              {t('chat.limit_banner', { used: dmQuota?.used, limit: dmQuota?.limit, defaultValue: `Daily limit reached (${dmQuota?.used}/${dmQuota?.limit}). Resets at midnight.` })}
             </Text>
           </View>
         ) : (
@@ -1659,7 +1661,7 @@ export default function ChatScreen() {
                       accessibilityLabel="Cancel recording"
                       accessibilityRole="button"
                     >
-                      <Text style={[styles.cancelBtnText, { color: "#EF4444" }]}>Cancel</Text>
+                      <Text style={[styles.cancelBtnText, { color: "#EF4444" }]}>{t('common.cancel', "Cancel")}</Text>
                     </Pressable>
 
                     {/* Blinking Live Indicator + Monospace Timer */}
@@ -1716,7 +1718,7 @@ export default function ChatScreen() {
                       value={text}
                       onChangeText={handleTextChange}
                       onFocus={() => setShowEmojiPicker(false)}
-                      placeholder="Message…"
+                      placeholder={t('chat.message_placeholder', "Message…")}
                       placeholderTextColor={muted}
                       multiline
                       maxLength={2000}
@@ -1808,7 +1810,7 @@ export default function ChatScreen() {
                     paddingBottom: 8,
                   }}
                 >
-                  Chat Options
+                  {t('chat.chat_options', "Chat Options")}
                 </Text>
                 {chatMenuItems.map((item, i) => (
                   <Pressable
@@ -1857,7 +1859,7 @@ export default function ChatScreen() {
                       fontWeight: "700",
                     }}
                   >
-                    Cancel
+                    {t('common.cancel', "Cancel")}
                   </Text>
                 </Pressable>
               </View>

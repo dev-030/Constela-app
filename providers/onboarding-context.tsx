@@ -24,6 +24,7 @@ export interface OnboardingData {
   age: string;
   height: string;
   gender: Gender | null;
+  genderPreference: Gender | "Everyone" | null;
 
   // Step 2
   maritalStatus: string;
@@ -61,6 +62,7 @@ const initialData: OnboardingData = {
   age: "",
   height: "",
   gender: null,
+  genderPreference: null,
   maritalStatus: "",
   spokenLanguages: [],
   city: "",

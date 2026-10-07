@@ -11,8 +11,11 @@ import { useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { toast } from "sonner-native";
+import { useTranslation } from "react-i18next";
+import { LanguagePickerButton } from "@/components/LanguagePickerButton";
 
 export default function NewPasswordScreen() {
+  const { t } = useTranslation();
   const { email, code } = useLocalSearchParams<{ email?: string; code?: string }>();
   const [newPassword, setNewPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -24,7 +27,7 @@ export default function NewPasswordScreen() {
 
   const handleReset = () => {
     if (!newPassword) {
-      toast.error("Please enter a new password");
+      toast.error(t("auth.password_placeholder", "Please enter a new password"));
       return;
     }
 
@@ -32,7 +35,7 @@ export default function NewPasswordScreen() {
       { email: email || "", code: code || "", new_password: newPassword },
       {
         onSuccess: (data) => {
-          toast.success(data.message || "Password reset successfully");
+          toast.success(data.message || t("auth.reset_password_success", "Password reset successfully"));
           router.replace("/(auth)/login");
         },
         onError: (err: any) => toast.error(err?.response?.data?.error || err?.message || "Failed to reset password"),
@@ -43,25 +46,43 @@ export default function NewPasswordScreen() {
   return (
     <ScrollView contentContainerStyle={{ flexGrow: 1, backgroundColor: background }}>
       <View style={{ flex: 1, width: "100%", maxWidth: 480, alignSelf: "center", paddingHorizontal: horizontalPadding, paddingTop: insets.top + (isCompact ? 20 : 32), paddingBottom: 32 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", marginBottom: size(24, 18) }}>
-          <Pressable onPress={() => router.back()} style={{ padding: 8, marginLeft: -8 }}>
-            <Icon name={ArrowLeft} size={24} />
-          </Pressable>
-          <Text style={{ fontSize: 20, fontWeight: "bold", marginLeft: 16 }}>Create New Password</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: size(24, 18) }}>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <Pressable onPress={() => router.back()} style={{ padding: 8, marginLeft: -8 }}>
+              <Icon name={ArrowLeft} size={24} />
+            </Pressable>
+            <Text style={{ fontSize: 20, fontWeight: "bold", marginLeft: 16 }}>
+              {t("auth.create_new_password_title", "Create New Password")}
+            </Text>
+          </View>
+          <LanguagePickerButton />
         </View>
         <View style={{ marginBottom: size(32, 24) }}>
-          <Text style={{ color: muted, fontSize: 14 }}>Your code is verified. Choose a new password for your account.</Text>
+          <Text style={{ color: muted, fontSize: 14 }}>
+            {t("auth.create_new_password_desc", "Your code is verified. Choose a new password for your account.")}
+          </Text>
         </View>
         <View style={{ gap: size(24, 18) }}>
           <View style={{ gap: 8 }}>
-            <Text style={{ fontWeight: "600", fontSize: 14 }}>New Password</Text>
-            <Input placeholder="New password" secureTextEntry={!showPassword} variant="outline" value={newPassword} onChangeText={setNewPassword} rightComponent={() => (
-              <Pressable onPress={() => setShowPassword((visible) => !visible)}>
-                <Icon name={showPassword ? EyeOff : Eye} size={20} color={muted} />
-              </Pressable>
-            )} />
+            <Text style={{ fontWeight: "600", fontSize: 14 }}>
+              {t("auth.new_password", "New Password")}
+            </Text>
+            <Input
+              placeholder={t("auth.new_password_placeholder", "New password")}
+              secureTextEntry={!showPassword}
+              variant="outline"
+              value={newPassword}
+              onChangeText={setNewPassword}
+              rightComponent={() => (
+                <Pressable onPress={() => setShowPassword((visible) => !visible)}>
+                  <Icon name={showPassword ? EyeOff : Eye} size={20} color={muted} />
+                </Pressable>
+              )}
+            />
           </View>
-          <Button style={{ marginTop: 8 }} onPress={handleReset} disabled={resetPassword.isPending || !newPassword}>Reset Password</Button>
+          <Button style={{ marginTop: 8 }} onPress={handleReset} disabled={resetPassword.isPending || !newPassword}>
+            {t("auth.reset_password_btn", "Reset Password")}
+          </Button>
         </View>
       </View>
     </ScrollView>

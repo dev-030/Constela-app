@@ -8,8 +8,11 @@ import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { apiClient } from "@/api/client";
 import { useProfileStore } from "@/store/profileStore";
+import { useTranslation } from "react-i18next";
+import { LanguagePickerButton } from "@/components/LanguagePickerButton";
 
 export default function VerificationPromptScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const background = useColor("background");
   const text = useColor("text");
@@ -42,6 +45,10 @@ export default function VerificationPromptScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: background }]} edges={["top", "bottom"]}>
       <View style={styles.content}>
+        <View style={{ width: "100%", flexDirection: "row", justifyContent: "flex-end", marginBottom: 12 }}>
+          <LanguagePickerButton />
+        </View>
+
         <View style={styles.iconContainer}>
           <ShieldCheck size={80} color={primary} />
           <View style={[styles.badge, { backgroundColor: background }]}>
@@ -50,25 +57,31 @@ export default function VerificationPromptScreen() {
         </View>
 
         <Text variant="title" style={[styles.title, { color: text }]}>
-          Get the Blue Tick
+          {t("onboarding.verification_prompt.title", "Get the Blue Tick")}
         </Text>
         
         <Text style={[styles.subtitle, { color: muted }]}>
-          Stand out from the crowd! Verified profiles get up to 3x more matches and show others you're the real deal.
+          {t("onboarding.verification_prompt.subtitle", "Stand out from the crowd! Verified profiles get up to 3x more matches and show others you're the real deal.")}
         </Text>
 
         <View style={styles.benefitsList}>
           <View style={styles.benefitRow}>
             <CheckCircle2 size={20} color="#3B82F6" />
-            <Text style={[styles.benefitText, { color: text }]}>Prove you are a real person</Text>
+            <Text style={[styles.benefitText, { color: text }]}>
+              {t("onboarding.verification_prompt.benefit1", "Prove you are a real person")}
+            </Text>
           </View>
           <View style={styles.benefitRow}>
             <CheckCircle2 size={20} color="#3B82F6" />
-            <Text style={[styles.benefitText, { color: text }]}>Get prioritized in the matching feed</Text>
+            <Text style={[styles.benefitText, { color: text }]}>
+              {t("onboarding.verification_prompt.benefit2", "Get prioritized in the matching feed")}
+            </Text>
           </View>
           <View style={styles.benefitRow}>
             <CheckCircle2 size={20} color="#3B82F6" />
-            <Text style={[styles.benefitText, { color: text }]}>Unlock the Verified Badge on your profile</Text>
+            <Text style={[styles.benefitText, { color: text }]}>
+              {t("onboarding.verification_prompt.benefit3", "Unlock the Verified Badge on your profile")}
+            </Text>
           </View>
         </View>
 
@@ -81,7 +94,7 @@ export default function VerificationPromptScreen() {
           onPress={handleVerify}
           style={styles.verifyButton}
         >
-          Verify My Face Now
+          {t("onboarding.verification_prompt.verify_btn", "Verify My Face Now")}
         </Button>
         
         <Pressable 
@@ -92,7 +105,9 @@ export default function VerificationPromptScreen() {
           {isLoading ? (
             <ActivityIndicator size="small" color={muted} />
           ) : (
-            <Text style={[styles.skipText, { color: muted }]}>Skip for Now</Text>
+            <Text style={[styles.skipText, { color: muted }]}>
+              {t("onboarding.verification_prompt.skip_btn", "Skip for Now")}
+            </Text>
           )}
         </Pressable>
       </View>

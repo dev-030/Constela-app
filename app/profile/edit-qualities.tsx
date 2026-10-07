@@ -12,6 +12,7 @@ import { useColor } from '@/hooks/useColor';
 import { useProfileStore } from '@/store/profileStore';
 import { updateMyProfile } from '@/api/profile';
 import { useAndroidBack } from '@/hooks/useAndroidBack';
+import { useTranslation } from 'react-i18next';
 
 // Removed MAX constant for unlimited selections
 
@@ -26,7 +27,39 @@ const QUALITIES = [
   "Reliability in Routines",
 ];
 
+const QUALITIES_FR: Record<string, string> = {
+  "Authenticity": "Authenticité",
+  "Loyalty": "Loyauté",
+  "Reliability": "Fiabilité",
+  "Emotional Sensitivity": "Sensibilité émotionnelle",
+  "Kindness": "Bienveillance",
+  "Honesty": "Honnêteté",
+  "Respect for Boundaries": "Respect des limites",
+  "Hyperfocus": "Hyperfocalisation",
+  "Creativity": "Créativité",
+  "Deep Thinking": "Pensée profonde",
+  "Tree-like Thinking": "Pensée en arborescence",
+  "Attention to Detail": "Souci du détail",
+  "Strong Memory": "Excellente mémoire",
+  "Intense Curiosity": "Curiosité intense",
+  "Rich Imagination": "Imagination débordante",
+  "Artistic Sense": "Sens artistique",
+  "Originality": "Originalité",
+  "Aesthetic Sense": "Sens esthétique",
+  "Deep Empathy": "Empathie profonde",
+  "Active Listening": "Écoute active",
+  "Sincere Communication": "Communication sincère",
+  "Respect for Personal Space": "Respect de l'espace personnel",
+  "Authentic Commitment": "Engagement authentique",
+  "Positive Intensity": "Intensité positive",
+  "Resilience": "Résilience",
+  "Perseverance": "Persévérance",
+  "Sense of Justice": "Sens de la justice",
+  "Reliability in Routines": "Régularité dans les routines",
+};
+
 export default function EditQualitiesScreen() {
+  const { t, i18n } = useTranslation();
   useAndroidBack();
   const insets = useSafeAreaInsets();
   const background = useColor('background');
@@ -81,11 +114,14 @@ export default function EditQualitiesScreen() {
           errMsg = error.response.data[firstKey];
         }
       }
-      Alert.alert("Error", errMsg);
+      Alert.alert(t('edit_profile.error'), errMsg);
     } finally {
       setIsSaving(false);
     }
   };
+
+  const isFrench = i18n.language === 'fr';
+  const getQualityLabel = (q: string) => (isFrench && QUALITIES_FR[q] ? QUALITIES_FR[q] : q);
 
   return (
     <View style={[styles.container, { backgroundColor: background }]}>
@@ -93,19 +129,19 @@ export default function EditQualitiesScreen() {
         <Pressable onPress={() => router.back()} hitSlop={10} style={styles.backBtn}>
           <Icon name={ChevronLeft} size={24} color={text} />
         </Pressable>
-        <Text style={styles.headerTitle}>My Qualities</Text>
+        <Text style={styles.headerTitle}>{t('edit_profile.qualities')}</Text>
         <View style={styles.backBtn} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         
-        <Text style={styles.title}>Choose Qualities That Best Describe You</Text>
-        <Text style={[styles.subtitle, { color: muted }]}>Select as many as you want</Text>
+        <Text style={styles.title}>{t('onboarding.step5_title')}</Text>
+        <Text style={[styles.subtitle, { color: muted }]}>{t('onboarding.step5_subtitle')}</Text>
 
         <View style={[styles.counterBox, { borderColor: muted + '44' }]}>
           <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: qualities.length > 0 ? 12 : 0 }}>
-            <Text style={[styles.counterLabel, { color: muted }]}>YOUR SELECTION</Text>
-            <Text style={[styles.counterValue, { color: primary }]}>Selected ({qualities.length})</Text>
+            <Text style={[styles.counterLabel, { color: muted }]}>{t('onboarding.your_selection')}</Text>
+            <Text style={[styles.counterValue, { color: primary }]}>{t('onboarding.selected_count', { count: qualities.length })}</Text>
           </View>
 
           {qualities.length > 0 && (
@@ -124,7 +160,7 @@ export default function EditQualitiesScreen() {
                       gap: 4
                     }}
                   >
-                    <Text style={{ color: primary, fontSize: 12, fontWeight: '600' }}>{q}</Text>
+                    <Text style={{ color: primary, fontSize: 12, fontWeight: '600' }}>{getQualityLabel(q)}</Text>
                     <Icon name={X} size={14} color={primary} />
                   </Pressable>
               ))}
@@ -136,7 +172,7 @@ export default function EditQualitiesScreen() {
           {QUALITIES.map(item => (
             <SelectablePill 
               key={item} 
-              label={item} 
+              label={getQualityLabel(item)} 
               selected={qualities.includes(item)} 
               onPress={() => toggleQuality(item)} 
             />
@@ -151,7 +187,7 @@ export default function EditQualitiesScreen() {
           style={[styles.saveBtn, ...(!hasChanged ? [{ opacity: 0.5 }] : [])]} 
           disabled={isSaving || !hasChanged}
         >
-          {isSaving ? <ActivityIndicator color="#FFF" /> : "Save Changes"}
+          {isSaving ? <ActivityIndicator color="#FFF" /> : t('edit_profile.save_changes')}
         </Button>
       </View>
     </View>

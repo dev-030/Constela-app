@@ -1,8 +1,8 @@
 import { useColor } from '@/hooks/useColor';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
-import { FONT_SIZE } from '@/theme/globals';
-import React, { forwardRef } from 'react';
+import React, { forwardRef, useMemo } from 'react';
 import {
+  StyleSheet,
   Text as RNText,
   TextProps as RNTextProps,
   TextStyle,
@@ -30,9 +30,9 @@ export const Text = forwardRef<RNText, TextProps>(
   ) => {
     const textColor = useColor('text', { light: lightColor, dark: darkColor });
     const mutedColor = useColor('textMuted');
-    const { size } = useResponsiveLayout();
+    const { isCompact, scaleFont } = useResponsiveLayout();
 
-    const getTextStyle = (): TextStyle => {
+    const getBaseStyle = (): TextStyle => {
       const baseStyle: TextStyle = {
         color: textColor,
       };
@@ -41,46 +41,69 @@ export const Text = forwardRef<RNText, TextProps>(
         case 'heading':
           return {
             ...baseStyle,
-            fontSize: size(28, 24),
+            fontSize: scaleFont(26),
             fontWeight: '800',
           };
         case 'title':
           return {
             ...baseStyle,
-            fontSize: size(24, 21),
+            fontSize: scaleFont(22),
             fontWeight: '700',
           };
         case 'subtitle':
           return {
             ...baseStyle,
-            fontSize: size(19, 17),
+            fontSize: scaleFont(18),
             fontWeight: '600',
           };
         case 'caption':
           return {
             ...baseStyle,
-            fontSize: size(FONT_SIZE, 15),
+            fontSize: scaleFont(13),
             fontWeight: '400',
             color: mutedColor,
           };
         case 'link':
           return {
             ...baseStyle,
-            fontSize: size(FONT_SIZE, 15),
+            fontSize: scaleFont(15),
             fontWeight: '500',
             textDecorationLine: 'underline',
           };
         default: // 'body'
           return {
             ...baseStyle,
-            fontSize: size(FONT_SIZE, 15),
+            fontSize: scaleFont(15),
             fontWeight: '400',
           };
       }
     };
 
+    const resolvedStyle = useMemo(() => {
+      const base = getBaseStyle();
+      if (!style) return base;
+      if (!isCompact) return [base, style];
+
+      const flat = StyleSheet.flatten(style);
+      if (!flat?.fontSize) return [base, style];
+
+      const scaledSize = scaleFont(flat.fontSize);
+      const scaledLineHeight = flat.lineHeight
+        ? Math.round(flat.lineHeight * (scaledSize / flat.fontSize))
+        : undefined;
+
+      return [
+        base,
+        style,
+        {
+          fontSize: scaledSize,
+          ...(scaledLineHeight ? { lineHeight: scaledLineHeight } : {}),
+        },
+      ];
+    }, [textColor, mutedColor, variant, style, isCompact, scaleFont]);
+
     return (
-      <RNText ref={ref} style={[getTextStyle(), style]} {...props}>
+      <RNText ref={ref} style={resolvedStyle} allowFontScaling={false} {...props}>
         {children}
       </RNText>
     );
@@ -88,3 +111,4 @@ export const Text = forwardRef<RNText, TextProps>(
 );
 
 Text.displayName = 'Text';
+

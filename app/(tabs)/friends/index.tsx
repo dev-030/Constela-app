@@ -18,6 +18,7 @@ import VerificationOverlay from "@/components/VerificationOverlay";
 import { Check } from "lucide-react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useColorScheme } from "@/hooks/useColorScheme";
+import { useTranslation } from "react-i18next";
 import Animated, {
   FadeIn,
   FadeOut,
@@ -70,7 +71,8 @@ const SuggestionCard = React.memo(function SuggestionCard({
   onDismiss,
   cardWidth,
 }: SuggestionCardProps) {
-  const { size } = useResponsiveLayout();
+  const { t } = useTranslation();
+  const { size, isCompact } = useResponsiveLayout();
   const [isRequested, setIsRequested] = useState(false);
   const opacity = useSharedValue(1);
   const scale = useSharedValue(1);
@@ -159,7 +161,7 @@ const SuggestionCard = React.memo(function SuggestionCard({
         } as any)
       }
     >
-      <View style={styles.personImageContainer}>
+      <View style={[styles.personImageContainer, isCompact && { aspectRatio: 1.05 }]}>
         <Image
           source={{ uri: person.photo }}
           style={styles.personImage}
@@ -171,36 +173,36 @@ const SuggestionCard = React.memo(function SuggestionCard({
           locations={[0.5, 1]}
           style={styles.personImageOverlay}
         />
-        <View style={[styles.personNameContainer, { left: size(12, 10), right: size(12, 10), bottom: size(12, 10) }]}>
-          <Text style={[styles.personNameAge, { fontSize: size(16, 14) }]} numberOfLines={1}>
+        <View style={[styles.personNameContainer, { left: isCompact ? 8 : size(12, 10), right: isCompact ? 8 : size(12, 10), bottom: isCompact ? 8 : size(12, 10) }]}>
+          <Text style={[styles.personNameAge, { fontSize: isCompact ? 14 : size(16, 14) }]} numberOfLines={1}>
             {person.name || person.username || "Unknown"}
             {person.age ? `, ${person.age}` : ""}
           </Text>
         </View>
       </View>
 
-      <View style={[styles.personContent, { minHeight: size(142, 126), padding: size(12, 10), gap: size(8, 6) }]}>
-        <View style={styles.personTags}>
+      <View style={[styles.personContent, { minHeight: isCompact ? 122 : size(142, 126), padding: isCompact ? 8 : size(12, 10), gap: isCompact ? 5 : size(8, 6) }]}>
+        <View style={[styles.personTags, isCompact && { gap: 3 }]}>
           {(person.tags ?? []).slice(0, 2).map((tag) => (
             <View
               key={tag}
-              style={[styles.smallPill, { paddingHorizontal: size(8, 6), backgroundColor: primary + "18" }]}
+              style={[styles.smallPill, { paddingHorizontal: isCompact ? 5 : size(8, 6), paddingVertical: isCompact ? 2 : 3, backgroundColor: primary + "18" }]}
             >
-              <Text style={[styles.smallPillText, { fontSize: size(10, 9), color: primary }]}>
+              <Text style={[styles.smallPillText, { fontSize: isCompact ? 8.5 : size(10, 9), color: primary }]}>
                 {tag}
               </Text>
             </View>
           ))}
         </View>
 
-        <Text style={[styles.personBio, { height: size(36, 32), fontSize: size(13, 12), lineHeight: size(18, 16), color: muted }]} numberOfLines={2}>
+        <Text style={[styles.personBio, { height: isCompact ? 28 : size(36, 32), fontSize: isCompact ? 11 : size(13, 12), lineHeight: isCompact ? 14 : size(18, 16), color: muted }]} numberOfLines={2}>
           {person.bio}
         </Text>
 
         <AnimatedPressable
           style={[
             styles.addFriendBtn,
-            { paddingVertical: size(10, 8), borderRadius: size(20, 16) },
+            { paddingVertical: isCompact ? 7 : size(10, 8), borderRadius: size(20, 16) },
             isRequested
               ? {
                   backgroundColor: primary + "18",
@@ -224,11 +226,11 @@ const SuggestionCard = React.memo(function SuggestionCard({
               <>
                 <Check size={size(14, 12)} color={primary} strokeWidth={2.5} />
                 <Text style={[styles.addFriendText, { fontSize: size(12, 11), color: primary }]}>
-                  Requested
+                  {t('friends.requested')}
                 </Text>
               </>
             ) : (
-              <Text style={[styles.addFriendText, { fontSize: size(12, 11) }]}>Add Friend</Text>
+              <Text style={[styles.addFriendText, { fontSize: size(12, 11) }]}>{t('friends.add_friend')}</Text>
             )}
           </View>
         </AnimatedPressable>
@@ -238,6 +240,7 @@ const SuggestionCard = React.memo(function SuggestionCard({
 });
 
 export default function FriendsScreen() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const background = useColor("background");
   const cardColor = useColor("card");
@@ -246,8 +249,8 @@ export default function FriendsScreen() {
   const primary = useColor("primary");
   const border = useColor("border");
   const isDark = useColorScheme() === "dark";
-  const { horizontalPadding, size, width } = useResponsiveLayout();
-  const gridGap = size(16, 10);
+  const { horizontalPadding, size, width, isCompact } = useResponsiveLayout();
+  const gridGap = isCompact ? 8 : size(16, 10);
   const cardWidth = (width - horizontalPadding * 2 - gridGap) / 2;
 
   const [search, setSearch] = useState("");
@@ -454,8 +457,8 @@ export default function FriendsScreen() {
           >
             <Text style={[styles.actionBtnText, { color: "#FFFFFF" }]}>
               {acceptMutation.isPending && acceptMutation.variables === req.id
-                ? "Accepting…"
-                : "Accept"}
+                ? t('friends.accepting')
+                : t('friends.accept')}
             </Text>
           </Pressable>
           <Pressable
@@ -476,8 +479,8 @@ export default function FriendsScreen() {
           >
             <Text style={[styles.actionBtnText, { color: declineTextColor }]}>
               {declineMutation.isPending && declineMutation.variables === req.id
-                ? "Declining…"
-                : "Decline"}
+                ? t('friends.declining')
+                : t('friends.decline')}
             </Text>
           </Pressable>
         </View>
@@ -501,7 +504,7 @@ export default function FriendsScreen() {
           <Ionicons name="search" size={19} color={muted} />
           <TextInput
             style={[styles.searchInput, { color: text }]}
-            placeholder="Find people..."
+            placeholder={t('friends.search_placeholder')}
             placeholderTextColor={muted}
             value={search}
             onChangeText={setSearch}
@@ -524,7 +527,7 @@ export default function FriendsScreen() {
             hitSlop={10}
           >
             <Text style={[styles.sentLinkText, { color: primary }]}>
-              Sent Requests
+              {t('friends.sent_requests')}
             </Text>
             <Ionicons name="chevron-forward" size={13} color={primary} />
           </Pressable>
@@ -534,18 +537,18 @@ export default function FriendsScreen() {
       {/* Friend Requests (Only displayed when there are active requests or error) */}
       {requestsQuery.isError ? (
         <View style={styles.inlineMessage}>
-          <Text style={{ color: muted }}>Couldn&apos;t load friend requests.</Text>
+          <Text style={{ color: muted }}>{t('friends.requests_error')}</Text>
           <Pressable onPress={() => requestsQuery.refetch()}>
-            <Text style={{ color: primary, fontWeight: "600" }}>Retry</Text>
+            <Text style={{ color: primary, fontWeight: "600" }}>{t('friends.retry')}</Text>
           </Pressable>
         </View>
       ) : requests.length > 0 ? (
         <View style={styles.requestsSection}>
           <View style={styles.sectionHeader}>
             <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 10 }}>
-              <Text style={[styles.sectionTitle, { color: text }]}>Friend Requests</Text>
+              <Text style={[styles.sectionTitle, { color: text }]}>{t('friends.requests_title')}</Text>
               <View style={[styles.badge, { backgroundColor: primary }]}>
-                <Text style={styles.badgeText}>{requests.length} New</Text>
+                <Text style={styles.badgeText}>{t('friends.new_badge', { count: requests.length })}</Text>
               </View>
             </View>
             <Pressable
@@ -553,7 +556,7 @@ export default function FriendsScreen() {
               onPress={() => router.push("/friend-requests")}
               hitSlop={8}
             >
-              <Text style={[styles.showAllText, { color: primary }]}>Show All</Text>
+              <Text style={[styles.showAllText, { color: primary }]}>{t('friends.show_all')}</Text>
               <Ionicons name="chevron-forward" size={14} color={primary} />
             </Pressable>
           </View>
@@ -576,32 +579,32 @@ export default function FriendsScreen() {
       <Text style={[styles.suggestionsTitle, { color: text }]}>
         {isSearching
           ? searchTerm
-            ? `Searching for "${searchTerm}"…`
-            : "People you may know"
+            ? t('friends.searching_for', { query: searchTerm })
+            : t('friends.people_you_may_know')
           : debouncedSearch
-            ? `Results for "${debouncedSearch}"`
-            : "People you may know"}
+            ? t('friends.results_for', { query: debouncedSearch })
+            : t('friends.people_you_may_know')}
       </Text>
 
       {isSearching ? (
         <View style={styles.searchStatus} accessibilityLiveRegion="polite">
           <ActivityIndicator color={primary} size="small" />
           <Text style={{ color: muted }}>
-            {searchTerm ? "Looking for people…" : "Updating suggestions…"}
+            {searchTerm ? t('friends.looking_for_people') : t('friends.updating_suggestions')}
           </Text>
         </View>
       ) : suggestionsQuery.isError ? (
         <View style={styles.inlineMessage}>
-          <Text style={{ color: muted }}>Couldn&apos;t load suggestions.</Text>
+          <Text style={{ color: muted }}>{t('friends.suggestions_error')}</Text>
           <Pressable onPress={() => suggestionsQuery.refetch()}>
-            <Text style={{ color: primary, fontWeight: "600" }}>Retry</Text>
+            <Text style={{ color: primary, fontWeight: "600" }}>{t('friends.retry')}</Text>
           </Pressable>
         </View>
       ) : suggestions.length === 0 ? (
         <Text style={[styles.emptyText, { color: muted }]}>
           {debouncedSearch
-            ? `No people found for "${debouncedSearch}". Try another name or username.`
-            : "No suggestions right now."}
+            ? t('friends.no_results', { query: debouncedSearch })
+            : t('friends.no_suggestions')}
         </Text>
       ) : null}
     </>
@@ -665,8 +668,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   scrollContent: {
-    paddingVertical: 20,
-    paddingBottom: 40,
+    paddingVertical: 14,
+    paddingBottom: 130,
   },
   searchSection: {
     marginBottom: 16,

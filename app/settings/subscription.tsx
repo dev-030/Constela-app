@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { Text } from "@/components/ui/text";
 import { useColor } from "@/hooks/useColor";
+import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import { router, useFocusEffect } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -175,19 +176,20 @@ function FeatureRow({
   primary: string;
   text: string;
 }) {
+  const { isCompact } = useResponsiveLayout();
   return (
     <View style={styles.featureRow}>
       {available ? (
-        <Check size={18} color={primary} strokeWidth={2.5} />
+        <Check size={isCompact ? 16 : 18} color={primary} strokeWidth={2.5} />
       ) : (
-        <X size={18} color={muted} strokeWidth={2.5} />
+        <X size={isCompact ? 16 : 18} color={muted} strokeWidth={2.5} />
       )}
       <Text
         style={{
-          fontSize: 14,
+          fontSize: isCompact ? 13 : 14,
           color: available ? text : muted,
           flex: 1,
-          marginLeft: 12,
+          marginLeft: isCompact ? 10 : 12,
           fontWeight: "500",
         }}
       >
@@ -308,14 +310,15 @@ function SegmentedControl({
 }) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
+  const { isCompact, isNarrow } = useResponsiveLayout();
 
   const [containerWidth, setContainerWidth] = useState(0);
   const activeIndex = TABS.indexOf(activeTab);
   const translateX = useSharedValue(0);
   const pillWidthAnim = useSharedValue(0);
 
-  // Give the Premium tabs slightly more space than Freemium (25% more)
-  const flexes = [1, 1.25, 1.25];
+  // Give the Premium tabs slightly more space than Freemium (20% more)
+  const flexes = [1, 1.2, 1.2];
   const totalFlex = flexes.reduce((a, b) => a + b, 0);
 
   const getTabWidth = (index: number, w: number) => {
@@ -361,18 +364,36 @@ function SegmentedControl({
   const pillBg = isDark ? "#3A3A3C" : "#FFFFFF";
   const activeTextColor = isDark ? "#FFFFFF" : "#1C1C1C";
   const inactiveTextColor = isDark ? "#8E8E93" : "#8E8E93";
+  const innerPad = isCompact ? 3 : 4;
 
   return (
     <View
-      style={[segStyles.wrapper, { backgroundColor: containerBg }]}
+      style={[
+        segStyles.wrapper,
+        {
+          backgroundColor: containerBg,
+          marginHorizontal: isNarrow ? 10 : isCompact ? 12 : 16,
+          marginBottom: isCompact ? 16 : 24,
+          padding: innerPad,
+        },
+      ]}
       onLayout={(e) => {
-        const w = e.nativeEvent.layout.width - 8; // subtract padding
+        const w = e.nativeEvent.layout.width - innerPad * 2;
         setContainerWidth(w);
       }}
     >
       {containerWidth > 0 && (
         <Animated.View
-          style={[segStyles.pill, { backgroundColor: pillBg }, pillStyle]}
+          style={[
+            segStyles.pill,
+            {
+              backgroundColor: pillBg,
+              top: innerPad,
+              left: innerPad,
+              bottom: innerPad,
+            },
+            pillStyle,
+          ]}
         />
       )}
       {TABS.map((tab, index) => (
@@ -382,6 +403,7 @@ function SegmentedControl({
           activeOpacity={0.75}
           style={[
             segStyles.tab,
+            { paddingVertical: isCompact ? 8 : 12 },
             containerWidth > 0 && { width: getTabWidth(index, containerWidth) },
           ]}
         >
@@ -391,7 +413,7 @@ function SegmentedControl({
               alignItems: "center",
               justifyContent: "center",
               width: "100%",
-              paddingHorizontal: 4,
+              paddingHorizontal: isCompact ? 2 : 4,
             }}
           >
             <Text
@@ -403,6 +425,7 @@ function SegmentedControl({
                   color:
                     activeTab === tab ? activeTextColor : inactiveTextColor,
                   fontWeight: activeTab === tab ? "700" : "500",
+                  fontSize: isCompact ? (isNarrow ? 12 : 13) : 14,
                 },
               ]}
             >
@@ -411,11 +434,11 @@ function SegmentedControl({
             {isCurrentPlanActive(tab) && (
               <View
                 style={{
-                  width: 6,
-                  height: 6,
+                  width: isCompact ? 5 : 6,
+                  height: isCompact ? 5 : 6,
                   borderRadius: 3,
                   backgroundColor: primaryColor,
-                  marginLeft: 6,
+                  marginLeft: isCompact ? 4 : 6,
                   marginTop: 1,
                 }}
               />
@@ -431,16 +454,10 @@ const segStyles = StyleSheet.create({
   wrapper: {
     flexDirection: "row",
     borderRadius: 30,
-    padding: 4,
-    marginHorizontal: 16,
-    marginBottom: 24,
     position: "relative",
   },
   pill: {
     position: "absolute",
-    top: 4,
-    left: 4,
-    bottom: 4,
     borderRadius: 30,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
@@ -449,7 +466,6 @@ const segStyles = StyleSheet.create({
     elevation: 3,
   },
   tab: {
-    paddingVertical: 12,
     alignItems: "center",
     justifyContent: "center",
     zIndex: 1,
@@ -462,6 +478,7 @@ const segStyles = StyleSheet.create({
 
 export default function SubscriptionScreen() {
   useAndroidBack();
+  const { isCompact, isNarrow, horizontalPadding } = useResponsiveLayout();
   const background = useColor("background");
   const text = useColor("text");
   const muted = useColor("textMuted");
@@ -962,15 +979,19 @@ export default function SubscriptionScreen() {
 
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: showFooter ? 220 : 60 }}
+          contentContainerStyle={{
+            paddingBottom: showFooter
+              ? Math.max(insets.bottom + 110, 240)
+              : Math.max(insets.bottom + 48, 120),
+          }}
         >
           {currentTier !== "freemium" && (
             <View
               style={{
-                marginHorizontal: 16,
+                marginHorizontal: horizontalPadding,
                 marginTop: 12,
-                marginBottom: 24,
-                padding: 16,
+                marginBottom: isCompact ? 16 : 24,
+                padding: isCompact ? 12 : 16,
                 backgroundColor: card,
                 borderRadius: 16,
                 borderWidth: 1,
@@ -1064,10 +1085,10 @@ export default function SubscriptionScreen() {
           />
 
           {activeTab === "Freemium" && (
-            <View style={{ paddingHorizontal: 20 }}>
+            <View style={{ paddingHorizontal: horizontalPadding }}>
               <Text
                 style={{
-                  fontSize: 22,
+                  fontSize: isCompact ? 20 : 22,
                   fontWeight: "800",
                   color: text,
                   marginBottom: 4,
@@ -1075,11 +1096,22 @@ export default function SubscriptionScreen() {
               >
                 {tierRules.freemium.name}
               </Text>
-              <Text style={{ fontSize: 14, color: muted, marginBottom: 24 }}>
+              <Text
+                style={{
+                  fontSize: isCompact ? 13 : 14,
+                  color: muted,
+                  marginBottom: isCompact ? 16 : 24,
+                }}
+              >
                 The basic experience.
               </Text>
 
-              <View style={{ gap: 12, marginBottom: 32 }}>
+              <View
+                style={{
+                  gap: isCompact ? 9 : 12,
+                  marginBottom: isCompact ? 20 : 32,
+                }}
+              >
                 <FeatureRow
                   label="Browse dating & friendship profiles"
                   muted={muted}
@@ -1136,10 +1168,10 @@ export default function SubscriptionScreen() {
           )}
 
           {activeTab === "Premium Light" && (
-            <View style={{ paddingHorizontal: 20 }}>
+            <View style={{ paddingHorizontal: horizontalPadding }}>
               <Text
                 style={{
-                  fontSize: 22,
+                  fontSize: isCompact ? 20 : 22,
                   fontWeight: "800",
                   color: text,
                   marginBottom: 4,
@@ -1147,11 +1179,22 @@ export default function SubscriptionScreen() {
               >
                 {tierRules.light.name}
               </Text>
-              <Text style={{ fontSize: 14, color: muted, marginBottom: 24 }}>
+              <Text
+                style={{
+                  fontSize: isCompact ? 13 : 14,
+                  color: muted,
+                  marginBottom: isCompact ? 16 : 24,
+                }}
+              >
                 For serious, intentional browsing.
               </Text>
 
-              <View style={{ gap: 12, marginBottom: 32 }}>
+              <View
+                style={{
+                  gap: isCompact ? 9 : 12,
+                  marginBottom: isCompact ? 20 : 32,
+                }}
+              >
                 <FeatureRow
                   label="See who liked you"
                   available={tierRules.light.can_see_likes}
@@ -1195,10 +1238,10 @@ export default function SubscriptionScreen() {
 
               <Text
                 style={{
-                  fontSize: 13,
+                  fontSize: isCompact ? 12 : 13,
                   fontWeight: "700",
                   color: text,
-                  marginBottom: 12,
+                  marginBottom: isCompact ? 10 : 12,
                   letterSpacing: 0.5,
                 }}
               >
@@ -1322,10 +1365,10 @@ export default function SubscriptionScreen() {
           )}
 
           {activeTab === "Premium Plus" && (
-            <View style={{ paddingHorizontal: 20 }}>
+            <View style={{ paddingHorizontal: horizontalPadding }}>
               <Text
                 style={{
-                  fontSize: 22,
+                  fontSize: isCompact ? 20 : 22,
                   fontWeight: "800",
                   color: text,
                   marginBottom: 4,
@@ -1333,11 +1376,22 @@ export default function SubscriptionScreen() {
               >
                 {tierRules.plus.name}
               </Text>
-              <Text style={{ fontSize: 14, color: muted, marginBottom: 24 }}>
+              <Text
+                style={{
+                  fontSize: isCompact ? 13 : 14,
+                  color: muted,
+                  marginBottom: isCompact ? 16 : 24,
+                }}
+              >
                 The complete experience with total freedom.
               </Text>
 
-              <View style={{ gap: 12, marginBottom: 32 }}>
+              <View
+                style={{
+                  gap: isCompact ? 9 : 12,
+                  marginBottom: isCompact ? 20 : 32,
+                }}
+              >
                 <FeatureRow
                   label={dailyLimitLabel(tierRules.plus.daily_likes_limit, "likes")}
                   muted={muted}
@@ -1387,10 +1441,10 @@ export default function SubscriptionScreen() {
 
               <Text
                 style={{
-                  fontSize: 13,
+                  fontSize: isCompact ? 12 : 13,
                   fontWeight: "700",
                   color: text,
-                  marginBottom: 12,
+                  marginBottom: isCompact ? 10 : 12,
                   letterSpacing: 0.5,
                 }}
               >
@@ -1511,8 +1565,8 @@ export default function SubscriptionScreen() {
 
           <View
             style={{
-              marginTop: activeTab === "Freemium" ? 8 : 40,
-              paddingHorizontal: 20,
+              marginTop: activeTab === "Freemium" ? 8 : isCompact ? 24 : 40,
+              paddingHorizontal: horizontalPadding,
             }}
           >
             {/* Live offering dump so you can see exactly what RC is returning */}
@@ -1521,7 +1575,7 @@ export default function SubscriptionScreen() {
                 fontSize: 11,
                 fontWeight: "800",
                 color: muted,
-                marginBottom: 16,
+                marginBottom: isCompact ? 12 : 16,
                 letterSpacing: 0.8,
                 textTransform: "uppercase",
               }}
@@ -1534,7 +1588,7 @@ export default function SubscriptionScreen() {
               style={{
                 backgroundColor: "#1A3A2A",
                 borderRadius: 16,
-                padding: 16,
+                padding: isCompact ? 12 : 16,
                 marginBottom: 16,
               }}
             >
@@ -1704,13 +1758,16 @@ export default function SubscriptionScreen() {
             style={{
               alignItems: "center",
               marginTop: 16,
-              paddingHorizontal: 20,
-              paddingBottom: 24,
+              paddingHorizontal: horizontalPadding,
+              paddingBottom: isCompact ? 16 : 24,
             }}
           >
             <TouchableOpacity
               onPress={handleRestore}
-              style={{ paddingVertical: 12, paddingHorizontal: 24 }}
+              style={{
+                paddingVertical: isCompact ? 10 : 12,
+                paddingHorizontal: 24,
+              }}
             >
               <Text style={{ color: primary, fontWeight: "700", fontSize: 14 }}>
                 Restore Purchases

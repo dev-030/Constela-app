@@ -17,19 +17,22 @@ import { useCheckUsernameQuery } from '@/api/auth';
 import { useAuthStore } from '@/store/authStore';
 import { useAndroidBack } from '@/hooks/useAndroidBack';
 import { API_URL } from '@/constants/config';
+import { useTranslation } from 'react-i18next';
 
 const reverseGenderMap: Record<string, string> = {
   woman: "Woman",
   man: "Man",
   non_binary: "Non-Binary",
-  other: "Other"
+  other: "Other",
+  everyone: "Everyone"
 };
 
 const genderMap: Record<string, string> = {
   "Woman": "woman",
   "Man": "man",
   "Non-Binary": "non_binary",
-  "Other": "other"
+  "Other": "other",
+  "Everyone": "everyone"
 };
 
 const reverseLookingForMap: Record<string, string> = {
@@ -47,6 +50,7 @@ const lookingForMap: Record<string, string> = {
 };
 
 export default function EditBasicScreen() {
+  const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
   useAndroidBack();
   const background = useColor('background');
@@ -55,6 +59,38 @@ export default function EditBasicScreen() {
   const muted = useColor('textMuted');
   const primary = useColor('primary');
   const border = useColor('border');
+
+  const isFrench = i18n.language?.startsWith('fr');
+  const getGenderDisplay = (val: string) => {
+    if (isFrench) {
+      if (val === 'Man') return 'Homme';
+      if (val === 'Woman') return 'Femme';
+      if (val === 'Non-Binary') return 'Non binaire';
+      if (val === 'Other') return 'Autre';
+      if (val === 'Everyone') return 'Tout le monde';
+    }
+    return val;
+  };
+
+  const getLookingForDisplay = (val: string) => {
+    if (isFrench) {
+      if (val === 'Friendship') return 'Amitié';
+      if (val === 'Serious Relationship') return 'Relation sérieuse';
+      if (val === "We'll See") return 'On verra';
+      if (val === 'Going Out') return 'Sortir';
+    }
+    return val;
+  };
+
+  const getMaritalDisplay = (val: string) => {
+    if (isFrench) {
+      if (val === 'single') return 'Célibataire';
+      if (val === 'married') return 'Marié(e)';
+      if (val === 'divorced') return 'Divorcé(e)';
+      if (val === 'widowed') return 'Veuf/Veuve';
+    }
+    return val;
+  };
 
   const { profile, fetchProfile, setProfile } = useProfileStore();
 
@@ -71,6 +107,7 @@ export default function EditBasicScreen() {
   const [city, setCity] = useState('');
   const [country, setCountry] = useState('');
   const [gender, setGender] = useState('');
+  const [genderPreference, setGenderPreference] = useState('');
   const [lookingFor, setLookingFor] = useState('');
   const [maritalStatus, setMaritalStatus] = useState('');
   const [educationLevel, setEducationLevel] = useState('');
@@ -91,6 +128,7 @@ export default function EditBasicScreen() {
       setSpokenLanguages(profile.spoken_languages?.join(', ') || '');
 
       setGender(reverseGenderMap[profile.gender || ''] || profile.gender || '');
+      setGenderPreference(reverseGenderMap[profile.gender_preference || ''] || profile.gender_preference || '');
       setLookingFor(reverseLookingForMap[profile.looking_for || ''] || profile.looking_for || '');
     }
   }, [profile]);
@@ -141,6 +179,7 @@ export default function EditBasicScreen() {
     city !== (profile?.city || '') ||
     country !== (profile?.country || '') ||
     gender !== (reverseGenderMap[profile?.gender || ''] || profile?.gender || '') ||
+    genderPreference !== (reverseGenderMap[profile?.gender_preference || ''] || profile?.gender_preference || '') ||
     lookingFor !== (reverseLookingForMap[profile?.looking_for || ''] || profile?.looking_for || '') ||
     maritalStatus !== (profile?.marital_status || '') ||
     educationLevel !== (profile?.education_level || '') ||
@@ -202,6 +241,7 @@ export default function EditBasicScreen() {
       formData.append('city', city);
       formData.append('country', country);
       if (gender) formData.append('gender', genderMap[gender] || gender);
+      if (genderPreference) formData.append('gender_preference', genderMap[genderPreference] || genderPreference);
       if (lookingFor) formData.append('looking_for', lookingForMap[lookingFor] || lookingFor);
       formData.append('marital_status', maritalStatus);
       formData.append('education_level', educationLevel);
@@ -265,13 +305,13 @@ export default function EditBasicScreen() {
         <Pressable onPress={() => router.back()} hitSlop={10} style={styles.backBtn}>
           <Icon name={ChevronLeft} size={24} color={text} />
         </Pressable>
-        <Text style={styles.headerTitle}>Basic Information</Text>
+        <Text style={styles.headerTitle}>{t('edit_profile.basic_info')}</Text>
         <View style={styles.backBtn} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Profile Photos */}
-        <Text style={styles.sectionTitle}>PROFILE PHOTOS (UP TO 3)</Text>
+        <Text style={styles.sectionTitle}>{t('onboarding.upload_photos', 'PROFILE PHOTOS (UP TO 3)')}</Text>
         <View style={styles.photoGrid}>
           {[0, 1, 2].map((slot) => {
             const photo = localPhotos[slot];
@@ -298,23 +338,23 @@ export default function EditBasicScreen() {
             return (
               <Pressable key={slot} style={[styles.addPhotoBox, { borderColor: border, backgroundColor: cardColor }]} onPress={() => pickImage()}>
                 <Icon name={Camera} size={20} color={muted} />
-                <Text style={[styles.addPhotoText, { color: muted }]}>{slot === 0 ? 'Main Photo' : 'Add Photo'}</Text>
+                <Text style={[styles.addPhotoText, { color: muted }]}>{slot === 0 ? t('onboarding.main_photo', 'Main Photo') : t('onboarding.add_photo', 'Add Photo')}</Text>
               </Pressable>
             );
           })}
         </View>
 
-        <Text style={styles.sectionTitle}>PERSONAL DETAILS</Text>
+        <Text style={styles.sectionTitle}>{t('profile.basic_info')}</Text>
 
         <View style={styles.formGroup}>
-          <Text style={styles.inputLabel}>Name</Text>
+          <Text style={styles.inputLabel}>{t('profile.name')}</Text>
           <View style={[styles.inputContainer, { borderColor: border, backgroundColor: cardColor }]}>
             <TextInput style={[styles.inputValue, { color: text }]} value={firstName} onChangeText={setFirstName} placeholderTextColor={muted} />
           </View>
         </View>
 
         <View style={styles.formGroup}>
-          <Text style={styles.inputLabel}>Username *</Text>
+          <Text style={styles.inputLabel}>{t('profile.username')} *</Text>
           <View style={[styles.inputContainer, { borderColor: usernameError ? '#FF3B30' : usernameSuccess && !isOwnUsername && !isChecking ? '#22C55E' : border, backgroundColor: cardColor, flexDirection: 'row', alignItems: 'center' }]}>
             <TextInput 
               style={[styles.inputValue, { color: text, flex: 1 }]} 
@@ -331,7 +371,7 @@ export default function EditBasicScreen() {
             ) : null}
             {usernameError && username.length >= 3 && !isChecking ? (
               <Text style={{ color: '#FF3B30', fontSize: 12, fontWeight: '600' }}>
-                Taken
+                {t('common.taken')}
               </Text>
             ) : null}
           </View>
@@ -342,9 +382,9 @@ export default function EditBasicScreen() {
 
         <View style={styles.formGroup}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <Text style={[styles.inputLabel, { marginBottom: 0 }]}>Email</Text>
+            <Text style={[styles.inputLabel, { marginBottom: 0 }]}>{t('profile.email')}</Text>
             <Pressable onPress={() => router.push('/settings/email')} hitSlop={8}>
-              <Text style={{ fontSize: 13, color: primary, fontWeight: '600' }}>Change Email</Text>
+              <Text style={{ fontSize: 13, color: primary, fontWeight: '600' }}>{t('edit_profile.change_email')}</Text>
             </Pressable>
           </View>
           <View style={[styles.inputContainer, { borderColor: border, backgroundColor: cardColor, opacity: 0.8 }]}>
@@ -359,19 +399,19 @@ export default function EditBasicScreen() {
 
         <View style={{ flexDirection: 'row', gap: 12 }}>
           <View style={[styles.formGroup, { flex: 1 }]}>
-            <Text style={styles.inputLabel}>Age *</Text>
+            <Text style={styles.inputLabel}>{t('edit_profile.age')} *</Text>
             <View style={[styles.inputContainer, { borderColor: border, backgroundColor: cardColor }]}>
               <TextInput style={[styles.inputValue, { color: text }]} value={age} onChangeText={setAge} keyboardType="numeric" placeholderTextColor={muted} />
             </View>
           </View>
           <View style={[styles.formGroup, { flex: 1 }]}>
-            <Text style={styles.inputLabel}>Height (cm)</Text>
+            <Text style={styles.inputLabel}>{t('edit_profile.height')}</Text>
             <View style={[styles.inputContainer, { borderColor: border, backgroundColor: cardColor }]}>
               <TextInput style={[styles.inputValue, { color: text }]} value={height} onChangeText={setHeight} keyboardType="numeric" placeholderTextColor={muted} />
             </View>
           </View>
           <View style={[styles.formGroup, { flex: 1 }]}>
-            <Text style={styles.inputLabel}>Weight (kg)</Text>
+            <Text style={styles.inputLabel}>{t('edit_profile.weight')}</Text>
             <View style={[styles.inputContainer, { borderColor: border, backgroundColor: cardColor }]}>
               <TextInput style={[styles.inputValue, { color: text }]} value={weight} onChangeText={setWeight} keyboardType="numeric" placeholderTextColor={muted} />
             </View>
@@ -380,53 +420,60 @@ export default function EditBasicScreen() {
 
         <View style={{ flexDirection: 'row', gap: 12 }}>
           <View style={[styles.formGroup, { flex: 1 }]}>
-            <Text style={styles.inputLabel}>City *</Text>
+            <Text style={styles.inputLabel}>{t('edit_profile.city')} *</Text>
             <View style={[styles.inputContainer, { borderColor: border, backgroundColor: cardColor }]}>
               <TextInput style={[styles.inputValue, { color: text }]} value={city} onChangeText={setCity} placeholderTextColor={muted} />
             </View>
           </View>
           <View style={[styles.formGroup, { flex: 1 }]}>
-            <Text style={styles.inputLabel}>Country *</Text>
+            <Text style={styles.inputLabel}>{t('edit_profile.country')} *</Text>
             <View style={[styles.inputContainer, { borderColor: border, backgroundColor: cardColor }]}>
               <TextInput style={[styles.inputValue, { color: text }]} value={country} onChangeText={setCountry} placeholderTextColor={muted} />
             </View>
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>IDENTITY & STATUS</Text>
+        <Text style={styles.sectionTitle}>{t('edit_profile.identity_status')}</Text>
 
-        <Text style={styles.inputLabel}>Gender *</Text>
+        <Text style={styles.inputLabel}>{t('edit_profile.gender')} *</Text>
         <View style={styles.pillRow}>
           {['Non-Binary', 'Man', 'Woman', 'Other'].map(item => (
-            <FilterPill key={item} label={item} selected={gender === item} onPress={() => setGender(item)} />
+            <FilterPill key={item} label={getGenderDisplay(item)} selected={gender === item} onPress={() => setGender(item)} />
           ))}
         </View>
 
-        <Text style={[styles.inputLabel, { marginTop: 16 }]}>Looking for *</Text>
+        <Text style={[styles.inputLabel, { marginTop: 16 }]}>{t('edit_profile.preferred_gender')} *</Text>
+        <View style={styles.pillRow}>
+          {['Non-Binary', 'Man', 'Woman', 'Other', 'Everyone'].map(item => (
+            <FilterPill key={item} label={getGenderDisplay(item)} selected={genderPreference === item} onPress={() => setGenderPreference(item)} />
+          ))}
+        </View>
+
+        <Text style={[styles.inputLabel, { marginTop: 16 }]}>{t('edit_profile.looking_for')} *</Text>
         <View style={styles.pillRow}>
           {['Friendship', 'Serious Relationship', 'We\'ll See', 'Going Out'].map(item => (
-            <FilterPill key={item} label={item} selected={lookingFor === item} onPress={() => setLookingFor(item)} />
+            <FilterPill key={item} label={getLookingForDisplay(item)} selected={lookingFor === item} onPress={() => setLookingFor(item)} />
           ))}
         </View>
 
-        <Text style={[styles.inputLabel, { marginTop: 16 }]}>Marital Status *</Text>
+        <Text style={[styles.inputLabel, { marginTop: 16 }]}>{t('edit_profile.marital_status')} *</Text>
         <View style={styles.pillRow}>
           {['single', 'married', 'divorced', 'widowed'].map(item => (
-            <FilterPill key={item} label={item} selected={maritalStatus === item} onPress={() => setMaritalStatus(item)} />
+            <FilterPill key={item} label={getMaritalDisplay(item)} selected={maritalStatus === item} onPress={() => setMaritalStatus(item)} />
           ))}
         </View>
 
-        <Text style={styles.sectionTitle}>EDUCATION & LANGUAGES</Text>
+        <Text style={styles.sectionTitle}>{t('profile.education')} & {t('profile.languages')}</Text>
         
         <View style={styles.formGroup}>
-          <Text style={styles.inputLabel}>Education Level</Text>
+          <Text style={styles.inputLabel}>{t('edit_profile.education_level')}</Text>
           <View style={[styles.inputContainer, { borderColor: border, backgroundColor: cardColor }]}>
             <TextInput style={[styles.inputValue, { color: text }]} value={educationLevel} onChangeText={setEducationLevel} placeholder="e.g. Bachelor's Degree" placeholderTextColor={muted} />
           </View>
         </View>
         
         <View style={styles.formGroup}>
-          <Text style={styles.inputLabel}>Spoken Languages (comma separated)</Text>
+          <Text style={styles.inputLabel}>{t('edit_profile.spoken_languages')}</Text>
           <View style={[styles.inputContainer, { borderColor: border, backgroundColor: cardColor }]}>
             <TextInput style={[styles.inputValue, { color: text }]} value={spokenLanguages} onChangeText={setSpokenLanguages} placeholder="e.g. English, ASL" placeholderTextColor={muted} />
           </View>
@@ -437,7 +484,7 @@ export default function EditBasicScreen() {
 
       <View style={[styles.footer, { paddingBottom: insets.bottom || 24, backgroundColor: background }]}>
         <Button onPress={handleSave} style={[styles.saveBtn, ...(!canSave ? [{ opacity: 0.5 }] : [])]} disabled={isSaving || !canSave}>
-          {isSaving ? <ActivityIndicator color="#FFF" /> : "Save Changes"}
+          {isSaving ? <ActivityIndicator color="#FFF" /> : t('edit_profile.save_changes')}
         </Button>
       </View>
     </View>

@@ -3,13 +3,15 @@ import { View, StyleSheet, Pressable, Switch } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ban, AlertTriangle, ChevronRight } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
 import { useColor } from '@/hooks/useColor';
 
-export default function ManageProfileScreen() {
+export default function ManageProfileScreen({ name }: { name?: string }) {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const background = useColor('background');
   const text = useColor('text');
   const muted = useColor('textMuted');
@@ -26,13 +28,16 @@ export default function ManageProfileScreen() {
           <Icon name={Ban} size={20} color={muted} />
         </View>
         <View style={styles.rowTextCol}>
-          <Text style={[styles.rowTitle, { color: text }]}>Block Jordan</Text>
-          <Text style={[styles.rowSubtitle, { color: muted }]}>They won't be able to message you or see your profile.</Text>
+          <Text style={[styles.rowTitle, { color: text }]}>
+            {name ? t('profile_detail.block_user_name', { name, defaultValue: `Block ${name}` }) : t('chat.block_user', 'Block User')}
+          </Text>
+          <Text style={[styles.rowSubtitle, { color: muted }]}>
+            {t('profile_detail.block_user_desc', "They won't be able to message you or see your profile.")}
+          </Text>
         </View>
         <Switch
           value={isBlocked}
           onValueChange={setIsBlocked}
-         //  trackColor={{ true: destructive }}
         />
       </View>
 
@@ -44,8 +49,12 @@ export default function ManageProfileScreen() {
           <Icon name={AlertTriangle} size={20} color={destructive} />
         </View>
         <View style={styles.rowTextCol}>
-          <Text style={[styles.rowTitle, { color: destructive }]}>Report User</Text>
-          <Text style={[styles.rowSubtitle, { color: destructive }]}>Flag this profile for safety or community guideline violations.</Text>
+          <Text style={[styles.rowTitle, { color: destructive }]}>
+            {t('profile_detail.report_user', 'Report User')}
+          </Text>
+          <Text style={[styles.rowSubtitle, { color: destructive }]}>
+            {t('profile_detail.report_user_desc', 'Flag this profile for safety or community guideline violations.')}
+          </Text>
         </View>
         <Icon name={ChevronRight} size={20} color={destructive} />
       </Pressable>

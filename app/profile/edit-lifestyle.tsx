@@ -12,8 +12,10 @@ import { useColor } from '@/hooks/useColor';
 import { useProfileStore } from '@/store/profileStore';
 import { updateMyProfile } from '@/api/profile';
 import { useAndroidBack } from '@/hooks/useAndroidBack';
+import { useTranslation } from 'react-i18next';
 
 export default function EditLifestyleScreen() {
+  const { t } = useTranslation();
   useAndroidBack();
   const insets = useSafeAreaInsets();
   const background = useColor('background');
@@ -64,7 +66,7 @@ export default function EditLifestyleScreen() {
       router.back();
     } catch (error: any) {
       console.error(error);
-            let errMsg = "Failed to save profile";
+      let errMsg = t('edit_profile.failed_save');
       if (error?.response?.data && typeof error.response.data === "object") {
         const firstKey = Object.keys(error.response.data)[0];
         if (Array.isArray(error.response.data[firstKey])) {
@@ -73,9 +75,25 @@ export default function EditLifestyleScreen() {
           errMsg = error.response.data[firstKey];
         }
       }
-      Alert.alert("Error", errMsg);
+      Alert.alert(t('edit_profile.error'), errMsg);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const getOptionLabel = (val: string) => {
+    switch (val) {
+      case "Yes": return t('common.yes');
+      case "No": return t('common.no');
+      case "Intense": return t('onboarding.sport_intense');
+      case "Moderate": return t('onboarding.sport_moderate');
+      case "No Sport": return t('onboarding.sport_none');
+      case "Balanced": return t('onboarding.diet_balanced');
+      case "Fast Food": return t('onboarding.diet_fast_food');
+      case "Vegetarian": return t('onboarding.diet_veg');
+      case "Vegan": return t('onboarding.diet_vegan');
+      case "Other": return t('onboarding.diet_other');
+      default: return val;
     }
   };
 
@@ -86,7 +104,7 @@ export default function EditLifestyleScreen() {
         {options.map(item => (
           <FilterPill 
             key={item} 
-            label={item} 
+            label={getOptionLabel(item)} 
             selected={stateValue === item} 
             onPress={() => setStateFn(item)} 
             style={stateValue !== item && { backgroundColor: 'transparent', borderWidth: 1, borderColor: border }} 
@@ -103,29 +121,29 @@ export default function EditLifestyleScreen() {
         <Pressable onPress={() => router.back()} hitSlop={10} style={styles.backBtn}>
           <Icon name={ChevronLeft} size={24} color={text} />
         </Pressable>
-        <Text style={styles.headerTitle}>Lifestyle & Relationship</Text>
+        <Text style={styles.headerTitle}>{t('edit_profile.lifestyle_rel')}</Text>
         <View style={styles.backBtn} />
       </View>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         
-        <Text style={styles.sectionTitle}>CHILDREN</Text>
-        {renderPillGroup("Do you have children?", ["Yes", "No"], hasChildren, setHasChildren)}
-        {renderPillGroup("Do you want children?", ["Yes", "No"], wantsChildren, setWantsChildren)}
+        <Text style={styles.sectionTitle}>{t('edit_profile.children')}</Text>
+        {renderPillGroup(t('edit_profile.have_children'), ["Yes", "No"], hasChildren, setHasChildren)}
+        {renderPillGroup(t('edit_profile.want_children'), ["Yes", "No"], wantsChildren, setWantsChildren)}
 
-        <Text style={styles.sectionTitle}>LIFESTYLE HABITS</Text>
-        {renderPillGroup("Do you smoke?", ["Yes", "No"], smoking, setSmoking)}
-        {renderPillGroup("Do you drink alcohol?", ["Yes", "No"], alcohol, setAlcohol)}
-        {renderPillGroup("Do you have pets?", ["Yes", "No"], pets, setPets)}
+        <Text style={styles.sectionTitle}>{t('edit_profile.lifestyle_habits')}</Text>
+        {renderPillGroup(t('edit_profile.smoke'), ["Yes", "No"], smoking, setSmoking)}
+        {renderPillGroup(t('edit_profile.drink_alcohol'), ["Yes", "No"], alcohol, setAlcohol)}
+        {renderPillGroup(t('edit_profile.have_pets'), ["Yes", "No"], pets, setPets)}
         
-        {renderPillGroup("Sport", ["Intense", "Moderate", "No Sport"], sport, setSport)}
-        {renderPillGroup("Eating Habits", ["Balanced", "Fast Food", "Vegetarian", "Vegan", "Other"], eatingHabits, setEatingHabits)}
+        {renderPillGroup(t('edit_profile.sport'), ["Intense", "Moderate", "No Sport"], sport, setSport)}
+        {renderPillGroup(t('edit_profile.eating_habits'), ["Balanced", "Fast Food", "Vegetarian", "Vegan", "Other"], eatingHabits, setEatingHabits)}
 
         <View style={{ height: 40 }} />
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom || 24, backgroundColor: background }]}>
         <Button onPress={handleSave} style={[styles.saveBtn, ...(!hasChanged ? [{ opacity: 0.5 }] : [])]} disabled={isSaving || !hasChanged}>
-          {isSaving ? <ActivityIndicator color="#FFF" /> : "Save Changes"}
+          {isSaving ? <ActivityIndicator color="#FFF" /> : t('edit_profile.save_changes')}
         </Button>
       </View>
     </View>

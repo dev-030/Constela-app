@@ -11,8 +11,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useState } from "react";
 import { useVerifyOtpMutation, useResendOtpMutation } from "@/api/auth";
 import { toast } from "sonner-native";
+import { useTranslation } from "react-i18next";
+import { LanguagePickerButton } from "@/components/LanguagePickerButton";
 
 export default function OtpScreen() {
+  const { t } = useTranslation();
   const secondary = useColor("secondary");
   const muted = useColor("textMuted");
   const background = useColor("background");
@@ -28,12 +31,12 @@ export default function OtpScreen() {
 
   const handleVerify = () => {
     if (!otp || otp.length < 4) {
-      toast.error("Please enter a valid OTP");
+      toast.error(t("auth.otp_invalid", "Please enter a valid OTP"));
       return;
     }
 
     if (!email) {
-      toast.error("Email not found. Please sign up again.");
+      toast.error(t("auth.email_not_found", "Email not found. Please sign up again."));
       return;
     }
 
@@ -41,12 +44,12 @@ export default function OtpScreen() {
       { email, otp },
       {
         onSuccess: (data) => {
-          toast.success(data.message || "OTP verified successfully");
+          toast.success(data.message || t("auth.otp_verified", "OTP verified successfully"));
           router.replace("/");
         },
         onError: (err: any) => {
           const errMsg =
-            err?.response?.data?.error || err?.message || "Invalid OTP";
+            err?.response?.data?.error || err?.message || t("auth.otp_invalid", "Invalid OTP");
           toast.error(errMsg);
         },
       }
@@ -55,7 +58,7 @@ export default function OtpScreen() {
 
   const handleResend = () => {
     if (!email) {
-      toast.error("Email not found. Please sign up again.");
+      toast.error(t("auth.email_not_found", "Email not found. Please sign up again."));
       return;
     }
 
@@ -63,7 +66,7 @@ export default function OtpScreen() {
       { email },
       {
         onSuccess: (data) => {
-          toast.success(data.message || "A new code has been sent");
+          toast.success(data.message || t("auth.resend_success", "A new code has been sent"));
         },
         onError: (err: any) => {
           const errMsg =
@@ -89,22 +92,30 @@ export default function OtpScreen() {
           paddingBottom: 32,
         }}
       >
-        {/* Header - Back Button & Title */}
+        {/* Header - Back Button, Title & Language Picker */}
         <View
-          style={{ flexDirection: "row", alignItems: "center", marginBottom: size(24, 18) }}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: size(24, 18),
+          }}
         >
-          <Pressable
-            onPress={() => router.back()}
-            style={{ padding: 8, marginLeft: -8 }}
-          >
-            <Icon name={ArrowLeft} size={24} />
-          </Pressable>
-          <Text
-            variant="title"
-            style={{ fontSize: 20, fontWeight: "bold", marginLeft: 16 }}
-          >
-            OTP Verification
-          </Text>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <Pressable
+              onPress={() => router.back()}
+              style={{ padding: 8, marginLeft: -8 }}
+            >
+              <Icon name={ArrowLeft} size={24} />
+            </Pressable>
+            <Text
+              variant="title"
+              style={{ fontSize: 20, fontWeight: "bold", marginLeft: 16 }}
+            >
+              {t("auth.otp_title", "OTP Verification")}
+            </Text>
+          </View>
+          <LanguagePickerButton />
         </View>
 
         {/* Instructions */}
@@ -116,7 +127,7 @@ export default function OtpScreen() {
           }}
         >
           <Text style={{ color: muted, textAlign: "center", fontSize: 14 }}>
-            Enter the 4-digit code you received via email
+            {t("auth.otp_subtitle", "Enter the 4-digit code you received via email")}
           </Text>
           <Text
             style={{
@@ -164,7 +175,7 @@ export default function OtpScreen() {
             onPress={handleVerify}
             disabled={verifyOtp.isPending || otp.length < 4}
           >
-            Continue
+            {t("common.continue", "Continue")}
           </Button>
 
           <View style={{ alignItems: "center" }}>
@@ -174,7 +185,9 @@ export default function OtpScreen() {
               style={{ padding: 8 }}
             >
               <Text style={{ color: muted }}>
-                {resendOtp.isPending ? "Sending..." : "Resend new code"}
+                {resendOtp.isPending
+                  ? t("common.sending", "Sending...")
+                  : t("auth.resend_code", "Resend new code")}
               </Text>
             </Pressable>
           </View>

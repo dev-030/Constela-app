@@ -17,6 +17,7 @@ import { GoogleIcon } from "@/components/ui/GoogleIcon";
 import { useTranslation } from "react-i18next";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { useAuthLayout } from "@/hooks/useAuthLayout";
+import { LanguagePickerButton } from "@/components/LanguagePickerButton";
 
 export default function LoginScreen() {
   const { t } = useTranslation();
@@ -125,6 +126,20 @@ export default function LoginScreen() {
         bottomOffset={60}
       >
         <View style={{ width: "100%", maxWidth: layout.contentMaxWidth }}>
+          {/* Top Bar with Language Switcher */}
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "flex-end",
+              alignItems: "center",
+              width: "100%",
+              paddingTop: layout.isCompact ? 2 : 6,
+              paddingBottom: 4,
+            }}
+          >
+            <LanguagePickerButton />
+          </View>
+
           {/* Logo Section */}
           <View
             style={{

@@ -11,8 +11,11 @@ import { Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useForgotPasswordMutation } from "@/api/auth";
 import { toast } from "sonner-native";
+import { useTranslation } from "react-i18next";
+import { LanguagePickerButton } from "@/components/LanguagePickerButton";
 
 export default function ForgotPasswordScreen() {
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const forgotPassword = useForgotPasswordMutation();
   const muted = useColor("textMuted");
@@ -22,7 +25,7 @@ export default function ForgotPasswordScreen() {
 
   const handleSendCode = () => {
     if (!email) {
-      toast.error("Please enter your email");
+      toast.error(t("auth.email_placeholder", "Please enter your email"));
       return;
     }
 
@@ -30,7 +33,7 @@ export default function ForgotPasswordScreen() {
       { email },
       {
         onSuccess: (data) => {
-          toast.success(data.message || "Reset code sent");
+          toast.success(data.message || t("auth.resend_success", "Reset code sent"));
           router.push({ pathname: "/(auth)/reset-password", params: { email } });
         },
         onError: (err: any) => {
@@ -55,28 +58,31 @@ export default function ForgotPasswordScreen() {
         }}
       >
         {/* Header */}
-        <View style={{ flexDirection: "row", alignItems: "center", marginBottom: size(24, 18) }}>
-          <Pressable onPress={() => router.back()} style={{ padding: 8, marginLeft: -8 }}>
-            <Icon name={ArrowLeft} size={24} />
-          </Pressable>
-          <Text style={{ fontSize: 20, fontWeight: "bold", marginLeft: 16 }}>
-            Forgot Password
-          </Text>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: size(24, 18) }}>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <Pressable onPress={() => router.back()} style={{ padding: 8, marginLeft: -8 }}>
+              <Icon name={ArrowLeft} size={24} />
+            </Pressable>
+            <Text style={{ fontSize: 20, fontWeight: "bold", marginLeft: 12 }}>
+              {t("auth.forgot_password_title", "Forgot Password")}
+            </Text>
+          </View>
+          <LanguagePickerButton />
         </View>
 
         {/* Instructions */}
         <View style={{ marginBottom: size(32, 24) }}>
           <Text style={{ color: muted, fontSize: 14 }}>
-            Enter your email address and we'll send you a 6-digit code to reset your password.
+            {t("auth.forgot_password_desc", "Enter your email address and we'll send you a 6-digit code to reset your password.")}
           </Text>
         </View>
 
         {/* Form */}
         <View style={{ gap: size(24, 18) }}>
           <View style={{ gap: 8 }}>
-            <Text style={{ fontWeight: "600", fontSize: 14 }}>Email</Text>
+            <Text style={{ fontWeight: "600", fontSize: 14 }}>{t("auth.email", "Email")}</Text>
             <Input
-              placeholder="e.g. alex@example.com"
+              placeholder={t("auth.email_placeholder", "e.g. alex@example.com")}
               variant="outline"
               value={email}
               onChangeText={setEmail}
@@ -90,7 +96,7 @@ export default function ForgotPasswordScreen() {
             onPress={handleSendCode}
             disabled={forgotPassword.isPending || !email}
           >
-            Send Reset Code
+            {t("auth.send_reset_code", "Send Reset Code")}
           </Button>
         </View>
       </View>

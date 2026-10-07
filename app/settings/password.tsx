@@ -10,10 +10,12 @@ import { Pressable, StyleSheet, View, ScrollView, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useChangePasswordMutation } from '@/api/settings';
 import { useAndroidBack } from '@/hooks/useAndroidBack';
+import { useTranslation } from 'react-i18next';
 
 const MIN_PASSWORD_LENGTH = 8;
 
 export default function ChangePasswordScreen() {
+  const { t } = useTranslation();
   useAndroidBack();
   const insets = useSafeAreaInsets();
 
@@ -152,7 +154,7 @@ export default function ChangePasswordScreen() {
           </Pressable>
         </View>
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle} numberOfLines={1}>Change Password</Text>
+          <Text style={styles.headerTitle} numberOfLines={1}>{t('settings_pages.change_password')}</Text>
         </View>
         <View style={styles.headerRight} />
       </View>
@@ -163,7 +165,7 @@ export default function ChangePasswordScreen() {
         </Text>
 
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Current Password</Text>
+          <Text style={styles.label}>{t('settings_pages.current_password')}</Text>
           <Input
             placeholder="Enter current password"
             secureTextEntry={!showCurrent}
@@ -180,7 +182,7 @@ export default function ChangePasswordScreen() {
         </View>
 
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>New Password</Text>
+          <Text style={styles.label}>{t('settings_pages.new_password')}</Text>
           <Input
             placeholder="Enter new password"
             secureTextEntry={!showNew}
@@ -197,7 +199,7 @@ export default function ChangePasswordScreen() {
         </View>
 
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Confirm New Password</Text>
+          <Text style={styles.label}>{t('settings_pages.confirm_password')}</Text>
           <Input
             placeholder="Re-type new password"
             secureTextEntry={!showConfirm}
@@ -222,7 +224,7 @@ export default function ChangePasswordScreen() {
           loading={isBusy}
           disabled={isBusy || !isFormValid}
         >
-          Save New Password
+          {t('edit_profile.save_changes')}
         </Button>
       </View>
     </View>

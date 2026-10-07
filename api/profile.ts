@@ -48,6 +48,7 @@ export interface UserProfile {
   height_cm: number;
   weight_kg: number;
   gender: string;
+  gender_preference?: string;
   marital_status: string;
   education_level: string;
   spoken_languages: string[];

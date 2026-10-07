@@ -3,8 +3,10 @@ import { useProfileStore } from "@/store/profileStore";
 import { Text } from "@/components/ui/text";
 import { useColor } from "@/hooks/useColor";
 import { useRouter } from "expo-router";
-import { ShieldOff, Check } from "lucide-react-native";
+import { ShieldOff, Check, ArrowLeft } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { LanguagePickerButton } from "@/components/LanguagePickerButton";
 import {
   Animated,
   Easing,
@@ -42,6 +44,7 @@ const YAW_FRONT_MAX = 15;  // ±15° = looking straight
 const YAW_SIDE_MIN = 20;   // at least 20° side turn
 
 export default function FaceVerificationScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const background = useColor("background");
   const text = useColor("text");
@@ -308,8 +311,25 @@ export default function FaceVerificationScreen() {
     return "Done";
   };
 
+  const getStepInstruction = (s: Step) => {
+    switch (s) {
+      case "front": return t("onboarding.face_step_front", "1. Look straight at the camera");
+      case "left": return t("onboarding.face_step_left", "2. Good! Now turn your head LEFT");
+      case "right": return t("onboarding.face_step_right", "3. Great! Now turn your head RIGHT");
+      case "done": return t("onboarding.face_step_done", "All photos captured (Verifying...)");
+    }
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: background }]} edges={["top", "bottom"]}>
+      {/* Top Header */}
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 8, paddingBottom: 4 }}>
+        <Pressable onPress={() => router.back()} hitSlop={12} style={{ padding: 4 }}>
+          <ArrowLeft size={24} color={text} />
+        </Pressable>
+        <LanguagePickerButton />
+      </View>
+
       {/* Progress bar */}
       <View style={[styles.progressContainer, { backgroundColor: border }]}>
         <Animated.View
@@ -322,8 +342,8 @@ export default function FaceVerificationScreen() {
 
       {/* Title */}
       <View style={styles.titleBlock}>
-        <Text style={[styles.title, { color: text }]}>Face Verification</Text>
-        <Text style={[styles.subtitle, { color: muted }]}>{STEP_INSTRUCTIONS[step]}</Text>
+        <Text style={[styles.title, { color: text }]}>{t("onboarding.face_verification_title", "Face Verification")}</Text>
+        <Text style={[styles.subtitle, { color: muted }]}>{getStepInstruction(step)}</Text>
       </View>
 
       {/* Status badge */}
@@ -338,10 +358,10 @@ export default function FaceVerificationScreen() {
             fontSize: 13, fontWeight: "600",
           }}>
             {step === "done"
-              ? "All Done! Verifying..."
+              ? t("onboarding.face_badge_done", "All Done! Verifying...")
               : faceInPosition
-              ? "✓ Hold still — capturing!"
-              : `Step ${getStepNumber()} — Position your face`}
+              ? t("onboarding.face_badge_holding", "✓ Hold still — capturing!")
+              : t("onboarding.face_badge_position", "Step {{step}} — Position your face", { step: getStepNumber() })}
           </Text>
         </View>
       </View>
@@ -352,12 +372,12 @@ export default function FaceVerificationScreen() {
           {step === "done" ? (
             <View style={{ alignItems: "center", justifyContent: "center" }}>
               <Check size={50} color={primary} />
-              <Text style={{ color: text, marginTop: 12, fontWeight: "600" }}>Complete</Text>
+              <Text style={{ color: text, marginTop: 12, fontWeight: "600" }}>{t("common.complete", "Complete")}</Text>
             </View>
           ) : !hasPermission ? (
             <Pressable onPress={requestPermission} style={{ alignItems: "center", justifyContent: "center", padding: 16 }}>
               <Text style={{ fontSize: 40, marginBottom: 8 }}>📷</Text>
-              <Text style={{ fontSize: 12, color: muted, textAlign: "center" }}>Tap to grant camera access</Text>
+              <Text style={{ fontSize: 12, color: muted, textAlign: "center" }}>{t("onboarding.face_grant_camera", "Tap to grant camera access")}</Text>
             </Pressable>
           ) : !device ? (
             <ActivityIndicator size="large" color={primary} />
@@ -427,7 +447,7 @@ export default function FaceVerificationScreen() {
           <ShieldOff size={20} color={muted} />
         </View>
         <Text style={[styles.hintText, { color: text }]}>
-          Hold each pose steady for 1 second. The photo captures automatically when the ring turns green.
+          {t("onboarding.face_hint", "Hold each pose steady for 1 second. The photo captures automatically when the ring turns green.")}
         </Text>
       </View>
 

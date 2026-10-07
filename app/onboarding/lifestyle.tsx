@@ -9,6 +9,7 @@ import {
 } from "@/providers/onboarding-context";
 import { useRouter } from "expo-router";
 import { ScrollView, View } from "react-native";
+import { useTranslation } from "react-i18next";
 
 const LOOKING_FOR: LookingFor[] = [
   "Friendship",
@@ -18,6 +19,7 @@ const LOOKING_FOR: LookingFor[] = [
 ];
 
 export default function OnboardingStep3() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { data, update } = useOnboarding();
 
@@ -37,8 +39,8 @@ export default function OnboardingStep3() {
 
   return (
     <OnboardingShell
-      title="Lifestyle"
-      subtitle="These help us understand your daily routine."
+      title={t("onboarding.step3_title", "Lifestyle")}
+      subtitle={t("onboarding.step3_subtitle", "Tell us about how you spend your time.")}
       onBack={() => router.back()}
       onContinue={() => router.push("/onboarding/habits")}
       continueDisabled={!isFormValid}
@@ -50,7 +52,7 @@ export default function OnboardingStep3() {
         keyboardShouldPersistTaps="handled"
       >
         {/* Looking For */}
-        <SectionLabel>WHAT ARE YOU LOOKING FOR?</SectionLabel>
+        <SectionLabel>{t("onboarding.what_looking_for", "WHAT ARE YOU LOOKING FOR?")}</SectionLabel>
         <View
           style={{
             flexDirection: "row",
@@ -59,23 +61,32 @@ export default function OnboardingStep3() {
             marginBottom: 28,
           }}
         >
-          {LOOKING_FOR.map((option) => (
-            <SelectablePill
-              key={option}
-              label={option}
-              selected={data.lookingFor.includes(option)}
-              onPress={() => toggleLookingFor(option)}
-            />
-          ))}
+          {LOOKING_FOR.map((option) => {
+            const keyMap: Record<string, string> = {
+              "Friendship": "friendship",
+              "Serious Relationship": "serious",
+              "We'll See": "well_see",
+              "Going Out": "going_out",
+            };
+            const label = t(`onboarding.looking_for.${keyMap[option]}`, option);
+            return (
+              <SelectablePill
+                key={option}
+                label={label}
+                selected={data.lookingFor.includes(option)}
+                onPress={() => toggleLookingFor(option)}
+              />
+            );
+          })}
         </View>
 
         {/* Have children */}
-        <SectionLabel>DO YOU HAVE CHILDREN?</SectionLabel>
+        <SectionLabel>{t("onboarding.have_children", "DO YOU HAVE CHILDREN?")}</SectionLabel>
         <View style={{ flexDirection: "row", gap: 10, marginBottom: 28 }}>
           {(["Yes", "No"] as YesNo[]).map((v) => (
             <SelectablePill
               key={v}
-              label={v}
+              label={v === "Yes" ? t("common.yes", "Yes") : t("common.no", "No")}
               selected={data.hasChildren === v}
               onPress={() => update("hasChildren", v)}
               size="lg"
@@ -85,12 +96,12 @@ export default function OnboardingStep3() {
         </View>
 
         {/* Want children */}
-        <SectionLabel>DO YOU WANT CHILDREN?</SectionLabel>
+        <SectionLabel>{t("onboarding.want_children", "DO YOU WANT CHILDREN?")}</SectionLabel>
         <View style={{ flexDirection: "row", gap: 10, marginBottom: 28 }}>
           {(["Yes", "No"] as YesNo[]).map((v) => (
             <SelectablePill
               key={v}
-              label={v}
+              label={v === "Yes" ? t("common.yes", "Yes") : t("common.no", "No")}
               selected={data.wantChildren === v}
               onPress={() => update("wantChildren", v)}
               size="lg"

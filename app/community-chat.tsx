@@ -45,6 +45,7 @@ import { apiClient } from "@/api/client";
 import { useProfileStore } from "@/store/profileStore";
 import { useChatSocket } from "@/api/ChatSocketProvider";
 import type { ChatMessage } from "@/api/chat";
+import { useTranslation } from "react-i18next";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
 
 const QUICK_EMOJIS = [
@@ -60,11 +61,11 @@ function formatMessageTime(timestamp: string): string {
   return format(date, "h:mm a");
 }
 
-function formatDayLabel(timestamp: string): string {
+function formatDayLabel(timestamp: string, t: (key: string, def: string) => string): { label: string; isToday: boolean } {
   const date = new Date(timestamp);
-  if (isToday(date)) return "Today";
-  if (isYesterday(date)) return "Yesterday";
-  return format(date, "MMMM d, yyyy");
+  if (isToday(date)) return { label: t('chat.today', "Today"), isToday: true };
+  if (isYesterday(date)) return { label: t('chat.yesterday', "Yesterday"), isToday: false };
+  return { label: format(date, "MMMM d, yyyy"), isToday: false };
 }
 
 // Stable palette for the username-label color band on incoming messages.
@@ -79,15 +80,15 @@ function hashStringToColor(input: string): string {
 }
 
 // Group messages by day so we can render day-separator labels
-function groupMessagesByDay(messages: ChatMessage[]) {
-  const groups: { label: string; data: ChatMessage[] }[] = [];
+function groupMessagesByDay(messages: ChatMessage[], t: any) {
+  const groups: { label: string; isToday: boolean; data: ChatMessage[] }[] = [];
   let lastLabel = "";
   // messages are newest-first; reverse to oldest-first for grouping
   const sorted = [...messages].reverse();
   for (const msg of sorted) {
-    const label = formatDayLabel(msg.timestamp);
+    const { label, isToday: msgIsToday } = formatDayLabel(msg.timestamp, t);
     if (label !== lastLabel) {
-      groups.push({ label, data: [msg] });
+      groups.push({ label, isToday: msgIsToday, data: [msg] });
       lastLabel = label;
     } else {
       groups[groups.length - 1].data.push(msg);
@@ -100,7 +101,7 @@ function groupMessagesByDay(messages: ChatMessage[]) {
       items.push(msg);
     }
     // In an inverted list, appending the separator makes it render above its day.
-    if (g.label !== "Today") {
+    if (!g.isToday) {
       items.push({ type: "day", label: g.label });
     }
   }
@@ -268,6 +269,7 @@ export default function CommunityChatScreen() {
   const card = useColor("card");
 
   const { profile, fetchProfile } = useProfileStore();
+  const { t } = useTranslation();
   useEffect(() => { if (!profile) fetchProfile(); }, [profile, fetchProfile]);
 
   const currentUserId = profile?.id ?? profile?.user.id ?? "";
@@ -311,28 +313,32 @@ export default function CommunityChatScreen() {
 
     if (isJoined) {
       options.push({
-        text: "Leave Room",
+        text: t('chat.leave_room', "Leave Room"),
         style: "destructive",
         onPress: () => {
-          Alert.alert("Leave room?", `You'll stop receiving messages from ${title}.`, [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Leave",
-              style: "destructive",
-              onPress: () =>
-                leaveMutation.mutate(roomId, {
-                  onSuccess: () => router.back(),
-                  onError: () => Alert.alert("Couldn't leave", "Please try again."),
-                }),
-            },
-          ]);
+          Alert.alert(
+            t('chat.leave_room_q', "Leave room?"),
+            t('chat.leave_room_desc', { title, defaultValue: `You'll stop receiving messages from ${title}.` }),
+            [
+              { text: t('chat.cancel', "Cancel"), style: "cancel" },
+              {
+                text: t('chat.leave', "Leave"),
+                style: "destructive",
+                onPress: () =>
+                  leaveMutation.mutate(roomId, {
+                    onSuccess: () => router.back(),
+                    onError: () => Alert.alert(t('chat.couldnt_leave', "Couldn't leave"), t('chat.please_try_again', "Please try again.")),
+                  }),
+              },
+            ]
+          );
         },
       });
     }
 
-    options.push({ text: "Cancel", style: "cancel" });
-    Alert.alert("Room Options", "Choose an action", options);
-  }, [roomId, title, isJoined, leaveMutation]);
+    options.push({ text: t('chat.cancel', "Cancel"), style: "cancel" });
+    Alert.alert(t('chat.room_options', "Room Options"), t('chat.choose_action', "Choose an action"), options);
+  }, [roomId, title, isJoined, leaveMutation, t]);
 
   const commQuota = profile?.access?.quotas.community_messages;
   const isCommQuotaExhausted =
@@ -345,7 +351,7 @@ export default function CommunityChatScreen() {
     const options: any[] = [];
     if (!isMe && msg.sender) {
       options.push({
-        text: "View Profile",
+        text: t('chat.view_profile', "View Profile"),
         onPress: () => {
           router.push({
             pathname: "/profile/[id]",
@@ -354,17 +360,17 @@ export default function CommunityChatScreen() {
         },
       });
     }
-    options.push({ text: "Cancel", style: "cancel" });
-    Alert.alert(msg.sender_name || "Message", undefined, options);
-  }, [currentUserId]);
+    options.push({ text: t('chat.cancel', "Cancel"), style: "cancel" });
+    Alert.alert(msg.sender_name || t('chat.message_placeholder', "Message"), undefined, options);
+  }, [currentUserId, t]);
 
   const handleSend = useCallback(() => {
     const trimmed = text.trim();
     if (!trimmed || !roomId) return;
     if (isCommQuotaExhausted) {
       Alert.alert(
-        "Daily Limit Reached",
-        "You've reached your daily community message limit. Upgrade your subscription or wait until midnight to send more."
+        t('chat.daily_limit_reached', "Daily Limit Reached"),
+        t('chat.daily_limit_desc', "You've reached your daily community message limit. Upgrade your subscription or wait until midnight to send more.")
       );
       return;
     }
@@ -377,18 +383,18 @@ export default function CommunityChatScreen() {
     requestAnimationFrame(() => {
       listRef.current?.scrollToOffset({ offset: 0, animated: false });
     });
-  }, [text, roomId, isCommQuotaExhausted, sendRoomMessage]);
+  }, [text, roomId, isCommQuotaExhausted, sendRoomMessage, t]);
 
   const handleJoin = useCallback(() => {
     if (!roomId) return;
     joinMutation.mutate(roomId, {
-      onError: (err: any) => Alert.alert("Error", err?.response?.data?.error || err?.message || "Could not join room.")
+      onError: (err: any) => Alert.alert("Error", err?.response?.data?.error || err?.message || t('chat.could_not_join', "Could not join room."))
     });
-  }, [roomId, joinMutation]);
+  }, [roomId, joinMutation, t]);
 
   // Build the flat-list data
   const rawMessages = useMemo(() => historyQuery.data ?? [], [historyQuery.data]);
-  const listData = useMemo(() => groupMessagesByDay(rawMessages), [rawMessages]);
+  const listData = useMemo(() => groupMessagesByDay(rawMessages, t), [rawMessages, t]);
 
   const nameColors = useMemo(() => {
     const map: Record<string, string> = {};
@@ -596,10 +602,10 @@ export default function CommunityChatScreen() {
               <View style={styles.emptyWrap}>
                 <Text style={{ fontSize: 36, marginBottom: 12 }}>👋</Text>
                 <Text style={[styles.emptyTitle, { color: textColor }]}>
-                  Welcome to {title}!
+                  {t('chat.welcome_to_room', { title, defaultValue: `Welcome to #${title}` })}
                 </Text>
                 <Text style={[styles.emptySub, { color: muted }]}>
-                  This is the beginning of the community conversation.
+                  {t('chat.beginning_conversation', "This is the beginning of the community conversation.")}
                 </Text>
               </View>
             }
@@ -645,7 +651,7 @@ export default function CommunityChatScreen() {
               {joinMutation.isPending ? (
                 <ActivityIndicator color="#FFF" />
               ) : (
-                <Text style={styles.joinBtnText}>Join Room to Chat</Text>
+                <Text style={styles.joinBtnText}>{t('chat.join_to_chat', "Join Room to Chat")}</Text>
               )}
             </Pressable>
           </View>
@@ -665,7 +671,7 @@ export default function CommunityChatScreen() {
           >
             <Lock size={18} color="#EF4444" />
             <Text style={[styles.limitBannerText, { color: textColor }]}>
-              Daily limit reached ({commQuota?.used}/{commQuota?.limit}). Resets at midnight.
+              {t('chat.limit_banner', { used: commQuota?.used, limit: commQuota?.limit, defaultValue: `Daily limit reached (${commQuota?.used}/${commQuota?.limit}). Resets at midnight.` })}
             </Text>
           </View>
         ) : (
@@ -752,7 +758,7 @@ export default function CommunityChatScreen() {
                   value={text}
                   onChangeText={setText}
                   onFocus={() => setShowEmojiPicker(false)}
-                  placeholder="Message…"
+                  placeholder={t('chat.message_placeholder', "Message…")}
                   placeholderTextColor={muted}
                   multiline
                   maxLength={2000}

@@ -11,8 +11,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useProfileStore } from '@/store/profileStore';
 import { apiClient } from '@/api/client';
 import { useAndroidBack } from '@/hooks/useAndroidBack';
+import { useTranslation } from 'react-i18next';
 
 export default function ChangeEmailScreen() {
+  const { t } = useTranslation();
   useAndroidBack();
   const insets = useSafeAreaInsets();
   const { profile, fetchProfile } = useProfileStore();
@@ -135,18 +137,18 @@ export default function ChangeEmailScreen() {
           </Pressable>
         </View>
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle} numberOfLines={1}>Change Email</Text>
+          <Text style={styles.headerTitle} numberOfLines={1}>{t('settings_pages.change_email')}</Text>
         </View>
         <View style={styles.headerRight} />
       </View>
 
       <View style={styles.content}>
         <Text style={styles.description}>
-          Keep your account secure by ensuring your email address is up to date.
+          {t('settings_pages.keep_account_secure')}
         </Text>
 
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Current Email</Text>
+          <Text style={styles.label}>{t('settings_pages.current_email')}</Text>
           <Input
             value={profile?.user?.email || ""}
             disabled
@@ -156,9 +158,9 @@ export default function ChangeEmailScreen() {
         </View>
 
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>New Email</Text>
+          <Text style={styles.label}>{t('settings_pages.new_email')}</Text>
           <Input
-            placeholder="Enter your new email address"
+            placeholder={t('auth.email_placeholder', "Enter your new email address")}
             value={newEmail}
             onChangeText={setNewEmail}
             keyboardType="email-address"
@@ -170,7 +172,7 @@ export default function ChangeEmailScreen() {
 
         <View style={styles.infoContainer}>
           <Icon name={Info} size={14} color={muted} />
-          <Text style={styles.infoText}>We'll send a verification code to this address.</Text>
+          <Text style={styles.infoText}>{t('auth.enter_email_sub', "We'll send a verification code to this address.")}</Text>
         </View>
       </View>
 
@@ -182,7 +184,7 @@ export default function ChangeEmailScreen() {
           loading={isLoading}
           onPress={handleRequestOTP}
         >
-          Send Verification Code
+          {t('auth.send_code', 'Send Verification Code')}
         </Button>
       </View>
     </View>

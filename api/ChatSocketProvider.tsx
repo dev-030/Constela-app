@@ -131,6 +131,21 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
         return;
       }
 
+      if (data.type === 'threads_changed') {
+        const threadType = data.thread_type === 'friends' ? 'friends' : 'dating';
+        void queryClient.invalidateQueries({ queryKey: ['messageThreads', threadType] });
+        void queryClient.refetchQueries({ queryKey: ['messageThreads', threadType], type: 'all' });
+        if (threadType === 'dating') {
+          void queryClient.invalidateQueries({ queryKey: ['mutualMatches'] });
+        } else {
+          void queryClient.invalidateQueries({ queryKey: ['friends'] });
+          void queryClient.invalidateQueries({ queryKey: ['myFriends'] });
+          void queryClient.refetchQueries({ queryKey: ['myFriends'], type: 'all' });
+          void queryClient.invalidateQueries({ queryKey: ['pendingFriendRequests'] });
+        }
+        return;
+      }
+
       if (data.type === 'subscription_policy_updated') {
         console.log('[ChatSocket] subscription_policy_updated received — refreshing profile & limits');
         void useProfileStore.getState().fetchProfile();

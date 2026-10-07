@@ -38,9 +38,12 @@ interface CardConfig {
   path?: string;
 }
 
+import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
+
 function DashboardCard({ config }: { config: CardConfig }) {
   const router = useRouter();
   const isDark = useColorScheme() === "dark";
+  const { isCompact } = useResponsiveLayout();
 
   const titleColor = isDark ? "#F8FAFC" : "#0F172A";
   const subtitleColor = isDark ? "#94A3B8" : "#64748B";
@@ -64,41 +67,42 @@ function DashboardCard({ config }: { config: CardConfig }) {
       <View style={styles.bgIconContainer} pointerEvents="none">
         <Ionicons
           name={config.badgeIonIcon}
-          size={140}
+          size={isCompact ? 100 : 140}
           color={config.badgeColor}
           style={{ opacity: isDark ? 0.04 : 0.05 }}
         />
       </View>
 
-      <View style={styles.contentContainer}>
+      <View style={[styles.contentContainer, isCompact && styles.contentContainerCompact]}>
         {/* Header */}
-        <View style={styles.header}>
-          <View style={[styles.iconBadge, { backgroundColor: config.badgeColor }]}>
-            <Ionicons name={config.badgeIonIcon} size={24} color="#FFF" />
+        <View style={[styles.header, isCompact && { gap: 10, marginBottom: 10 }]}>
+          <View style={[styles.iconBadge, isCompact && styles.iconBadgeCompact, { backgroundColor: config.badgeColor }]}>
+            <Ionicons name={config.badgeIonIcon} size={isCompact ? 20 : 24} color="#FFF" />
           </View>
           <View style={styles.headerText}>
-            <Text style={[styles.cardTitle, { color: titleColor }]}>{config.title}</Text>
-            <Text style={[styles.cardSubtitle, { color: subtitleColor }]}>
+            <Text style={[styles.cardTitle, isCompact && styles.cardTitleCompact, { color: titleColor }]}>{config.title}</Text>
+            <Text style={[styles.cardSubtitle, isCompact && styles.cardSubtitleCompact, { color: subtitleColor }]}>
               {config.subtitle}
             </Text>
           </View>
         </View>
 
         {/* Features / Tags with Harmonic Color Matching */}
-        <View style={styles.featuresList}>
+        <View style={[styles.featuresList, isCompact && { gap: 5, marginBottom: 12 }]}>
           {config.features.map((feature, index) => (
             <View
               key={index}
               style={[
                 styles.featureItem,
+                isCompact && styles.featureItemCompact,
                 {
                   backgroundColor: pillBg,
                   borderColor: pillBorder,
                 },
               ]}
             >
-              <Icon name={feature.icon} size={12} color={pillTextColor} />
-              <Text style={[styles.featureText, { color: pillTextColor }]}>
+              <Icon name={feature.icon} size={isCompact ? 11 : 12} color={pillTextColor} />
+              <Text style={[styles.featureText, isCompact && { fontSize: 11 }, { color: pillTextColor }]}>
                 {feature.text}
               </Text>
             </View>
@@ -106,9 +110,9 @@ function DashboardCard({ config }: { config: CardConfig }) {
         </View>
 
         {/* Solid Vibrant Action Button */}
-        <View style={[styles.actionButton, { backgroundColor: config.badgeColor }]}>
-          <Text style={styles.actionButtonText}>{config.buttonText}</Text>
-          <Icon name={ChevronRight} size={17} color="#FFF" />
+        <View style={[styles.actionButton, isCompact && styles.actionButtonCompact, { backgroundColor: config.badgeColor }]}>
+          <Text style={[styles.actionButtonText, isCompact && { fontSize: 13.5 }]}>{config.buttonText}</Text>
+          <Icon name={ChevronRight} size={isCompact ? 15 : 17} color="#FFF" />
         </View>
       </View>
     </Pressable>
@@ -202,6 +206,9 @@ const styles = StyleSheet.create({
     padding: 20,
     zIndex: 1,
   },
+  contentContainerCompact: {
+    padding: 13,
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -223,16 +230,28 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 3,
   },
+  iconBadgeCompact: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+  },
   cardTitle: {
     fontSize: 20,
     fontWeight: "700",
     letterSpacing: -0.3,
     marginBottom: 2,
   },
+  cardTitleCompact: {
+    fontSize: 17,
+  },
   cardSubtitle: {
     fontSize: 13.5,
     fontWeight: "400",
     lineHeight: 18,
+  },
+  cardSubtitleCompact: {
+    fontSize: 12,
+    lineHeight: 16,
   },
   featuresList: {
     flexDirection: "row",
@@ -249,6 +268,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 5,
   },
+  featureItemCompact: {
+    paddingVertical: 3.5,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    gap: 4,
+  },
   featureText: {
     fontSize: 12,
     fontWeight: "500",
@@ -262,6 +287,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     borderRadius: 14,
     alignSelf: "stretch",
+  },
+  actionButtonCompact: {
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    borderRadius: 12,
   },
   actionButtonText: {
     color: "#FFF",

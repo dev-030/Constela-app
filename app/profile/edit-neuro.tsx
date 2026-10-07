@@ -12,13 +12,30 @@ import { useColor } from '@/hooks/useColor';
 import { useProfileStore } from '@/store/profileStore';
 import { updateMyProfile } from '@/api/profile';
 import { useAndroidBack } from '@/hooks/useAndroidBack';
+import { useTranslation } from 'react-i18next';
 
 const NEUROTYPES = [
   "ADHD", "Autism", "Dyslexia", "Dyspraxia", "Dyscalculia",
   "Tourette's", "OCD", "Bipolar", "Synesthesia", "Gifted", "Anxiety", "PTSD"
 ];
 
+const NEUROTYPES_FR: Record<string, string> = {
+  "ADHD": "TDAH",
+  "Autism": "Autisme",
+  "Dyslexia": "Dyslexie",
+  "Dyspraxia": "Dyspraxie",
+  "Dyscalculia": "Dyscalculie",
+  "Tourette's": "Syndrome de Gilles de la Tourette",
+  "OCD": "TOC",
+  "Bipolar": "Trouble bipolaire",
+  "Synesthesia": "Synesthésie",
+  "Gifted": "Haut potentiel (HPI)",
+  "Anxiety": "Anxiété",
+  "PTSD": "TSPT (Stress post-traumatique)",
+};
+
 export default function EditNeuroScreen() {
+  const { t, i18n } = useTranslation();
   useAndroidBack();
   const insets = useSafeAreaInsets();
   const background = useColor('background');
@@ -64,7 +81,7 @@ export default function EditNeuroScreen() {
       router.back();
     } catch (error: any) {
       console.error('Failed to save neurodivergence:', error);
-      let errMsg = "Failed to save profile";
+      let errMsg = t('edit_profile.failed_save');
       if (error?.response?.data && typeof error.response.data === "object") {
         const firstKey = Object.keys(error.response.data)[0];
         if (Array.isArray(error.response.data[firstKey])) {
@@ -73,11 +90,14 @@ export default function EditNeuroScreen() {
           errMsg = error.response.data[firstKey];
         }
       }
-      Alert.alert("Error", errMsg);
+      Alert.alert(t('edit_profile.error'), errMsg);
     } finally {
       setIsSaving(false);
     }
   };
+
+  const isFrench = i18n.language?.startsWith('fr');
+  const getNeuroLabel = (item: string) => isFrench && NEUROTYPES_FR[item] ? NEUROTYPES_FR[item] : item;
 
   return (
     <View style={[styles.container, { backgroundColor: background }]}>
@@ -85,19 +105,19 @@ export default function EditNeuroScreen() {
         <Pressable onPress={() => router.back()} hitSlop={10} style={styles.backBtn}>
           <Icon name={ChevronLeft} size={24} color={text} />
         </Pressable>
-        <Text style={styles.headerTitle}>Neurodivergence</Text>
+        <Text style={styles.headerTitle}>{t('edit_profile.neurodivergence')}</Text>
         <View style={styles.backBtn} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>Neurotype Labels</Text>
-        <Text style={[styles.subtitle, { color: muted }]}>Select all that apply</Text>
+        <Text style={styles.title}>{t('edit_profile.select_neurotypes')}</Text>
+        <Text style={[styles.subtitle, { color: muted }]}>{t('onboarding.step6_subtitle')}</Text>
 
         <View style={styles.pillContainer}>
           {NEUROTYPES.map(item => (
             <SelectablePill 
               key={item} 
-              label={item} 
+              label={getNeuroLabel(item)} 
               selected={neurotypeLabels.includes(item)} 
               onPress={() => toggleNeuro(item)} 
             />
@@ -113,7 +133,7 @@ export default function EditNeuroScreen() {
           style={[styles.saveBtn, ...(!hasChanged ? [{ opacity: 0.5 }] : [])]} 
           disabled={isSaving || !hasChanged}
         >
-          {isSaving ? <ActivityIndicator color="#FFF" /> : "Save Changes"}
+          {isSaving ? <ActivityIndicator color="#FFF" /> : t('edit_profile.save_changes')}
         </Button>
       </View>
     </View>

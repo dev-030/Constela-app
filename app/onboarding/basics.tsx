@@ -9,11 +9,13 @@ import { ChevronDown, Check, Search } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Pressable, ScrollView, TextInput, View } from "react-native";
+import { useTranslation } from "react-i18next";
 
 const MARITAL_STATUS = ["single", "married", "divorced", "widowed"];
 const EDUCATION_OPTIONS = ["High School", "Bachelor's", "Master's", "PhD", "Other"];
 
 export default function OnboardingStep2() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { data, update } = useOnboarding();
   const border = useColor("border");
@@ -33,13 +35,13 @@ export default function OnboardingStep2() {
   const validateAndContinue = () => {
     let ok = true;
     if (!data.maritalStatus) {
-      setStatusError("Please select your marital status");
+      setStatusError(t("onboarding.error_marital_status", "Please select your marital status"));
       ok = false;
     } else {
       setStatusError("");
     }
     if (data.spokenLanguages.length === 0) {
-      setLanguagesError("Please select at least one language");
+      setLanguagesError(t("onboarding.error_languages", "Please select at least one language"));
       ok = false;
     } else {
       setLanguagesError("");
@@ -55,8 +57,8 @@ export default function OnboardingStep2() {
 
   return (
     <OnboardingShell
-      title="The Basics"
-      subtitle="Let's find someone whose life rhythm matches yours."
+      title={t("onboarding.step2_title", "The Basics")}
+      subtitle={t("onboarding.step2_subtitle", "Let's find someone whose life rhythm matches yours.")}
       onBack={() => router.back()}
       onContinue={validateAndContinue}
       continueDisabled={!isFormValid}
@@ -67,7 +69,7 @@ export default function OnboardingStep2() {
         keyboardShouldPersistTaps="handled"
       >
         {/* Marital Status */}
-        <FieldLabel>Marital Status *</FieldLabel>
+        <FieldLabel>{t("onboarding.marital_status", "Marital Status")} *</FieldLabel>
         <Pressable
           onPress={() => setStatusOpen((o) => !o)}
           style={{
@@ -89,7 +91,9 @@ export default function OnboardingStep2() {
               fontSize: 15,
             }}
           >
-            {data.maritalStatus || "Select status"}
+            {data.maritalStatus
+              ? t(`onboarding.marital.${data.maritalStatus.toLowerCase()}`, data.maritalStatus)
+              : t("onboarding.select_marital_status", "Select status")}
           </Text>
           <Icon
             name={ChevronDown}
@@ -135,7 +139,7 @@ export default function OnboardingStep2() {
                     fontWeight: data.maritalStatus === s ? "600" : "400",
                   }}
                 >
-                  {s}
+                  {t(`onboarding.marital.${s.toLowerCase()}`, s)}
                 </Text>
               </Pressable>
             ))}
@@ -143,7 +147,7 @@ export default function OnboardingStep2() {
         )}
 
         {/* Spoken Languages */}
-        <FieldLabel>Spoken Languages *</FieldLabel>
+        <FieldLabel>{t("onboarding.languages", "Spoken Languages")} *</FieldLabel>
         <Pressable
           onPress={() => setLanguagesOpen(true)}
           style={{
@@ -169,7 +173,7 @@ export default function OnboardingStep2() {
           >
             {data.spokenLanguages.length > 0 
               ? data.spokenLanguages.join(", ") 
-              : "Select languages"}
+              : t("onboarding.select_languages", "Select languages")}
           </Text>
           <Icon name={ChevronDown} size={20} color={muted} />
         </Pressable>
@@ -178,7 +182,7 @@ export default function OnboardingStep2() {
         <BottomSheet
           isVisible={languagesOpen}
           onClose={() => setLanguagesOpen(false)}
-          title="Select Languages"
+          title={t("onboarding.select_languages", "Select Languages")}
           snapPoints={[0.6]}
           headerComponent={
             <View style={{ paddingHorizontal: 16, marginTop: 8 }}>
@@ -197,7 +201,7 @@ export default function OnboardingStep2() {
                 <TextInput 
                     value={languageSearch}
                     onChangeText={setLanguageSearch}
-                    placeholder="Search languages..."
+                    placeholder={t("onboarding.search_languages", "Search languages...")}
                     placeholderTextColor={muted}
                     style={{ color: text, fontSize: 16, flex: 1, padding: 0 }}
                 />
@@ -248,7 +252,7 @@ export default function OnboardingStep2() {
         {/* City + Country */}
         <View style={{ flexDirection: "row", gap: 12, marginBottom: 20 }}>
           <View style={{ flex: 1 }}>
-            <FieldLabel>City *</FieldLabel>
+            <FieldLabel>{t("onboarding.city", "City")} *</FieldLabel>
             <View
               style={{
                 borderWidth: 1,
@@ -269,7 +273,7 @@ export default function OnboardingStep2() {
             </View>
           </View>
           <View style={{ flex: 1 }}>
-            <FieldLabel>Country *</FieldLabel>
+            <FieldLabel>{t("onboarding.country", "Country")} *</FieldLabel>
             <View
               style={{
                 borderWidth: 1,
@@ -310,13 +314,13 @@ export default function OnboardingStep2() {
               marginHorizontal: 12,
             }}
           >
-            OPTIONAL INFORMATION
+            {t("onboarding.optional_info", "OPTIONAL INFORMATION")}
           </Text>
           <View style={{ flex: 1, height: 1, backgroundColor: border }} />
         </View>
 
         {/* Weight */}
-        <FieldLabel>Weight (kg)</FieldLabel>
+        <FieldLabel>{t("onboarding.weight", "Weight (kg)")}</FieldLabel>
         <View
           style={{
             borderWidth: 1,
@@ -333,14 +337,14 @@ export default function OnboardingStep2() {
             onChangeText={(v) => update("weight", v.replace(/[^0-9]/g, ""))}
             keyboardType="number-pad"
             maxLength={3}
-            placeholder="Optional"
+            placeholder={t("common.optional", "Optional")}
             placeholderTextColor={muted}
             style={{ color: text, fontSize: 15, padding: 0 }}
           />
         </View>
 
         {/* Education */}
-        <FieldLabel>Education</FieldLabel>
+        <FieldLabel>{t("onboarding.education", "Education")}</FieldLabel>
         <Pressable
           onPress={() => setEducationOpen((o) => !o)}
           style={{
@@ -362,7 +366,9 @@ export default function OnboardingStep2() {
               fontSize: 15,
             }}
           >
-            {data.education || "Select education (optional)"}
+            {data.education
+              ? t(`onboarding.education_levels.${data.education.toLowerCase().replace(/[^a-z]/g, '_')}`, data.education)
+              : t("onboarding.select_education", "Select education (optional)")}
           </Text>
           <Icon
             name={ChevronDown}
@@ -406,7 +412,7 @@ export default function OnboardingStep2() {
                     fontWeight: data.education === e ? "600" : "400",
                   }}
                 >
-                  {e}
+                  {t(`onboarding.education_levels.${e.toLowerCase().replace(/[^a-z]/g, '_')}`, e)}
                 </Text>
               </Pressable>
             ))}

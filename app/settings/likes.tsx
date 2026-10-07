@@ -21,6 +21,7 @@ import Animated, {
   withTiming,
   Easing,
 } from "react-native-reanimated";
+import { useTranslation } from "react-i18next";
 import { useLikesSentQuery, useLikesReceivedQuery, MutualMatchProfile } from "@/api/matching";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { useAndroidBack } from '@/hooks/useAndroidBack';
@@ -29,24 +30,26 @@ import { canSeeLikes } from "@/api/profile";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-const TABS = ["Liked", "Likes You"];
+type TabType = "liked" | "likes_you";
 
 function SegmentedControl({
   activeTab,
+  tabs,
   onChange,
 }: {
-  activeTab: string;
-  onChange: (value: string) => void;
+  activeTab: TabType;
+  tabs: { id: TabType; label: string }[];
+  onChange: (value: TabType) => void;
 }) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
   const [pillWidth, setPillWidth] = useState(0);
-  const activeIndex = TABS.indexOf(activeTab);
+  const activeIndex = tabs.findIndex((t) => t.id === activeTab);
   const translateX = useSharedValue(0);
 
   useEffect(() => {
-    if (pillWidth > 0) {
+    if (pillWidth > 0 && activeIndex >= 0) {
       translateX.value = withTiming(activeIndex * pillWidth, {
         duration: 220,
         easing: Easing.out(Easing.quad),
@@ -68,7 +71,7 @@ function SegmentedControl({
       style={[segStyles.wrapper, { backgroundColor: containerBg }]}
       onLayout={(e) => {
         const w = e.nativeEvent.layout.width;
-        setPillWidth((w - 6) / TABS.length);
+        setPillWidth((w - 6) / tabs.length);
       }}
     >
       {/* Sliding pill */}
@@ -82,10 +85,10 @@ function SegmentedControl({
         />
       )}
       {/* Labels */}
-      {TABS.map((tab) => (
+      {tabs.map((tab) => (
         <TouchableOpacity
-          key={tab}
-          onPress={() => onChange(tab)}
+          key={tab.id}
+          onPress={() => onChange(tab.id)}
           activeOpacity={0.75}
           style={[segStyles.tab, pillWidth > 0 && { width: pillWidth }]}
         >
@@ -94,14 +97,14 @@ function SegmentedControl({
               segStyles.tabText,
               {
                 color:
-                  activeTab === tab
+                  activeTab === tab.id
                     ? activeTextColor
                     : inactiveTextColor,
-                fontWeight: activeTab === tab ? "700" : "500",
+                fontWeight: activeTab === tab.id ? "700" : "500",
               },
             ]}
           >
-            {tab}
+            {tab.label}
           </Text>
         </TouchableOpacity>
       ))}
@@ -158,6 +161,7 @@ function ProfileCard({
   border: string;
   showSentBadge?: boolean;
 }) {
+  const { t } = useTranslation();
   const scale = useSharedValue(1);
   const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
@@ -209,12 +213,12 @@ function ProfileCard({
         {showSentBadge ? (
           <View style={[styles.sentBadge, { backgroundColor: primary }]}>
             <Heart size={10} color="#FFF" fill="#FFF" />
-            <Text style={styles.sentBadgeText}>SENT</Text>
+            <Text style={styles.sentBadgeText}>{t('settings_pages.sent_badge', 'SENT')}</Text>
           </View>
         ) : (
           <View style={[styles.sentBadge, { backgroundColor: "#10B981" }]}>
             <Heart size={10} color="#FFF" fill="#FFF" />
-            <Text style={styles.sentBadgeText}>LIKES YOU</Text>
+            <Text style={styles.sentBadgeText}>{t('settings_pages.likes_you_badge', 'LIKES YOU')}</Text>
           </View>
         )}
 
@@ -248,7 +252,7 @@ function ProfileCard({
         </Text>
 
         <View style={[styles.viewBtn, { backgroundColor: primary }]}>
-          <Text style={styles.viewBtnText}>View Profile</Text>
+          <Text style={styles.viewBtnText}>{t('connections.view_profile', 'View Profile')}</Text>
         </View>
       </View>
     </AnimatedPressable>
@@ -257,6 +261,7 @@ function ProfileCard({
 
 export default function LikesScreen() {
   useAndroidBack();
+  const { t } = useTranslation();
   const background = useColor("background");
   const text = useColor("text");
   const muted = useColor("textMuted");
@@ -267,8 +272,8 @@ export default function LikesScreen() {
   const { profile } = useProfileStore();
   const userCanSeeLikes = canSeeLikes(profile);
 
-  const [activeTab, setActiveTab] = useState("Liked");
-  const isLikedTab = activeTab === "Liked";
+  const [activeTab, setActiveTab] = useState<TabType>("liked");
+  const isLikedTab = activeTab === "liked";
 
   const { data: likesSentData, isLoading: isLoadingSent } = useLikesSentQuery();
   const { data: likesReceivedData, isLoading: isLoadingReceived, error: receivedError, isError: isReceivedError } = useLikesReceivedQuery(Boolean(userCanSeeLikes && !isLikedTab));
@@ -286,7 +291,7 @@ export default function LikesScreen() {
     if (error?.response?.data?.error) {
       return error.response.data.error;
     }
-    return "Failed to load.";
+    return t('settings_pages.failed_to_load', "Failed to load.");
   };
 
   return (
@@ -299,7 +304,7 @@ export default function LikesScreen() {
         </View>
         <View style={styles.headerCenter}>
           <Text style={[styles.headerTitle, { color: text }]} numberOfLines={1}>
-            Likes
+            {t('settings.likes', 'Likes')}
           </Text>
         </View>
         <View style={styles.headerRight} />
@@ -308,6 +313,10 @@ export default function LikesScreen() {
       {/* Tabs */}
       <SegmentedControl
         activeTab={activeTab}
+        tabs={[
+          { id: "liked", label: t('settings_pages.likes_sent', 'Liked') },
+          { id: "likes_you", label: t('settings_pages.likes_received', 'Likes You') },
+        ]}
         onChange={setActiveTab}
       />
 
@@ -318,10 +327,10 @@ export default function LikesScreen() {
             <Icon name={Heart} size={40} color={primary} fill={primary} />
           </View>
           <Text style={{ color: text, textAlign: "center", fontSize: 24, fontWeight: "800", marginBottom: 12 }}>
-            See Who Likes You
+            {t('settings_pages.see_who_likes_you', 'See Who Likes You')}
           </Text>
           <Text style={{ color: muted, textAlign: "center", fontSize: 16, lineHeight: 24, marginBottom: 32 }}>
-            Match instantly with people who already like you by upgrading to Premium.
+            {t('settings_pages.upgrade_to_see_likes_desc', 'Match instantly with people who already like you by upgrading to Premium.')}
           </Text>
           <Pressable
             onPress={() => router.push("/settings/subscription")}
@@ -339,7 +348,7 @@ export default function LikesScreen() {
               elevation: 8,
             })}
           >
-            <Text style={{ color: "#FFF", fontWeight: "700", fontSize: 16 }}>Upgrade to Premium</Text>
+            <Text style={{ color: "#FFF", fontWeight: "700", fontSize: 16 }}>{t('settings_pages.upgrade_to_premium', 'Upgrade to Premium')}</Text>
           </Pressable>
         </View>
       ) : isLoading ? (
@@ -352,11 +361,11 @@ export default function LikesScreen() {
             <Icon name={Heart} size={40} color={primary} fill={primary} />
           </View>
           <Text style={{ color: text, textAlign: "center", fontSize: 24, fontWeight: "800", marginBottom: 12 }}>
-            See Who Likes You
+            {t('settings_pages.see_who_likes_you', 'See Who Likes You')}
           </Text>
           <Text style={{ color: muted, textAlign: "center", fontSize: 16, lineHeight: 24, marginBottom: 32 }}>
             {getErrorMessage(receivedError) === "Upgrade to Premium to see who liked you."
-              ? "Match instantly with people who already like you by upgrading to Premium."
+              ? t('settings_pages.upgrade_to_see_likes_desc', 'Match instantly with people who already like you by upgrading to Premium.')
               : getErrorMessage(receivedError)}
           </Text>
           <Pressable
@@ -375,15 +384,15 @@ export default function LikesScreen() {
               elevation: 8,
             })}
           >
-            <Text style={{ color: "#FFF", fontWeight: "700", fontSize: 16 }}>Upgrade to Premium</Text>
+            <Text style={{ color: "#FFF", fontWeight: "700", fontSize: 16 }}>{t('settings_pages.upgrade_to_premium', 'Upgrade to Premium')}</Text>
           </Pressable>
         </View>
       ) : profiles.length === 0 ? (
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 32 }}>
           <Text style={{ color: muted, textAlign: "center", fontSize: 16 }}>
             {isLikedTab
-              ? "You haven't liked anyone yet."
-              : "No one has liked you yet."}
+              ? t('settings_pages.no_likes_sent', "You haven't liked anyone yet.")
+              : t('settings_pages.no_likes_received', "No one has liked you yet.")}
           </Text>
         </View>
       ) : (

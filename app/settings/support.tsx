@@ -10,8 +10,10 @@ import { useColor } from "@/hooks/useColor";
 import { useSubmitSupportTicketMutation, useMySupportTicketsQuery } from "@/api/settings";
 import { formatDistanceToNow } from "date-fns";
 import { useAndroidBack } from '@/hooks/useAndroidBack';
+import { useTranslation } from "react-i18next";
 
 export default function SupportScreen() {
+  const { t } = useTranslation();
   useAndroidBack();
   const insets = useSafeAreaInsets();
   const background = useColor("background");
@@ -28,7 +30,7 @@ export default function SupportScreen() {
 
   const handleSubmit = () => {
     if (!subject.trim() || !description.trim()) {
-      Alert.alert("Missing Fields", "Please provide a subject and a description.");
+      Alert.alert(t('edit_profile.error'), "Please provide a subject and a description.");
       return;
     }
 
@@ -39,10 +41,10 @@ export default function SupportScreen() {
           setSubject("");
           setDescription("");
           refetch();
-          Alert.alert("Ticket Submitted", "Our support team will get back to you soon.");
+          Alert.alert(t('settings_pages.ticket_submitted'), t('settings_pages.ticket_submitted_desc'));
         },
         onError: () => {
-          Alert.alert("Error", "Could not submit your ticket. Please try again.");
+          Alert.alert(t('edit_profile.error'), "Could not submit your ticket. Please try again.");
         }
       }
     );
@@ -61,17 +63,17 @@ export default function SupportScreen() {
           </Pressable>
         </View>
         <View style={styles.headerCenter}>
-          <Text style={[styles.headerTitle, { color: text }]} numberOfLines={1}>Customer Support</Text>
+          <Text style={[styles.headerTitle, { color: text }]} numberOfLines={1}>{t('settings_pages.customer_support')}</Text>
         </View>
         <View style={styles.headerRight} />
       </View>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={[styles.subtitle, { color: muted }]}>
-          Need help? Describe your issue below and our team will assist you.
+          {t('settings_pages.need_help')}
         </Text>
 
-        <Text style={[styles.label, { color: text }]}>Subject</Text>
+        <Text style={[styles.label, { color: text }]}>{t('settings_pages.subject')}</Text>
         <TextInput
           style={[styles.input, { color: text, borderColor: border, backgroundColor: cardColor }]}
           placeholder="e.g., Billing Issue, Bug Report"
@@ -80,7 +82,7 @@ export default function SupportScreen() {
           onChangeText={setSubject}
         />
 
-        <Text style={[styles.label, { color: text }]}>Description</Text>
+        <Text style={[styles.label, { color: text }]}>{t('settings_pages.description')}</Text>
         <TextInput
           style={[
             styles.input,
@@ -98,17 +100,17 @@ export default function SupportScreen() {
         {tickets && tickets.length > 0 && (
           <View style={styles.historySection}>
             <Text style={[styles.historyTitle, { color: text }]}>Previous Tickets</Text>
-            {tickets.map((t) => (
-              <View key={t.id} style={[styles.ticketCard, { backgroundColor: cardColor, borderColor: border }]}>
+            {tickets.map((tItem) => (
+              <View key={tItem.id} style={[styles.ticketCard, { backgroundColor: cardColor, borderColor: border }]}>
                 <View style={styles.ticketHeader}>
-                  <Text style={[styles.ticketSubject, { color: text }]} numberOfLines={1}>{t.subject}</Text>
-                  <View style={[styles.statusBadge, { backgroundColor: t.status === 'resolved' ? '#10b981' : t.status === 'in_progress' ? '#f59e0b' : '#3b82f6' }]}>
-                    <Text style={styles.statusText}>{t.status.replace('_', ' ').toUpperCase()}</Text>
+                  <Text style={[styles.ticketSubject, { color: text }]} numberOfLines={1}>{tItem.subject}</Text>
+                  <View style={[styles.statusBadge, { backgroundColor: tItem.status === 'resolved' ? '#10b981' : tItem.status === 'in_progress' ? '#f59e0b' : '#3b82f6' }]}>
+                    <Text style={styles.statusText}>{tItem.status.replace('_', ' ').toUpperCase()}</Text>
                   </View>
                 </View>
-                <Text style={[styles.ticketDesc, { color: muted }]} numberOfLines={2}>{t.description}</Text>
+                <Text style={[styles.ticketDesc, { color: muted }]} numberOfLines={2}>{tItem.description}</Text>
                 <Text style={[styles.ticketDate, { color: muted }]}>
-                  {formatDistanceToNow(new Date(t.created_at), { addSuffix: true })}
+                  {formatDistanceToNow(new Date(tItem.created_at), { addSuffix: true })}
                 </Text>
               </View>
             ))}
@@ -122,7 +124,7 @@ export default function SupportScreen() {
           disabled={isPending}
           style={styles.submitBtn}
         >
-          {isPending ? <ActivityIndicator color="#fff" /> : "Submit Ticket"}
+          {isPending ? <ActivityIndicator color="#fff" /> : t('settings_pages.submit_ticket')}
         </Button>
       </View>
     </KeyboardAvoidingView>

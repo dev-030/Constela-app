@@ -11,8 +11,11 @@ import { Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useVerifyPasswordResetCodeMutation } from "@/api/auth";
 import { toast } from "sonner-native";
+import { useTranslation } from "react-i18next";
+import { LanguagePickerButton } from "@/components/LanguagePickerButton";
 
 export default function ResetPasswordScreen() {
+  const { t } = useTranslation();
   const { email } = useLocalSearchParams<{ email?: string }>();
   const [code, setCode] = useState("");
   const verifyCode = useVerifyPasswordResetCodeMutation();
@@ -23,7 +26,7 @@ export default function ResetPasswordScreen() {
 
   const handleVerifyCode = () => {
     if (!code || code.length < 6) {
-      toast.error("Please enter a valid 6-digit code");
+      toast.error(t("auth.otp_invalid", "Please enter a valid 6-digit code"));
       return;
     }
 
@@ -55,26 +58,31 @@ export default function ResetPasswordScreen() {
         }}
       >
         {/* Header */}
-        <View style={{ flexDirection: "row", alignItems: "center", marginBottom: size(24, 18) }}>
-          <Pressable onPress={() => router.back()} style={{ padding: 8, marginLeft: -8 }}>
-            <Icon name={ArrowLeft} size={24} />
-          </Pressable>
-          <Text style={{ fontSize: 20, fontWeight: "bold", marginLeft: 16 }}>
-            Reset Password
-          </Text>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: size(24, 18) }}>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <Pressable onPress={() => router.back()} style={{ padding: 8, marginLeft: -8 }}>
+              <Icon name={ArrowLeft} size={24} />
+            </Pressable>
+            <Text style={{ fontSize: 20, fontWeight: "bold", marginLeft: 16 }}>
+              {t("auth.reset_password_title", "Reset Password")}
+            </Text>
+          </View>
+          <LanguagePickerButton />
         </View>
 
         {/* Instructions */}
         <View style={{ marginBottom: size(32, 24) }}>
           <Text style={{ color: muted, fontSize: 14 }}>
-            Enter the 6-digit code sent to {email}.
+            {t("auth.reset_code_desc", "Enter the 6-digit code sent to {{email}}.", { email: email || "" })}
           </Text>
         </View>
 
         {/* Form */}
         <View style={{ gap: size(24, 18) }}>
           <View style={{ gap: 8, alignItems: "center" }}>
-            <Text style={{ fontWeight: "600", fontSize: 14, alignSelf: "flex-start" }}>Reset Code</Text>
+            <Text style={{ fontWeight: "600", fontSize: 14, alignSelf: "flex-start" }}>
+              {t("auth.reset_code_label", "Reset Code")}
+            </Text>
             <InputOTP
               length={6}
               value={code}
@@ -87,7 +95,7 @@ export default function ResetPasswordScreen() {
             onPress={handleVerifyCode}
             disabled={verifyCode.isPending || code.length < 6}
           >
-            Continue
+            {t("common.continue", "Continue")}
           </Button>
         </View>
       </View>
