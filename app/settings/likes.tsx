@@ -22,6 +22,7 @@ import Animated, {
   Easing,
 } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
+import { useProfileLabels } from "@/hooks/use-profile-labels";
 import { useLikesSentQuery, useLikesReceivedQuery, MutualMatchProfile } from "@/api/matching";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { useAndroidBack } from '@/hooks/useAndroidBack';
@@ -162,6 +163,7 @@ function ProfileCard({
   showSentBadge?: boolean;
 }) {
   const { t } = useTranslation();
+  const { listLabel, interestCategory } = useProfileLabels();
   const scale = useSharedValue(1);
   const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
@@ -169,13 +171,13 @@ function ProfileCard({
   const displayName = profile.name || (profile as any).username || "Unknown";
 
   const tags = [
-    ...(profile.qualities || []),
-    ...(profile.neurotype_labels || []),
-    ...(profile.interests || []),
+    ...(profile.qualities || []).map((q: string) => listLabel('qualities', q)),
+    ...(profile.neurotype_labels || []).map((n: string) => listLabel('neurotypes', n)),
+    ...(profile.interests || []).map((i: string) => interestCategory(i)),
   ].filter(Boolean);
 
   const displayTags = tags.length > 0 ? tags.slice(0, 2) : (profile.city ? [profile.city] : []);
-  const bioText = (profile as any).bio || (profile.city ? `From ${profile.city}` : "");
+  const bioText = (profile as any).bio || (profile.city ? `${t('profile.from', "From")} ${profile.city}` : "");
 
   const handlePress = () => {
     router.push({

@@ -2,6 +2,7 @@ import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/r
 import { apiClient } from './client';
 import { QuotaSnapshot } from './profile';
 import { useProfileStore } from '@/store/profileStore';
+import type { MessageReactionSummary } from "@/utils/message-reactions";
 
 export type ThreadType = 'dating' | 'friends';
 
@@ -36,6 +37,7 @@ export interface DirectMessage {
   audio_url_expires_at?: string | null;
   audio_duration?: number | null;
   reaction?: string | null;
+  reactions?: MessageReactionSummary[];
   sender_id?: string;
   reply_to?: string | null;
   reply_to_info?: {

@@ -18,6 +18,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useAndroidBack } from '@/hooks/useAndroidBack';
 import { API_URL } from '@/constants/config';
 import { useTranslation } from 'react-i18next';
+import { useProfileLabels } from '@/hooks/use-profile-labels';
 
 const reverseGenderMap: Record<string, string> = {
   woman: "Woman",
@@ -50,7 +51,7 @@ const lookingForMap: Record<string, string> = {
 };
 
 export default function EditBasicScreen() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   useAndroidBack();
   const background = useColor('background');
@@ -60,37 +61,10 @@ export default function EditBasicScreen() {
   const primary = useColor('primary');
   const border = useColor('border');
 
-  const isFrench = i18n.language?.startsWith('fr');
-  const getGenderDisplay = (val: string) => {
-    if (isFrench) {
-      if (val === 'Man') return 'Homme';
-      if (val === 'Woman') return 'Femme';
-      if (val === 'Non-Binary') return 'Non binaire';
-      if (val === 'Other') return 'Autre';
-      if (val === 'Everyone') return 'Tout le monde';
-    }
-    return val;
-  };
-
-  const getLookingForDisplay = (val: string) => {
-    if (isFrench) {
-      if (val === 'Friendship') return 'Amitié';
-      if (val === 'Serious Relationship') return 'Relation sérieuse';
-      if (val === "We'll See") return 'On verra';
-      if (val === 'Going Out') return 'Sortir';
-    }
-    return val;
-  };
-
-  const getMaritalDisplay = (val: string) => {
-    if (isFrench) {
-      if (val === 'single') return 'Célibataire';
-      if (val === 'married') return 'Marié(e)';
-      if (val === 'divorced') return 'Divorcé(e)';
-      if (val === 'widowed') return 'Veuf/Veuve';
-    }
-    return val;
-  };
+  const { label } = useProfileLabels();
+  const getGenderDisplay = (val: string) => label(val);
+  const getLookingForDisplay = (val: string) => label(val);
+  const getMaritalDisplay = (val: string) => label(val);
 
   const { profile, fetchProfile, setProfile } = useProfileStore();
 

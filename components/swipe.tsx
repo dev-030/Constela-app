@@ -32,6 +32,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { fetchProfileDetails } from "@/api/profile";
 
 import { MatchProfile } from "@/api/matching";
+import { useProfileLabels } from "@/hooks/use-profile-labels";
 
 export type SwipeDirection = "left" | "right" | "super";
 
@@ -71,6 +72,7 @@ const Card = React.memo(function Card({
   // Single worklet that blends all three position styles on the UI thread.
   // Because positionSv is a SharedValue it updates without any React re-render,
   // eliminating the "wrong worklet for one frame" flash that JS-boolean switching causes.
+  const { lovesSentence, translateBio } = useProfileLabels();
   const animatedStyle = useAnimatedStyle(() => {
     const pos = positionSv.value; // 0=top, 1=second, 2=third
 
@@ -190,7 +192,7 @@ const Card = React.memo(function Card({
             </View>
             {user.bio ? (
               <Text numberOfLines={1} style={styles.bio}>
-                {user.bio}
+                {user.bio_interests?.length ? lovesSentence(user.bio_interests) : translateBio(user.bio)}
               </Text>
             ) : null}
 

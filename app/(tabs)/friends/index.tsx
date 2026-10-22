@@ -19,6 +19,7 @@ import { Check } from "lucide-react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { useTranslation } from "react-i18next";
+import { useProfileLabels } from "@/hooks/use-profile-labels";
 import Animated, {
   FadeIn,
   FadeOut,
@@ -72,6 +73,7 @@ const SuggestionCard = React.memo(function SuggestionCard({
   cardWidth,
 }: SuggestionCardProps) {
   const { t } = useTranslation();
+  const { valueLabel, translateBio, lovesSentence } = useProfileLabels();
   const { size, isCompact } = useResponsiveLayout();
   const [isRequested, setIsRequested] = useState(false);
   const opacity = useSharedValue(1);
@@ -189,14 +191,14 @@ const SuggestionCard = React.memo(function SuggestionCard({
               style={[styles.smallPill, { paddingHorizontal: isCompact ? 5 : size(8, 6), paddingVertical: isCompact ? 2 : 3, backgroundColor: primary + "18" }]}
             >
               <Text style={[styles.smallPillText, { fontSize: isCompact ? 8.5 : size(10, 9), color: primary }]}>
-                {tag}
+                {valueLabel(tag)}
               </Text>
             </View>
           ))}
         </View>
 
         <Text style={[styles.personBio, { height: isCompact ? 28 : size(36, 32), fontSize: isCompact ? 11 : size(13, 12), lineHeight: isCompact ? 14 : size(18, 16), color: muted }]} numberOfLines={2}>
-          {person.bio}
+          {person.bio_interests?.length ? lovesSentence(person.bio_interests) : translateBio(person.bio)}
         </Text>
 
         <AnimatedPressable
@@ -216,8 +218,14 @@ const SuggestionCard = React.memo(function SuggestionCard({
           accessibilityRole="button"
           accessibilityLabel={
             isRequested
-              ? `Friend request sent to ${person.name || person.username || "this person"}`
-              : `Add ${person.name || person.username || "this person"} as a friend`
+              ? t("friends.request_sent_to", {
+                  name: person.name || person.username || t("friends.this_person", "this person"),
+                  defaultValue: "Friend request sent to {{name}}",
+                })
+              : t("friends.add_as_friend", {
+                  name: person.name || person.username || t("friends.this_person", "this person"),
+                  defaultValue: "Add {{name}} as a friend",
+                })
           }
           onPress={handlePressAdd}
         >

@@ -14,43 +14,7 @@ import { useProfileStore } from '@/store/profileStore';
 import { updateMyProfile } from '@/api/profile';
 import { useAndroidBack } from '@/hooks/useAndroidBack';
 import { useTranslation } from 'react-i18next';
-
-const RECHARGE_FR: Record<string, { title: string; subtitle: string }> = {
-  "Silence": { title: "Silence", subtitle: "Réduction du bruit, de la lumière, des mouvements" },
-  "Cocoon Spaces": { title: "Espaces cocooning", subtitle: "Pièce calme, coin couverture, lumière douce" },
-  "Reduced Stimulation": { title: "Stimulation réduite", subtitle: "Casque antibruit, verres teintés, lumière tamisée" },
-};
-
-const EXHAUSTS_FR: Record<string, string> = {
-  "Absorbs other people's moods": "Absorber l'humeur des autres",
-  "Feels everything deeply": "Tout ressentir intensément",
-  "Loud or unpredictable noises": "Bruits forts ou imprévisibles",
-  "Bright lights": "Lumières vives",
-  "Fast movements around me": "Mouvements rapides autour de moi",
-  "Strong smells": "Odeurs fortes",
-  "Unpleasant textures": "Textures désagréables",
-};
-
-const NEEDS_FR: Record<string, string> = {
-  "Predictability": "Prévisibilité",
-  "Consistency in behavior": "Cohérence dans le comportement",
-  "Absence of judgement": "Absence de jugement",
-  "Clear communication": "Communication claire",
-  "Deep talk": "Conversations profondes",
-  "Need to be alone sometimes": "Besoin d'être seul(e) parfois",
-};
-
-const SOOTHES_FR: Record<string, string> = {
-  "Silence or soft sounds": "Silence ou sons doux",
-  "Dim light": "Lumière tamisée",
-  "Massage": "Massage",
-  "Sensory objects": "Objets sensoriels",
-  "Chosen solitude": "Solitude choisie",
-  "Comforting routines": "Routines réconfortantes",
-  "Predictability": "Prévisibilité",
-  "Clear Communication": "Communication claire",
-  "Hyperfocus on an interest": "Hyperfocalisation sur un centre d'intérêt",
-};
+import { useProfileLabels } from '@/hooks/use-profile-labels';
 
 export default function EditEmotionalScreen() {
   const { t, i18n } = useTranslation();
@@ -123,12 +87,7 @@ export default function EditEmotionalScreen() {
     }
   };
 
-  const isFrench = i18n.language?.startsWith("fr");
-  const getRechargeTitle = (key: string) => isFrench ? RECHARGE_FR[key]?.title || key : key;
-  const getRechargeSubtitle = (key: string, fallback: string) => isFrench ? RECHARGE_FR[key]?.subtitle || fallback : fallback;
-  const getExhaustLabel = (key: string) => isFrench ? EXHAUSTS_FR[key] || key : key;
-  const getNeedLabel = (key: string) => isFrench ? NEEDS_FR[key] || key : key;
-  const getSootheLabel = (key: string) => isFrench ? SOOTHES_FR[key] || key : key;
+  const { listLabel, rechargeTitle, rechargeSubtitle } = useProfileLabels();
 
   const SectionHeader = ({ title, icon }: { title: string; icon: any }) => (
     <View style={styles.sectionHeader}>
@@ -156,15 +115,15 @@ export default function EditEmotionalScreen() {
 
         <SectionHeader title={t('profile_detail.how_i_recharge')} icon={BatteryMedium} />
         <FilterListItem 
-          title={getRechargeTitle('Silence')} subtitle={getRechargeSubtitle('Silence', "Reducing noise, Lights, Movement")} 
+          title={rechargeTitle('Silence')} subtitle={rechargeSubtitle('Silence', "Reducing noise, Lights, Movement")} 
           selected={recharge.includes('Silence')} onPress={() => toggleArrayItem(recharge, setRecharge, 'Silence')} 
         />
         <FilterListItem 
-          title={getRechargeTitle('Cocoon Spaces')} subtitle={getRechargeSubtitle('Cocoon Spaces', "Quiet room, Blanket corner, Soft light")} 
+          title={rechargeTitle('Cocoon Spaces')} subtitle={rechargeSubtitle('Cocoon Spaces', "Quiet room, Blanket corner, Soft light")} 
           selected={recharge.includes('Cocoon Spaces')} onPress={() => toggleArrayItem(recharge, setRecharge, 'Cocoon Spaces')} 
         />
         <FilterListItem 
-          title={getRechargeTitle('Reduced Stimulation')} subtitle={getRechargeSubtitle('Reduced Stimulation', "Noise-cancelling headphones, tinted glasses, Dim light")} 
+          title={rechargeTitle('Reduced Stimulation')} subtitle={rechargeSubtitle('Reduced Stimulation', "Noise-cancelling headphones, tinted glasses, Dim light")} 
           selected={recharge.includes('Reduced Stimulation')} onPress={() => toggleArrayItem(recharge, setRecharge, 'Reduced Stimulation')} 
         />
 
@@ -173,7 +132,7 @@ export default function EditEmotionalScreen() {
         <SectionHeader title={t('profile_detail.what_exhausts_me')} icon={BatteryWarning} />
         {['Absorbs other people\'s moods', 'Feels everything deeply', 'Loud or unpredictable noises', 'Bright lights', 'Fast movements around me', 'Strong smells', 'Unpleasant textures'].map(item => (
           <FilterListItem 
-            key={item} title={getExhaustLabel(item)} 
+            key={item} title={listLabel('exhausts', item)} 
             selected={exhausts.includes(item)} onPress={() => toggleArrayItem(exhausts, setExhausts, item)} 
           />
         ))}
@@ -183,7 +142,7 @@ export default function EditEmotionalScreen() {
         <SectionHeader title={t('onboarding.emotional_needs_label')} icon={Heart} />
         {['Predictability', 'Consistency in behavior', 'Absence of judgement', 'Clear communication', 'Deep talk', 'Need to be alone sometimes'].map(item => (
           <FilterListItem 
-            key={item} title={getNeedLabel(item)} 
+            key={item} title={listLabel('needs', item)} 
             selected={needs.includes(item)} onPress={() => toggleArrayItem(needs, setNeeds, item)} 
           />
         ))}
@@ -205,7 +164,7 @@ export default function EditEmotionalScreen() {
           {['Silence or soft sounds', 'Dim light', 'Massage', 'Sensory objects', 'Chosen solitude', 'Comforting routines', 'Predictability', 'Clear Communication', 'Hyperfocus on an interest'].map(item => (
             <FilterPill 
               key={item} 
-              label={getSootheLabel(item)} 
+              label={listLabel('soothes', item)} 
               selected={soothes.includes(item)} 
               onPress={() => toggleArrayItem(soothes, setSoothes, item)} 
             />

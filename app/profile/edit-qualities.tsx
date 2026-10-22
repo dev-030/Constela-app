@@ -13,6 +13,7 @@ import { useProfileStore } from '@/store/profileStore';
 import { updateMyProfile } from '@/api/profile';
 import { useAndroidBack } from '@/hooks/useAndroidBack';
 import { useTranslation } from 'react-i18next';
+import { useProfileLabels } from "@/hooks/use-profile-labels";
 
 // Removed MAX constant for unlimited selections
 
@@ -26,37 +27,6 @@ const QUALITIES = [
   "Positive Intensity", "Resilience", "Perseverance", "Sense of Justice",
   "Reliability in Routines",
 ];
-
-const QUALITIES_FR: Record<string, string> = {
-  "Authenticity": "Authenticité",
-  "Loyalty": "Loyauté",
-  "Reliability": "Fiabilité",
-  "Emotional Sensitivity": "Sensibilité émotionnelle",
-  "Kindness": "Bienveillance",
-  "Honesty": "Honnêteté",
-  "Respect for Boundaries": "Respect des limites",
-  "Hyperfocus": "Hyperfocalisation",
-  "Creativity": "Créativité",
-  "Deep Thinking": "Pensée profonde",
-  "Tree-like Thinking": "Pensée en arborescence",
-  "Attention to Detail": "Souci du détail",
-  "Strong Memory": "Excellente mémoire",
-  "Intense Curiosity": "Curiosité intense",
-  "Rich Imagination": "Imagination débordante",
-  "Artistic Sense": "Sens artistique",
-  "Originality": "Originalité",
-  "Aesthetic Sense": "Sens esthétique",
-  "Deep Empathy": "Empathie profonde",
-  "Active Listening": "Écoute active",
-  "Sincere Communication": "Communication sincère",
-  "Respect for Personal Space": "Respect de l'espace personnel",
-  "Authentic Commitment": "Engagement authentique",
-  "Positive Intensity": "Intensité positive",
-  "Resilience": "Résilience",
-  "Perseverance": "Persévérance",
-  "Sense of Justice": "Sens de la justice",
-  "Reliability in Routines": "Régularité dans les routines",
-};
 
 export default function EditQualitiesScreen() {
   const { t, i18n } = useTranslation();
@@ -120,8 +90,8 @@ export default function EditQualitiesScreen() {
     }
   };
 
-  const isFrench = i18n.language === 'fr';
-  const getQualityLabel = (q: string) => (isFrench && QUALITIES_FR[q] ? QUALITIES_FR[q] : q);
+  const { listLabel } = useProfileLabels();
+  const getQualityLabel = (q: string) => listLabel('qualities', q);
 
   return (
     <View style={[styles.container, { backgroundColor: background }]}>

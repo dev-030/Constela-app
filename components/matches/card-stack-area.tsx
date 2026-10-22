@@ -11,6 +11,7 @@ import { BlurView } from "expo-blur";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
 
 interface CardStackAreaProps {
   matches: MatchProfile[];
@@ -59,6 +60,7 @@ export function CardStackArea({
   onRetry,
 }: CardStackAreaProps) {
   const router = useRouter();
+  const { t } = useTranslation();
   const primary = useColor("primary");
   const noopGesture = Gesture.Pan().onUpdate(() => {}).onEnd(() => {});
   const noopTap = Gesture.Tap().onEnd(() => {});
@@ -109,17 +111,20 @@ export function CardStackArea({
                   </View>
 
                   {/* Luminous Title */}
-                  <Text style={styles.premiumLockTitle}>Out of Likes</Text>
+                  <Text style={styles.premiumLockTitle}>{t("matches.out_of_likes_title", "Out of Likes")}</Text>
 
                   {/* Refined Subtitle */}
                   <Text style={styles.premiumLockDesc}>
-                    You've reached your daily limit of likes. Upgrade your plan for unlimited likes or check back at midnight!
+                    {t(
+                      "matches.out_of_likes_desc",
+                      "You've reached your daily limit of likes. Upgrade your plan for unlimited likes or check back at midnight!",
+                    )}
                   </Text>
 
                   {/* Reset Countdown Badge */}
                   <View style={styles.countdownRow}>
                     <Clock size={15} color="#FDE68A" />
-                    <Text style={styles.countdownText}>Resets at midnight</Text>
+                    <Text style={styles.countdownText}>{t("matches.out_of_likes_resets", "Resets at midnight")}</Text>
                   </View>
 
                   {/* Upgrade CTA Button */}
@@ -134,7 +139,7 @@ export function CardStackArea({
                       style={styles.upgradeBtnGradient}
                     >
                       <Sparkles size={16} color="#FFFFFF" />
-                      <Text style={styles.upgradeBtnText}>Upgrade Plan</Text>
+                      <Text style={styles.upgradeBtnText}>{t("matches.out_of_likes_upgrade", "Upgrade Plan")}</Text>
                     </LinearGradient>
                   </Pressable>
                 </LinearGradient>

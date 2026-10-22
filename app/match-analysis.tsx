@@ -108,10 +108,22 @@ export default function MatchAnalysisScreen() {
     );
   }
 
-  const targetGenderText = profile?.gender?.toLowerCase() === 'man'
-    ? t('match_analysis.women')
-    : profile?.gender?.toLowerCase() === 'woman'
+  // The copy is about what the user is looking for, so gender_preference is
+  // the source of truth. Fall back to their own gender only when it is unset.
+  const GENDER_VALUES = ['man', 'woman', 'non_binary', 'other', 'everyone'];
+  const preference = (profile?.gender_preference || '').toLowerCase();
+  const sourceGender = GENDER_VALUES.includes(preference)
+    ? preference
+    : (profile?.gender || '').toLowerCase();
+
+  const preferredGenderText = GENDER_VALUES.includes(sourceGender)
+    ? t(`onboarding.genders.${sourceGender}`)
+    : t('match_analysis.not_set');
+
+  const targetGenderText = sourceGender === 'man'
     ? t('match_analysis.men')
+    : sourceGender === 'woman'
+    ? t('match_analysis.women')
     : t('match_analysis.matches');
 
   return (
@@ -147,7 +159,7 @@ export default function MatchAnalysisScreen() {
             <Text style={[styles.heroTitle, { color: text }]}>{t('match_analysis.top_5_matches')}</Text>
             <Text style={[styles.heroSubtitle, { color: text, opacity: 0.8 }]}>
               {t('match_analysis.top_5_desc', {
-                gender: profile?.gender || t('match_analysis.not_set'),
+                gender: preferredGenderText,
                 target: targetGenderText,
               })}
             </Text>

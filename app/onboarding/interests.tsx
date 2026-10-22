@@ -5,92 +5,9 @@ import { useOnboarding } from "@/providers/onboarding-context";
 import { useRouter } from "expo-router";
 import { Pressable, ScrollView, View } from "react-native";
 import { useTranslation } from "react-i18next";
+import { useProfileLabels } from "@/hooks/use-profile-labels";
 
 import { INTEREST_CATEGORIES } from "@/constants/interests";
-
-const INTEREST_CATEGORIES_FR: Record<string, { title: string; tags: Record<string, string> }> = {
-  "Logical and structured systems": {
-    title: "Systèmes logiques et structurés",
-    tags: {
-      "mathematics": "mathématiques",
-      "computer science / programming": "informatique / programmation",
-      "maps, plans, geography": "cartes, plans, géographie",
-      "schedules, calendars, subway lines": "horaires, calendriers, lignes de métro",
-    },
-  },
-  "Visual or sensory universes": {
-    title: "Univers visuels ou sensoriels",
-    tags: {
-      "colors": "couleurs",
-      "textures": "textures",
-      "lights, reflections, shadows": "lumières, reflets, ombres",
-      "spinning objects": "objets en rotation",
-    },
-  },
-  "Animals and nature": {
-    title: "Animaux et nature",
-    tags: {
-      "specific animals (horses, cats, dinosaurs...)": "animaux spécifiques (chevaux, chats, dinosaures...)",
-      "plants, trees, botany": "plantes, arbres, botanique",
-      "natural phenomena": "phénomènes naturels",
-    },
-  },
-  "Imaginary universes / Science fiction": {
-    title: "Univers imaginaires / Science-fiction",
-    tags: {},
-  },
-  "Video games": {
-    title: "Jeux vidéo",
-    tags: {},
-  },
-  "Manga": {
-    title: "Manga",
-    tags: {},
-  },
-  "Collecting, sorting, organizing": {
-    title: "Collectionner, trier, organiser",
-    tags: {
-      "collections (objects, cards, figurines...)": "collections (objets, cartes, figurines...)",
-      "categorization": "catégorisation",
-      "organization systems": "systèmes d'organisation",
-    },
-  },
-  "Language, words, communication": {
-    title: "Langue, mots, communication",
-    tags: {
-      "linguistics": "linguistique",
-      "language learning": "apprentissage des langues",
-      "creative writing": "écriture créative",
-      "poetry, wordplay": "poésie, jeux de mots",
-    },
-  },
-  "Body, movement, sensations": {
-    title: "Corps, mouvement, sensations",
-    tags: {
-      "dance": "danse",
-      "martial arts": "arts martiaux",
-      "walking, hiking": "marche, randonnée",
-      "swimming": "natation",
-    },
-  },
-  "Mechanical or technical objects": {
-    title: "Objets mécaniques ou techniques",
-    tags: {
-      "trains": "trains",
-      "machines": "machines",
-      "watches, gears": "montres, engrenages",
-      "electronics": "électronique",
-    },
-  },
-  "Mental health, psychology, human functioning": {
-    title: "Santé mentale, psychologie, fonctionnement humain",
-    tags: {
-      "neurodiversity": "neurodiversité",
-      "psychology": "psychologie",
-      "personal development": "développement personnel",
-    },
-  },
-};
 
 export default function OnboardingInterestsScreen() {
   const { t, i18n } = useTranslation();
@@ -102,10 +19,9 @@ export default function OnboardingInterestsScreen() {
   const border = useColor("border");
   const primary = useColor("primary");
 
-  const isFrench = i18n.language?.startsWith("fr");
-  const getCategoryTitle = (title: string) => (isFrench ? INTEREST_CATEGORIES_FR[title]?.title || title : title);
-  const getTagLabel = (categoryTitle: string, tag: string) =>
-    isFrench ? INTEREST_CATEGORIES_FR[categoryTitle]?.tags[tag] || tag : tag;
+  const { interestCategory, interestTag } = useProfileLabels();
+  const getCategoryTitle = (title: string) => interestCategory(title);
+  const getTagLabel = (categoryTitle: string, tag: string) => interestTag(categoryTitle, tag);
 
   const toggleInterest = (category: string) => {
     const current = data.interests;

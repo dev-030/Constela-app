@@ -15,7 +15,9 @@ import {
   FlatList,
   Platform,
   useColorScheme,
+  Animated,
 } from "react-native";
+import { Swipeable } from "react-native-gesture-handler";
 import { Image } from "expo-image";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -26,6 +28,8 @@ import {
   MoreVertical,
   Smile,
   Lock,
+  X,
+  Reply,
 } from "lucide-react-native";
 
 import * as Haptics from "expo-haptics";
@@ -47,6 +51,7 @@ import { useChatSocket } from "@/api/ChatSocketProvider";
 import type { ChatMessage } from "@/api/chat";
 import { useTranslation } from "react-i18next";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
+import { ReactionBar, ReactionPills, type ReactionAnchor } from "@/components/chat/message-reactions";
 
 const QUICK_EMOJIS = [
   "😀", "😂", "🤣", "❤️", "😍", "🔥", "👍", "🙌",
@@ -116,22 +121,65 @@ function MessageBubble({
   showAvatar,
   isLast,
   nameColor,
-  onLongPress,
+  onReply,
+  onOpenPicker,
+  myProfileId,
 }: {
   msg: ChatMessage;
   isMe: boolean;
   showAvatar: boolean;
   isLast: boolean;
   nameColor: string;
-  onLongPress?: (msg: ChatMessage) => void;
+  onReply?: (msg: ChatMessage) => void;
+  onOpenPicker?: (anchor: ReactionAnchor) => void;
+  myProfileId?: string | null;
 }) {
+  const swipeableRef = useRef<Swipeable>(null);
+  const bubbleRef = useRef<View>(null);
   const isDark = useColorScheme() === "dark";
+  const primary = useColor("primary");
   const leftBubbleBg = isDark ? "#242529" : "#F8F9FB";
   const leftBorderColor = isDark ? "rgba(255, 255, 255, 0.08)" : "#ECEFF3";
   const leftTextColor = isDark ? "#F9FAFB" : "#111827";
   const leftTimeColor = isDark ? "rgba(255, 255, 255, 0.55)" : "#6B7280";
 
+  // Measure the bubble so the reaction bar can float right below it.
+  const openReactionBar = () => {
+    bubbleRef.current?.measureInWindow((x, y, width, height) => {
+      onOpenPicker?.({ x, y, width, height });
+    });
+  };
+
+  const renderLeftActions = (progress: any, dragX: any) => {
+    const trans = dragX.interpolate({
+      inputRange: [0, 40, 80],
+      outputRange: [-15, 0, 8],
+      extrapolate: "clamp",
+    });
+    return (
+      <View style={{ width: 50, justifyContent: "center", alignItems: "center" }}>
+        <Animated.View style={{ transform: [{ translateX: trans }] }}>
+          <Reply size={18} color={primary} />
+        </Animated.View>
+      </View>
+    );
+  };
+
   return (
+    <Swipeable
+      ref={swipeableRef}
+      renderLeftActions={isMe ? undefined : renderLeftActions}
+      renderRightActions={isMe ? renderLeftActions : undefined}
+      friction={2}
+      leftThreshold={30}
+      rightThreshold={30}
+      onSwipeableWillOpen={() => {
+        onReply?.(msg);
+        setTimeout(() => {
+          swipeableRef.current?.close();
+        }, 100);
+      }}
+    >
     <View
       style={[
         bubbleStyles.row,
@@ -176,19 +224,66 @@ function MessageBubble({
         </View>
       )}
 
+      <View style={bubbleStyles.bubbleColumn}>
       <Pressable
-        onLongPress={() => onLongPress?.(msg)}
+        ref={bubbleRef}
+        onLongPress={openReactionBar}
         style={[
           bubbleStyles.bubble,
+          isMe ? bubbleStyles.alignEnd : bubbleStyles.alignStart,
           isMe
-            ? [bubbleStyles.bubbleRight, isLast && bubbleStyles.bubbleRightTail]
+            ? [bubbleStyles.bubbleRight, { backgroundColor: primary }, isLast && bubbleStyles.bubbleRightTail]
             : [
                 bubbleStyles.bubbleLeft,
                 { backgroundColor: leftBubbleBg, borderColor: leftBorderColor },
                 isLast && bubbleStyles.bubbleLeftTail,
               ],
+          // Give the reply quote room, exactly like the private chat does.
+          msg.reply_to_info ? { minWidth: 220 } : null,
         ]}
       >
+        {/* Reply preview */}
+        {msg.reply_to_info && (
+          <View
+            style={[
+              bubbleStyles.replyQuote,
+              isMe
+                ? bubbleStyles.replyQuoteRight
+                : [
+                    bubbleStyles.replyQuoteLeft,
+                    { backgroundColor: isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(222, 65, 119, 0.06)" },
+                  ],
+            ]}
+          >
+            <View
+              style={[
+                bubbleStyles.replyBar,
+                { backgroundColor: isMe ? "rgba(255,255,255,0.7)" : isDark ? "#F472B6" : "#DE4177" },
+              ]}
+            />
+            <View style={{ flex: 1, justifyContent: "center" }}>
+              <Text
+                style={[
+                  bubbleStyles.replyUser,
+                  { color: isMe ? "rgba(255,255,255,0.85)" : isDark ? "#F9FAFB" : "#4B5563" },
+                ]}
+                numberOfLines={1}
+              >
+                {msg.reply_to_info.sender_name}
+              </Text>
+              <Text
+                style={[
+                  bubbleStyles.replyText,
+                  { color: isMe ? "rgba(255,255,255,0.8)" : isDark ? "#E5E7EB" : "#4B5563" },
+                ]}
+                numberOfLines={2}
+              >
+                {msg.reply_to_info.content}
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* Name Label */}
         {!isMe && showAvatar && (
           <Text style={[bubbleStyles.senderName, { color: nameColor }]}>
@@ -209,8 +304,26 @@ function MessageBubble({
             {formatMessageTime(msg.timestamp)}
           </Text>
         </View>
+
+        {/* Reaction badge stamped on the bubble corner */}
+        <View
+          style={[
+            { position: "absolute", bottom: -12, zIndex: 10 },
+            isMe ? { left: -14 } : { right: -8 },
+          ]}
+        >
+          <ReactionPills
+            reactions={msg.reactions}
+            myProfileId={myProfileId}
+            isMe={isMe}
+            onOpenPicker={openReactionBar}
+          />
+        </View>
       </Pressable>
+
+      </View>
     </View>
+    </Swipeable>
   );
 }
 
@@ -220,20 +333,45 @@ const bubbleStyles = StyleSheet.create({
   rowGroupEnd: { marginBottom: 10 },
   rowRight: { justifyContent: "flex-end" },
   rowLeft: { justifyContent: "flex-start" },
-  avatarCol: { marginRight: 6, marginBottom: 2 },
+  // 12px matches bubbleColumn's reserved band so the avatar still lines up with the bubble.
+  // 20px matches bubbleColumn's reserved band so the avatar still lines up with the bubble.
+  avatarCol: { marginRight: 6, marginBottom: 22 },
   avatar: { width: 28, height: 28, borderRadius: 14 },
-  bubble: {
+  bubbleColumn: {
+    position: "relative",
+    flexDirection: "column",
+    flexShrink: 1,
     maxWidth: "76%",
+    // Reserved band so a reaction badge never changes the row height.
+    paddingBottom: 20,
+  },
+  alignEnd: { alignSelf: "flex-end" },
+  alignStart: { alignSelf: "flex-start" },
+  bubble: {
+    maxWidth: "100%",
+    // Gives short messages room at the corner for the reaction badge.
+    minWidth: 100,
     borderRadius: 18,
     paddingHorizontal: 12,
     paddingVertical: 8,
     shadowOpacity: 0,
     elevation: 0,
   },
-  bubbleRight: {
-    backgroundColor: "#0A84FF",
-  },
+  bubbleRight: {},
   bubbleRightTail: { borderBottomRightRadius: 5 },
+  replyQuote: {
+    flexDirection: "row",
+    borderRadius: 6,
+    padding: 6,
+    marginBottom: 4,
+    gap: 6,
+    overflow: "hidden",
+  },
+  replyQuoteRight: { backgroundColor: "rgba(0,0,0,0.12)" },
+  replyQuoteLeft: { backgroundColor: "rgba(222, 65, 119, 0.06)" },
+  replyBar: { width: 4, borderRadius: 2, minHeight: 28 },
+  replyUser: { fontSize: 12, fontWeight: "700", marginBottom: 1 },
+  replyText: { fontSize: 12 },
   bubbleLeft: {
     backgroundColor: "#F8F9FB",
     borderWidth: StyleSheet.hairlineWidth,
@@ -284,7 +422,7 @@ export default function CommunityChatScreen() {
   const isJoined = roomQuery.data?.is_joined ?? joinedParam === "1";
   const memberCount = roomQuery.data?.member_count ?? Number(memberCountParam ?? 0);
 
-  const { sendRoomMessage, joinRoom, leaveRoom, isConnected } = useChatSocket();
+  const { sendRoomMessage, sendRoomMessageReaction, joinRoom, leaveRoom, isConnected } = useChatSocket();
 
   // Subscribe to the WS room group when screen is open.
   // Also re-fires when isConnected flips to true (socket reconnected after a drop),
@@ -299,6 +437,21 @@ export default function CommunityChatScreen() {
 
   const queryClient = useQueryClient();
   const [text, setText] = useState("");
+  const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
+  const [reactingToMessage, setReactingToMessage] = useState<ChatMessage | null>(null);
+  const [reactionAnchor, setReactionAnchor] = useState<ReactionAnchor | null>(null);
+
+  // Opens the reaction bar below a message (long press on the bubble).
+  const openReactionBar = useCallback((message: ChatMessage, anchor: ReactionAnchor) => {
+    setReactingToMessage(message);
+    setReactionAnchor(anchor);
+  }, []);
+
+  // Dismisses the reaction bar (tap outside, emoji picked, ...).
+  const closeReactionBar = useCallback(() => {
+    setReactingToMessage(null);
+    setReactionAnchor(null);
+  }, []);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const inputRef = useRef<TextInput>(null);
   const listRef = useRef<FlatList>(null);
@@ -346,24 +499,6 @@ export default function CommunityChatScreen() {
     commQuota.remaining <= 0 &&
     (!commQuota.resets_at || new Date(commQuota.resets_at).getTime() > Date.now());
 
-  const handleMessageLongPress = useCallback((msg: ChatMessage) => {
-    const isMe = String(msg.sender) === String(currentUserId);
-    const options: any[] = [];
-    if (!isMe && msg.sender) {
-      options.push({
-        text: t('chat.view_profile', "View Profile"),
-        onPress: () => {
-          router.push({
-            pathname: "/profile/[id]",
-            params: { id: msg.sender },
-          } as any);
-        },
-      });
-    }
-    options.push({ text: t('chat.cancel', "Cancel"), style: "cancel" });
-    Alert.alert(msg.sender_name || t('chat.message_placeholder', "Message"), undefined, options);
-  }, [currentUserId, t]);
-
   const handleSend = useCallback(() => {
     const trimmed = text.trim();
     if (!trimmed || !roomId) return;
@@ -377,13 +512,22 @@ export default function CommunityChatScreen() {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch {}
-    sendRoomMessage(roomId, trimmed);
+    sendRoomMessage(roomId, trimmed, replyingTo?.id);
+    setReplyingTo(null);
     setText("");
     setShowEmojiPicker(false);
     requestAnimationFrame(() => {
       listRef.current?.scrollToOffset({ offset: 0, animated: false });
     });
-  }, [text, roomId, isCommQuotaExhausted, sendRoomMessage, t]);
+  }, [text, roomId, isCommQuotaExhausted, sendRoomMessage, replyingTo, t]);
+
+  // Reacting again with the same emoji removes your reaction.
+  // The server toggles on the same emoji, so every tap is a single toggle.
+  // Always send the emoji instead of guessing null locally — that guess was
+  // wrong whenever the cached actor_ids were stale, needing a second tap.
+  const handleReact = useCallback((message: ChatMessage, emoji: string) => {
+    sendRoomMessageReaction(message.id, emoji, String(roomId));
+  }, [roomId, sendRoomMessageReaction]);
 
   const handleJoin = useCallback(() => {
     if (!roomId) return;
@@ -508,11 +652,16 @@ export default function CommunityChatScreen() {
           showAvatar={showAvatar}
           isLast={isLast}
           nameColor={nameColors[msg.sender] || muted}
-          onLongPress={handleMessageLongPress}
+          onReply={setReplyingTo}
+          onOpenPicker={(anchor) => openReactionBar(msg, anchor)}
+          myProfileId={currentUserId}
         />
       );
     },
-    [currentUserId, listData, isDark, muted, nameColors, handleMessageLongPress]
+    [
+      currentUserId, listData, isDark, muted, nameColors,
+      setReplyingTo, openReactionBar,
+    ]
   );
 
 
@@ -612,6 +761,26 @@ export default function CommunityChatScreen() {
           />
         )}
 
+        {/* ── Reaction bar (single screen-level instance) ── */}
+        <ReactionBar
+          anchor={reactionAnchor}
+          align={
+            String(reactingToMessage?.sender) === String(currentUserId)
+              ? "right"
+              : "left"
+          }
+          myReaction={
+            reactingToMessage?.reactions?.find((r) =>
+              r.actor_ids?.some((id) => String(id) === String(currentUserId)),
+            )?.emoji ?? null
+          }
+          onSelect={(emoji) => {
+            if (reactingToMessage) handleReact(reactingToMessage, emoji);
+            closeReactionBar();
+          }}
+          onClose={closeReactionBar}
+        />
+
         {/* ── Input bar / Join Gate ── */}
         {isMembershipLoading ? (
           <View
@@ -706,6 +875,38 @@ export default function CommunityChatScreen() {
               </View>
             )}
 
+            {/* Replying-to banner (same look as the private chat) */}
+            {replyingTo && (
+              <View
+                style={[
+                  styles.replyBanner,
+                  {
+                    backgroundColor: card,
+                    borderLeftColor: primary,
+                    borderColor: border + "35",
+                  },
+                ]}
+              >
+                <View style={{ flex: 1, paddingRight: 6 }}>
+                  <Text style={[styles.replyUser, { color: primary }]} numberOfLines={1}>
+                    {t("chat.replying_to", "Replying to")} {replyingTo.sender_name}
+                  </Text>
+                  <Text style={[styles.replyPreview, { color: muted }]} numberOfLines={1}>
+                    {replyingTo.content}
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={() => setReplyingTo(null)}
+                  hitSlop={8}
+                  style={styles.replyCloseBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("chat.cancel_reply", "Cancel reply")}
+                >
+                  <X size={18} color={muted} />
+                </Pressable>
+              </View>
+            )}
+
             {/* ── Input bar ── */}
             <View
               style={[
@@ -796,6 +997,8 @@ export default function CommunityChatScreen() {
           </>
         )}
       </KeyboardAvoidingView>
+
+
     </View>
   );
 }
@@ -820,6 +1023,22 @@ const styles = StyleSheet.create({
   headerAvatarFallback: { alignItems: "center", justifyContent: "center" },
   headerName: { fontSize: 16, fontWeight: "700" },
   headerSub: { fontSize: 12, marginTop: 1 },
+
+  // Reply banner (mirrors the private chat)
+  replyBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 12,
+    marginBottom: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderLeftWidth: 3.5,
+  },
+  replyUser: { fontSize: 13, fontWeight: "700", marginBottom: 2 },
+  replyPreview: { fontSize: 13 },
+  replyCloseBtn: { padding: 4, marginLeft: 6 },
 
   // Day separator
   daySep: {

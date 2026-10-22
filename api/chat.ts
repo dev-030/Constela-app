@@ -9,6 +9,8 @@ export interface ChatRoom {
   is_joined: boolean;
 }
 
+import type { MessageReactionSummary } from "@/utils/message-reactions";
+
 export interface ChatMessage {
   id: string;
   room: string;
@@ -18,6 +20,14 @@ export interface ChatMessage {
   content: string;
   timestamp: string;
   is_pending?: boolean;
+  reply_to?: string | null;
+  reply_to_info?: {
+    id: string;
+    content: string;
+    sender_id: string;
+    sender_name: string;
+  } | null;
+  reactions?: MessageReactionSummary[];
 }
 
 export interface JoinRoomResponse {
