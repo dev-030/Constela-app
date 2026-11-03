@@ -2,7 +2,7 @@ import "./i18n";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { ChatSocketProvider } from "@/api/ChatSocketProvider";
-import { Toaster } from "sonner-native";
+import { Toaster, toast } from "sonner-native";
 import { useAuthStore } from "@/store/authStore";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Colors } from "@/theme/colors";
@@ -11,11 +11,11 @@ import { usePrefetchOnAppStart } from "@/hooks/usePrefetchOnAppStart";
 import { useProfileStore } from "@/store/profileStore";
 import { isLiquidGlassAvailable } from "expo-glass-effect";
 import * as NavigationBar from "expo-navigation-bar";
-import { Stack, useRouter, useSegments } from "expo-router";
+import { Stack, usePathname, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { setBackgroundColorAsync } from "expo-system-ui";
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { LogBox, Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
@@ -42,6 +42,10 @@ function RootLayoutContent() {
   const { profile } = useProfileStore();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const router = useRouter();
+  // Read from push listeners without resubscribing on every navigation.
+  const pathname = usePathname();
+  const pathnameRef = useRef(pathname);
+  pathnameRef.current = pathname;
 
   // Warm common tabs immediately and gated tabs only when local access allows it.
   usePrefetchOnAppStart(isAuthenticated ? profile : null);
@@ -70,9 +74,10 @@ function RootLayoutContent() {
       .then((m) => {
         if (disposed) return;
         m.registerForPushNotificationsAsync().catch(console.error);
-        unsubscribe = m.subscribeToPushNotifications((data) => {
-          // Social notifications only (friend requests + matches).
-          if (data?.type === "match") {
+        const openPush = (data: Record<string, string> | undefined) => {
+          if (data?.type === "message" && data.profile_id) {
+            router.push(`/inbox/${data.profile_id}`);
+          } else if (data?.type === "match") {
             router.push("/(tabs)/matches");
           } else if (
             data?.type === "friend_request_received" ||
@@ -80,6 +85,23 @@ function RootLayoutContent() {
           ) {
             router.push("/(tabs)/friends");
           }
+        };
+        unsubscribe = m.subscribeToPushNotifications({
+          onOpen: openPush,
+          onForeground: ({ title, body, data }) => {
+            // The open conversation already shows the message live.
+            if (
+              data?.type === "message" &&
+              pathnameRef.current === `/inbox/${data.profile_id}`
+            ) {
+              return;
+            }
+            if (!title && !body) return;
+            toast(title || body || "", {
+              description: title ? body : undefined,
+              onPress: () => openPush(data),
+            });
+          },
         });
       })
       .catch(console.error);

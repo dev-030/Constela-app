@@ -11,7 +11,14 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.constela.app",
-      "appleTeamId": "7WQ499M9V8"
+      "appleTeamId": "7WQ499M9V8",
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "entitlements": {
+        "aps-environment": "production"
+      },
+      "infoPlist": {
+        "UIBackgroundModes": ["remote-notification"]
+      }
     },
     "android": {
       "versionCode": 1,
@@ -25,7 +32,8 @@
       "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.POST_NOTIFICATIONS"
       ]
     },
     "web": {
@@ -37,6 +45,7 @@
       "expo-router",
       "expo-web-browser",
       "@react-native-firebase/app",
+      "@react-native-firebase/messaging",
       [
         "expo-splash-screen",
         {

@@ -216,6 +216,10 @@ export const useLogout = () => {
   const queryClient = useQueryClient();
 
   return async () => {
+    // Needs the auth token, so it has to run before clearAuth.
+    await import('../utils/pushNotifications')
+      .then((m) => m.unregisterPushTokenAsync())
+      .catch(console.warn);
     await clearAuth();
     clearProfile();
     queryClient.clear(); // Clear all cached queries
