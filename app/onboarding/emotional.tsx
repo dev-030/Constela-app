@@ -21,6 +21,7 @@ import { useOnboarding } from "@/providers/onboarding-context";
 import { updateMyProfile } from "@/api/profile";
 import { useProfileStore } from "@/store/profileStore";
 import { useTranslation } from "react-i18next";
+import { useProfileLabels } from "@/hooks/use-profile-labels";
 import { LanguagePickerButton } from "@/components/LanguagePickerButton";
 
 function SectionHeader({
@@ -40,46 +41,9 @@ function SectionHeader({
   );
 }
 
-const RECHARGE_FR: Record<string, { title: string; subtitle: string }> = {
-  "Silence": { title: "Silence", subtitle: "Réduction du bruit, de la lumière, des mouvements" },
-  "Cocoon Spaces": { title: "Espaces cocooning", subtitle: "Pièce calme, coin couverture, lumière douce" },
-  "Reduced Stimulation": { title: "Stimulation réduite", subtitle: "Casque antibruit, verres teintés, lumière tamisée" },
-};
-
-const EXHAUSTS_FR: Record<string, string> = {
-  "Absorbs other people's moods": "Absorber l'humeur des autres",
-  "Feels everything deeply": "Tout ressentir intensément",
-  "Loud or unpredictable noises": "Bruits forts ou imprévisibles",
-  "Bright lights": "Lumières vives",
-  "Fast movements around me": "Mouvements rapides autour de moi",
-  "Strong smells": "Odeurs fortes",
-  "Unpleasant textures": "Textures désagréables",
-};
-
-const NEEDS_FR: Record<string, string> = {
-  "Predictability": "Prévisibilité",
-  "Consistency in behavior": "Cohérence dans le comportement",
-  "Absence of judgement": "Absence de jugement",
-  "Clear communication": "Communication claire",
-  "Deep talk": "Conversations profondes",
-  "Need to be alone sometimes": "Besoin d'être seul(e) parfois",
-};
-
-const SOOTHES_FR: Record<string, string> = {
-  "Silence or soft sounds": "Silence ou sons doux",
-  "Dim light": "Lumière tamisée",
-  "Massage": "Massage",
-  "Sensory objects": "Objets sensoriels",
-  "Chosen solitude": "Solitude choisie",
-  "Comforting routines": "Routines réconfortantes",
-  "Predictability": "Prévisibilité",
-  "Clear Communication": "Communication claire",
-  "Hyperfocus on an interest": "Hyperfocalisation sur un centre d'intérêt",
-};
-
 export default function OnboardingEmotionalScreen() {
-  const { t, i18n } = useTranslation();
-  const isFrench = i18n.language?.startsWith("fr");
+  const { t } = useTranslation();
+  const { listLabel, rechargeTitle, rechargeSubtitle } = useProfileLabels();
   const insets = useSafeAreaInsets();
   const background = useColor("background");
   const text = useColor("text");
@@ -292,20 +256,20 @@ export default function OnboardingEmotionalScreen() {
 
         <SectionHeader title={t("onboarding.recharge_title", "HOW I RECHARGE")} icon={BatteryMedium} />
         <FilterListItem
-          title={isFrench ? RECHARGE_FR["Silence"].title : "Silence"}
-          subtitle={isFrench ? RECHARGE_FR["Silence"].subtitle : "Reducing noise, Lights, Movement"}
+          title={rechargeTitle("Silence")}
+          subtitle={rechargeSubtitle("Silence", "Reducing noise, Lights, Movement")}
           selected={rechargeMethods.includes("Silence")}
           onPress={() => toggleRecharge("Silence")}
         />
         <FilterListItem
-          title={isFrench ? RECHARGE_FR["Cocoon Spaces"].title : "Cocoon Spaces"}
-          subtitle={isFrench ? RECHARGE_FR["Cocoon Spaces"].subtitle : "Quiet room, Blanket corner, Soft light"}
+          title={rechargeTitle("Cocoon Spaces")}
+          subtitle={rechargeSubtitle("Cocoon Spaces", "Quiet room, Blanket corner, Soft light")}
           selected={rechargeMethods.includes("Cocoon Spaces")}
           onPress={() => toggleRecharge("Cocoon Spaces")}
         />
         <FilterListItem
-          title={isFrench ? RECHARGE_FR["Reduced Stimulation"].title : "Reduced Stimulation"}
-          subtitle={isFrench ? RECHARGE_FR["Reduced Stimulation"].subtitle : "Noise-cancelling headphones, tinted glasses, Dim light"}
+          title={rechargeTitle("Reduced Stimulation")}
+          subtitle={rechargeSubtitle("Reduced Stimulation", "Noise-cancelling headphones, tinted glasses, Dim light")}
           selected={rechargeMethods.includes("Reduced Stimulation")}
           onPress={() => toggleRecharge("Reduced Stimulation")}
         />
@@ -328,7 +292,7 @@ export default function OnboardingEmotionalScreen() {
         ].map((item) => (
           <FilterListItem
             key={item}
-            title={isFrench ? EXHAUSTS_FR[item] || item : item}
+            title={listLabel('exhausts', item)}
             selected={exhaustTriggers.includes(item)}
             onPress={() => toggleExhausts(item)}
           />
@@ -351,7 +315,7 @@ export default function OnboardingEmotionalScreen() {
         ].map((item) => (
           <FilterListItem
             key={item}
-            title={isFrench ? NEEDS_FR[item] || item : item}
+            title={listLabel('needs', item)}
             selected={emotionalNeeds.includes(item)}
             onPress={() => toggleNeeds(item)}
           />
@@ -386,7 +350,7 @@ export default function OnboardingEmotionalScreen() {
           ].map((item) => (
             <FilterPill
               key={item}
-              label={isFrench ? SOOTHES_FR[item] || item : item}
+              label={listLabel('soothes', item)}
               selected={soothesMethods.includes(item)}
               onPress={() => toggleArrayItem(soothesMethods, setSoothes, item)}
             />

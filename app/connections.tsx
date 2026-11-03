@@ -14,6 +14,7 @@ import {
 import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
+import { useProfileLabels } from "@/hooks/use-profile-labels";
 import {
   ChevronLeft,
   ChevronRight,
@@ -82,6 +83,8 @@ const MatchRow = React.memo(function MatchRow({
   onMorePress,
 }: MatchRowProps) {
   const { size } = useResponsiveLayout();
+  const { t } = useTranslation();
+  const { listLabel, interestCategory } = useProfileLabels();
   const profile = match.profile;
   const mainPhoto =
     profile.photos?.find((p) => p.is_main)?.image ||
@@ -89,13 +92,14 @@ const MatchRow = React.memo(function MatchRow({
     null;
 
   const locationStr = [profile.city, profile.country].filter(Boolean).join(", ");
-  const interests = profile.interests || [];
+  const interests = (profile.interests || []).map((i: string) => interestCategory(i));
+  const loves = t('connections.loves', "Loves");
   const bio =
     interests.length >= 2
-      ? `Loves ${interests[0]} and ${interests[1]}`
+      ? `${loves} ${interests[0]} ${t('connections.and', "and")} ${interests[1]}`
       : interests.length === 1
-      ? `Loves ${interests[0]}`
-      : profile.qualities?.slice(0, 2).join(", ") || "";
+      ? `${loves} ${interests[0]}`
+      : (profile.qualities || []).slice(0, 2).map((q: string) => listLabel('qualities', q)).join(", ");
 
   return (
     <Pressable
@@ -235,6 +239,7 @@ const FriendRow = React.memo(function FriendRow({
   onViewProfile,
   onMorePress,
 }: FriendRowProps) {
+  const { lovesSentence, translateBio } = useProfileLabels();
 
   return (
     <Pressable
@@ -275,7 +280,7 @@ const FriendRow = React.memo(function FriendRow({
             style={[styles.bioText, { color: textMuted }]}
             numberOfLines={1}
           >
-            {friend.bio}
+            {friend.bio_interests?.length ? lovesSentence(friend.bio_interests) : translateBio(friend.bio)}
           </Text>
         ) : friend.location ? (
           <Text

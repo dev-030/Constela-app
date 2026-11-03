@@ -39,7 +39,6 @@ import {
   Mic,
   Play,
   Pause,
-  Trash2,
   ArrowUp,
   Square,
   Smile,
@@ -71,6 +70,7 @@ import { useReportUserMutation } from "@/api/settings";
 import type { DirectMessage } from "@/api/messages";
 import { useTranslation } from "react-i18next";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
+import { ReactionBar, ReactionPills, type ReactionAnchor } from "@/components/chat/message-reactions";
 
 const QUICK_EMOJIS = [
   "😀", "😂", "🤣", "❤️", "😍", "🔥", "👍", "🙌",
@@ -364,8 +364,9 @@ function VoiceMessage({
     }
   };
 
-  const accentColor = isDark ? "#0A84FF" : "#0084ff";
-  const playedWaveColor = isDark ? "#38BDF8" : "#0084ff";
+  const primary = useColor("primary");
+  const accentColor = primary;
+  const playedWaveColor = primary;
 
   return (
     <View style={voiceStyles.container}>
@@ -422,7 +423,7 @@ function VoiceMessage({
                       ? playedWaveColor
                       : isDark
                       ? "rgba(255, 255, 255, 0.22)"
-                      : "rgba(0, 132, 255, 0.28)",
+                      : `${primary}47`,
                   },
                 ]}
               />
@@ -592,7 +593,8 @@ function MessageBubble({
   recipientPhoto,
   onReply,
   isLast,
-  onLongPress,
+  onOpenPicker,
+  myProfileId,
 }: {
   msg: DirectMessage;
   isMe: boolean;
@@ -600,14 +602,24 @@ function MessageBubble({
   recipientPhoto: string;
   onReply: (msg: DirectMessage) => void;
   isLast: boolean;
-  onLongPress: (msg: DirectMessage) => void;
+  onOpenPicker?: (anchor: ReactionAnchor) => void;
+  myProfileId?: string | null;
 }) {
   const swipeableRef = useRef<Swipeable>(null);
+  const bubbleRef = useRef<View>(null);
   const isDark = useColorScheme() === "dark";
+  const primary = useColor("primary");
   const leftBubbleBg = isDark ? "#242529" : "#F8F9FB";
   const leftBorderColor = isDark ? "rgba(255, 255, 255, 0.08)" : "#ECEFF3";
   const leftTextColor = isDark ? "#F9FAFB" : "#111827";
   const leftTimeColor = isDark ? "rgba(255, 255, 255, 0.55)" : "#6B7280";
+
+  // Measure the bubble so the reaction bar can float right below it.
+  const openReactionBar = () => {
+    bubbleRef.current?.measureInWindow((x, y, width, height) => {
+      onOpenPicker?.({ x, y, width, height });
+    });
+  };
 
   const renderLeftActions = (progress: any, dragX: any) => {
     const trans = dragX.interpolate({
@@ -618,7 +630,7 @@ function MessageBubble({
     return (
       <View style={{ width: 50, justifyContent: 'center', alignItems: 'center' }}>
         <Animated.View style={{ transform: [{ translateX: trans }] }}>
-          <Reply size={18} color="#0A84FF" />
+          <Reply size={18} color={primary} />
         </Animated.View>
       </View>
     );
@@ -640,12 +652,11 @@ function MessageBubble({
       }}
     >
       <Pressable
-        onLongPress={() => onLongPress(msg)}
+        onLongPress={openReactionBar}
         style={[
           bubbleStyles.row,
           isMe ? bubbleStyles.rowRight : bubbleStyles.rowLeft,
           isLast && bubbleStyles.rowGroupEnd,
-          msg.reaction ? { marginBottom: 10 } : null
         ]}
       >
         {/* Avatar on the left for received messages */}
@@ -669,26 +680,31 @@ function MessageBubble({
           </View>
         )}
 
-        <View style={[
-          bubbleStyles.bubble,
-          isMe
-            ? [bubbleStyles.bubbleRight, isLast && bubbleStyles.bubbleRightTail]
-            : [
-                bubbleStyles.bubbleLeft,
-                { backgroundColor: leftBubbleBg, borderColor: leftBorderColor },
-                isLast && bubbleStyles.bubbleLeftTail,
-              ],
-          msg.reply_to_info ? { minWidth: 220 } : null
-        ]}>
+        <View style={bubbleStyles.bubbleColumn}>
+        <View
+          ref={bubbleRef}
+          style={[
+            bubbleStyles.bubble,
+            isMe ? bubbleStyles.alignEnd : bubbleStyles.alignStart,
+            isMe
+              ? [bubbleStyles.bubbleRight, { backgroundColor: primary }, isLast && bubbleStyles.bubbleRightTail]
+              : [
+                  bubbleStyles.bubbleLeft,
+                  { backgroundColor: leftBubbleBg, borderColor: leftBorderColor },
+                  isLast && bubbleStyles.bubbleLeftTail,
+                ],
+            msg.reply_to_info ? { minWidth: 220 } : null,
+          ]}
+        >
           {/* Reply preview */}
           {msg.reply_to_info && (
             <View style={[
               bubbleStyles.replyQuote,
               isMe
                 ? bubbleStyles.replyQuoteRight
-                : [bubbleStyles.replyQuoteLeft, { backgroundColor: isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 132, 255, 0.06)" }]
+                : [bubbleStyles.replyQuoteLeft, { backgroundColor: isDark ? "rgba(255, 255, 255, 0.08)" : `${primary}0F` }]
             ]}>
-              <View style={[bubbleStyles.replyBar, { backgroundColor: isMe ? "rgba(255,255,255,0.7)" : (isDark ? "#38BDF8" : "#0A84FF") }]} />
+              <View style={[bubbleStyles.replyBar, { backgroundColor: isMe ? "rgba(255,255,255,0.7)" : primary }]} />
               <View style={{ flex: 1, justifyContent: "center" }}>
                 <Text style={[bubbleStyles.replyText, { color: isMe ? "rgba(255,255,255,0.8)" : (isDark ? "#E5E7EB" : "#4B5563") }]} numberOfLines={2}>
                   {getReplyPreviewText(msg.reply_to_info)}
@@ -757,21 +773,22 @@ function MessageBubble({
             </>
           )}
 
-          {/* Reaction badge */}
-          {msg.reaction && (
-            <View style={[
-              bubbleStyles.reactionBadge,
-              {
-                backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6",
-                borderColor: isDark ? "#1C1C1E" : "#FFFFFF",
-              },
-              isMe ? bubbleStyles.reactionBadgeRight : bubbleStyles.reactionBadgeLeft
-            ]}>
-              <Text style={{ fontSize: 12 }}>{msg.reaction}</Text>
-            </View>
-          )}
+          {/* Reaction badge stamped on the bubble corner */}
+          <View
+            style={[
+              { position: "absolute", bottom: -12, zIndex: 10 },
+              isMe ? { left: -14 } : { right: -8 },
+            ]}
+          >
+            <ReactionPills
+              reactions={msg.reactions}
+              myProfileId={myProfileId}
+              isMe={isMe}
+              onOpenPicker={openReactionBar}
+            />
+          </View>
         </View>
-
+        </View>
       </Pressable>
     </Swipeable>
   );
@@ -782,19 +799,30 @@ const bubbleStyles = StyleSheet.create({
   rowGroupEnd: { marginBottom: 10 },
   rowRight: { justifyContent: "flex-end" },
   rowLeft: { justifyContent: "flex-start" },
-  avatarCol: { marginRight: 6, marginBottom: 2 },
+  // 20px matches bubbleColumn's reserved band so the avatar still lines up with the bubble.
+  avatarCol: { marginRight: 6, marginBottom: 22 },
   avatar: { width: 28, height: 28, borderRadius: 14 },
-  bubble: {
+  bubbleColumn: {
+    position: "relative",
+    flexDirection: "column",
+    flexShrink: 1,
     maxWidth: "76%",
+    // Reserved band so a reaction badge never changes the row height.
+    paddingBottom: 20,
+  },
+  alignEnd: { alignSelf: "flex-end" },
+  alignStart: { alignSelf: "flex-start" },
+  bubble: {
+    maxWidth: "100%",
+    // Gives short messages room at the corner for the reaction badge.
+    minWidth: 100,
     borderRadius: 18,
     paddingHorizontal: 12,
     paddingVertical: 8,
     shadowOpacity: 0,
     elevation: 0,
   },
-  bubbleRight: {
-    backgroundColor: "#0A84FF",
-  },
+  bubbleRight: {},
   bubbleRightTail: { borderBottomRightRadius: 5 },
   bubbleLeft: {
     backgroundColor: "#F8F9FB",
@@ -811,7 +839,7 @@ const bubbleStyles = StyleSheet.create({
     overflow: "hidden",
   },
   replyQuoteRight: { backgroundColor: "rgba(0,0,0,0.12)" },
-  replyQuoteLeft: { backgroundColor: "rgba(0,132,255,0.06)" },
+  replyQuoteLeft: {},
   replyBar: { width: 4, borderRadius: 2, minHeight: 28 },
   replyUser: { fontSize: 12, fontWeight: "700", marginBottom: 1 },
   replyText: { fontSize: 12 },
@@ -930,6 +958,29 @@ export default function ChatScreen() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [replyingTo, setReplyingTo] = useState<DirectMessage | null>(null);
   const [reactingToMessage, setReactingToMessage] = useState<DirectMessage | null>(null);
+  const [reactionAnchor, setReactionAnchor] = useState<ReactionAnchor | null>(null);
+
+  // Opens the reaction bar below a message (long press on the bubble).
+  const openReactionBar = useCallback((message: DirectMessage, anchor: ReactionAnchor) => {
+    setReactingToMessage(message);
+    setReactionAnchor(anchor);
+  }, []);
+
+  // Dismisses the reaction bar (tap outside, emoji picked, ...).
+  const closeReactionBar = useCallback(() => {
+    setReactingToMessage(null);
+    setReactionAnchor(null);
+  }, []);
+
+  // The server toggles on the same emoji, so every tap is a single toggle.
+  // Always send the emoji instead of guessing null locally — that guess was
+  // wrong whenever the cached actor_ids were stale, needing a second tap.
+  const handleReact = useCallback(
+    (message: DirectMessage, emoji: string) => {
+      sendMessageReaction(message.id, emoji, recipientId);
+    },
+    [recipientId, sendMessageReaction],
+  );
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isUploadingAudio, setIsUploadingAudio] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -1394,11 +1445,15 @@ export default function ChatScreen() {
           recipientPhoto={recipientPhoto}
           onReply={setReplyingTo}
           isLast={isLast}
-          onLongPress={setReactingToMessage}
+          onOpenPicker={(anchor) => openReactionBar(msg, anchor)}
+          myProfileId={currentUserId}
         />
       );
     },
-    [currentUserId, listData, recipientPhoto, border, muted]
+    [
+      currentUserId, listData, recipientPhoto, border, muted,
+      openReactionBar,
+    ]
   );
 
   const isLoading = historyQuery.isLoading && rawMessages.length === 0;
@@ -1513,6 +1568,26 @@ export default function ChatScreen() {
           />
         )}
 
+        {/* ── Reaction bar (single screen-level instance) ── */}
+        <ReactionBar
+          anchor={reactionAnchor}
+          align={
+            String(reactingToMessage?.sender) === String(currentUserId)
+              ? "right"
+              : "left"
+          }
+          myReaction={
+            reactingToMessage?.reactions?.find((r) =>
+              r.actor_ids?.some((id) => String(id) === String(currentUserId)),
+            )?.emoji ?? null
+          }
+          onSelect={(emoji) => {
+            if (reactingToMessage) handleReact(reactingToMessage, emoji);
+            closeReactionBar();
+          }}
+          onClose={closeReactionBar}
+        />
+
         {/* ── Typing indicator ── */}
         {recipientTyping && (
           <View style={{ backgroundColor: background }}>
@@ -1534,7 +1609,7 @@ export default function ChatScreen() {
           >
             <View style={{ flex: 1, paddingRight: 6 }}>
               <Text style={[styles.replyUser, { color: primary }]}>
-                Replying to {replyingTo.sender === recipientId ? recipientUsername : "You"}
+                {t("chat.replying_to", "Replying to")} {replyingTo.sender === recipientId ? recipientUsername : "You"}
               </Text>
               <Text style={[styles.replyPreview, { color: muted }]} numberOfLines={1}>
                 {getReplyPreviewText(replyingTo)}
@@ -1868,44 +1943,7 @@ export default function ChatScreen() {
         </TouchableWithoutFeedback>
       </Modal>
 
-      {/* ── Reaction Picker Overlay ── */}
-      <Modal
-        visible={!!reactingToMessage}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setReactingToMessage(null)}
-      >
-        <TouchableWithoutFeedback onPress={() => setReactingToMessage(null)}>
-          <View style={styles.modalOverlay}>
-            <View style={styles.reactionPickerContainer}>
-              {["👍", "❤️", "😂", "😮", "😢", "🙏"].map((emoji) => (
-                <Pressable
-                  key={emoji}
-                  onPress={() => {
-                    if (reactingToMessage) {
-                      sendMessageReaction(reactingToMessage.id, emoji, recipientId);
-                    }
-                    setReactingToMessage(null);
-                  }}
-                  style={styles.reactionEmojiBtn}
-                >
-                  <Text style={{ fontSize: 26 }}>{emoji}</Text>
-                </Pressable>
-              ))}
-            </View>
-            <Pressable
-              onPress={() => setReactingToMessage(null)}
-              hitSlop={12}
-              style={styles.reactionPickerCancel}
-            >
-              <X size={20} color="#FFFFFF" />
-              <Text style={{ color: "#FFFFFF", fontWeight: "600", marginLeft: 6 }}>
-                Cancel
-              </Text>
-            </Pressable>
-          </View>
-        </TouchableWithoutFeedback>
-      </Modal>
+
     </View>
   );
 }

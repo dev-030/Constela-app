@@ -20,6 +20,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Avatar } from '@/components/ui/avatar';
 import { uploadPhoto, deletePhoto, setMainPhoto } from '@/api/profile';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
+import { useProfileLabels } from '@/hooks/use-profile-labels';
 import { useTranslation } from 'react-i18next';
 
 const InfoRow = ({ icon: IconComp, label, value, isLast = false }: any) => {
@@ -103,15 +104,9 @@ const SectionHeader = ({ title, onEdit }: { title: string; onEdit?: () => void }
   );
 };
 
-const LOOKING_FOR_MAP: Record<string, string> = {
-  'serious': 'Serious Relationship',
-  'friendship': 'Friendship',
-  'undecided': "We'll See",
-  'casual': 'Going Out',
-};
-
 export default function ProfileScreen() {
   const { t } = useTranslation();
+  const { label, listLabel, rechargeTitle, interestCategory } = useProfileLabels();
   const insets = useSafeAreaInsets();
   const background = useColor('background');
   const cardColor = useColor('card');
@@ -561,14 +556,14 @@ export default function ProfileScreen() {
             <InfoRow icon={User} label={t('profile.name')} value={profile.user?.first_name || '—'} />
             <InfoRow icon={User} label={t('profile.username')} value={profile.username || '—'} />
             <InfoRow icon={Mail} label={t('profile.email')} value={userEmail || '—'} />
-            <InfoRow icon={Smile} label={t('profile.gender')} value={profile.gender ? profile.gender.charAt(0).toUpperCase() + profile.gender.slice(1).replace('_', '-') : '—'} />
-            <InfoRow icon={Heart} label={t('profile.pref_gender')} value={profile.gender_preference ? profile.gender_preference.charAt(0).toUpperCase() + profile.gender_preference.slice(1).replace('_', '-') : '—'} />
-            <InfoRow icon={Heart} label={t('profile.marital_status')} value={profile.marital_status ? profile.marital_status.charAt(0).toUpperCase() + profile.marital_status.slice(1) : '—'} />
-            <InfoTagsRow icon={Search} label={t('profile.looking_for')} tags={profile.looking_for ? [LOOKING_FOR_MAP[profile.looking_for] || (profile.looking_for.charAt(0).toUpperCase() + profile.looking_for.slice(1))] : []} layout="row" />
+            <InfoRow icon={Smile} label={t('profile.gender')} value={label(profile.gender)} />
+            <InfoRow icon={Heart} label={t('profile.pref_gender')} value={label(profile.gender_preference)} />
+            <InfoRow icon={Heart} label={t('profile.marital_status')} value={label(profile.marital_status)} />
+            <InfoTagsRow icon={Search} label={t('profile.looking_for')} tags={profile.looking_for ? [label(profile.looking_for)] : []} layout="row" />
             <InfoTagsRow icon={Globe} label={t('profile.languages')} tags={profile.spoken_languages} layout="row" />
             <InfoRow icon={MapPin} label={t('profile.city')} value={profile.city || '—'} />
             <InfoRow icon={Activity} label={t('profile.height_weight')} value={[profile.height_cm ? `${profile.height_cm}cm` : null, profile.weight_kg ? `${profile.weight_kg}kg` : null].filter(Boolean).join(', ') || '—'} />
-            <InfoRow icon={BookOpen} label={t('profile.education')} value={profile.education_level || '—'} isLast />
+            <InfoRow icon={BookOpen} label={t('profile.education')} value={label(profile.education_level)} isLast />
           </View>
         </View>
 
@@ -576,7 +571,7 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <SectionHeader title={t('profile.my_qualities')} onEdit={() => router.push('/profile/edit-qualities')} />
           <View style={[styles.card, { backgroundColor: cardColor }]}>
-            <InfoTagsRow icon={Star} label={t('profile.my_qualities')} tags={profile.qualities} isLast />
+            <InfoTagsRow icon={Star} label={t('profile.my_qualities')} tags={(profile.qualities || []).map((q: string) => listLabel('qualities', q))} isLast />
           </View>
         </View>
 
@@ -584,7 +579,7 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <SectionHeader title={t('profile.my_interests')} onEdit={() => router.push('/profile/edit-interests')} />
           <View style={[styles.card, { backgroundColor: cardColor }]}>
-            <InfoTagsRow icon={Compass} label={t('profile.my_interests')} tags={profile.interests} isLast />
+            <InfoTagsRow icon={Compass} label={t('profile.my_interests')} tags={(profile.interests || []).map((i: string) => interestCategory(i))} isLast />
           </View>
         </View>
 
@@ -593,7 +588,7 @@ export default function ProfileScreen() {
           <View style={styles.section}>
             <SectionHeader title={t('profile.neurodivergence')} onEdit={() => router.push('/profile/edit-neuro')} />
             <View style={[styles.card, { backgroundColor: cardColor }]}>
-              <InfoTagsRow icon={Brain} label={t('profile.neurodivergence')} tags={profile.neurotype_labels} isLast />
+              <InfoTagsRow icon={Brain} label={t('profile.neurodivergence')} tags={(profile.neurotype_labels || []).map((n: string) => listLabel('neurotypes', n))} isLast />
             </View>
           </View>
         )}
@@ -602,10 +597,10 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <SectionHeader title={t('profile.emotional_landscape')} onEdit={() => router.push('/profile/edit-emotional')} />
           <View style={[styles.card, { backgroundColor: cardColor }]}>
-            <InfoTagsRow icon={Battery} label={t('profile.recharge_methods')} tags={profile.recharge_methods} />
-            <InfoTagsRow icon={Zap} label={t('profile.exhaust_triggers')} tags={profile.exhaust_triggers} />
+            <InfoTagsRow icon={Battery} label={t('profile.recharge_methods')} tags={(profile.recharge_methods || []).map((m: string) => rechargeTitle(m))} />
+            <InfoTagsRow icon={Zap} label={t('profile.exhaust_triggers')} tags={(profile.exhaust_triggers || []).map((e: string) => listLabel('exhausts', e))} />
             <InfoRow icon={Smile} label={t('profile.humor')} value={profile.second_degree_humor ? t('profile.humor_second') : t('profile.humor_normal')} />
-            <InfoTagsRow icon={Heart} label={t('profile.soothes')} tags={profile.soothe_methods} isLast />
+            <InfoTagsRow icon={Heart} label={t('profile.soothes')} tags={(profile.soothe_methods || []).map((s: string) => listLabel('soothes', s))} isLast />
           </View>
         </View>
 
@@ -618,8 +613,8 @@ export default function ProfileScreen() {
             <InfoRow icon={Activity} label={t('profile.smoking')} value={profile.smoking ? t('profile.yes') : t('profile.no')} />
             <InfoRow icon={Wine} label={t('profile.alcohol')} value={profile.alcohol ? t('profile.yes') : t('profile.no')} />
             <InfoRow icon={Smile} label={t('profile.pets')} value={profile.pets ? t('profile.yes') : t('profile.no')} />
-            <InfoRow icon={Activity} label={t('profile.sport')} value={profile.sport || '—'} />
-            <InfoRow icon={Utensils} label={t('profile.eating_habits')} value={profile.eating_habits || '—'} isLast />
+            <InfoRow icon={Activity} label={t('profile.sport')} value={label(profile.sport)} />
+            <InfoRow icon={Utensils} label={t('profile.eating_habits')} value={label(profile.eating_habits)} isLast />
           </View>
         </View>
 

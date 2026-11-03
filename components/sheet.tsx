@@ -11,6 +11,7 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
+import { useProfileLabels } from "@/hooks/use-profile-labels";
 
 const PRIMARY = "#DE4177";
 
@@ -21,6 +22,7 @@ export default function ProfileSheet() {
   const border = useColor("border");
   const insets = useSafeAreaInsets();
   
+  const { translateBio } = useProfileLabels();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: profile, isLoading, isError } = useGetProfileDetailsQuery(id || "");
   const { mutate: blockUser } = useBlockUserMutation();
@@ -152,7 +154,7 @@ export default function ProfileSheet() {
         {profile.bio && (
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: muted }]}>BIO</Text>
-            <Text style={[styles.bioText, { color: text }]}>"{profile.bio}"</Text>
+            <Text style={[styles.bioText, { color: text }]}>{`"${translateBio(profile.bio)}"`}</Text>
           </View>
         )}
 

@@ -13,26 +13,12 @@ import { useProfileStore } from '@/store/profileStore';
 import { updateMyProfile } from '@/api/profile';
 import { useAndroidBack } from '@/hooks/useAndroidBack';
 import { useTranslation } from 'react-i18next';
+import { useProfileLabels } from '@/hooks/use-profile-labels';
 
 const NEUROTYPES = [
   "ADHD", "Autism", "Dyslexia", "Dyspraxia", "Dyscalculia",
   "Tourette's", "OCD", "Bipolar", "Synesthesia", "Gifted", "Anxiety", "PTSD"
 ];
-
-const NEUROTYPES_FR: Record<string, string> = {
-  "ADHD": "TDAH",
-  "Autism": "Autisme",
-  "Dyslexia": "Dyslexie",
-  "Dyspraxia": "Dyspraxie",
-  "Dyscalculia": "Dyscalculie",
-  "Tourette's": "Syndrome de Gilles de la Tourette",
-  "OCD": "TOC",
-  "Bipolar": "Trouble bipolaire",
-  "Synesthesia": "Synesthésie",
-  "Gifted": "Haut potentiel (HPI)",
-  "Anxiety": "Anxiété",
-  "PTSD": "TSPT (Stress post-traumatique)",
-};
 
 export default function EditNeuroScreen() {
   const { t, i18n } = useTranslation();
@@ -96,8 +82,8 @@ export default function EditNeuroScreen() {
     }
   };
 
-  const isFrench = i18n.language?.startsWith('fr');
-  const getNeuroLabel = (item: string) => isFrench && NEUROTYPES_FR[item] ? NEUROTYPES_FR[item] : item;
+  const { listLabel } = useProfileLabels();
+  const getNeuroLabel = (item: string) => listLabel('neurotypes', item);
 
   return (
     <View style={[styles.container, { backgroundColor: background }]}>

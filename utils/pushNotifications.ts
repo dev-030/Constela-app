@@ -1,6 +1,16 @@
 import { Platform } from 'react-native';
-import { getMessaging, requestPermission, getToken, AuthorizationStatus } from '@react-native-firebase/messaging';
+import {
+  getMessaging,
+  requestPermission,
+  getToken,
+  onTokenRefresh,
+  onNotificationOpenedApp,
+  getInitialNotification,
+  AuthorizationStatus,
+} from '@react-native-firebase/messaging';
 import { apiClient } from '@/api/client';
+
+export type PushNotificationData = Record<string, string>;
 
 /**
  * registerForPushNotificationsAsync
@@ -40,4 +50,38 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
   }
 
   return token;
+}
+
+/**
+ * Keeps the backend token in sync when FCM rotates it, and routes the user when
+ * they tap a delivered notification. Returns an unsubscribe function.
+ */
+export function subscribeToPushNotifications(
+  onOpen: (data: PushNotificationData | undefined) => void,
+): () => void {
+  const messagingInstance = getMessaging();
+
+  const unsubRefresh = onTokenRefresh(messagingInstance, async (token) => {
+    try {
+      await apiClient.post('/api/auth/push-token/', { push_token: token });
+    } catch (error) {
+      console.warn('Failed to refresh push token:', error);
+    }
+  });
+
+  const unsubOpened = onNotificationOpenedApp(messagingInstance, (message) => {
+    onOpen(message?.data as PushNotificationData | undefined);
+  });
+
+  // Cold start: the app was launched by tapping a notification.
+  void getInitialNotification(messagingInstance)
+    .then((message) => {
+      if (message) onOpen(message?.data as PushNotificationData | undefined);
+    })
+    .catch(() => {});
+
+  return () => {
+    unsubRefresh();
+    unsubOpened();
+  };
 }

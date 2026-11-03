@@ -169,7 +169,8 @@
       "master_s": "Master's",
       "masters": "Master's",
       "phd": "PhD",
-      "other": "Other"
+      "other": "Other",
+      "before_bachelor": "Before Bachelor"
     },
     "marital": {
       "single": "Single",
@@ -204,7 +205,8 @@
       "eating_fast_food": "Fast Food",
       "eating_vegetarian": "Vegetarian",
       "eating_vegan": "Vegan",
-      "eating_other": "Other"
+      "eating_other": "Other",
+      "sport_sedentary": "Sedentary"
     },
     "step5_title": "Top Qualities",
     "step5_subtitle": "Pick qualities that represent you best.",
@@ -250,7 +252,11 @@
     "load_error": "Failed to load matches.",
     "retry": "Tap to retry",
     "no_matches": "No matches found. Try widening your filters.",
-    "refresh": "Refresh"
+    "refresh": "Refresh",
+    "out_of_likes_title": "Out of Likes",
+    "out_of_likes_desc": "You've reached your daily limit of likes. Upgrade your plan for unlimited likes or check back at midnight!",
+    "out_of_likes_resets": "Resets at midnight",
+    "out_of_likes_upgrade": "Upgrade Plan"
   },
   "friends": {
     "search_placeholder": "Find people...",
@@ -273,7 +279,9 @@
     "accepting": "Accepting…",
     "decline": "Decline",
     "declining": "Declining…",
-    "retry": "Retry"
+    "retry": "Retry",
+    "request_sent_to": "Friend request sent to {{name}}",
+    "add_as_friend": "Add {{name}} as a friend"
   },
   "community": {
     "safe_spaces": "SAFE SPACES",
@@ -336,7 +344,14 @@
     "humor": "Second-degree humor",
     "soothes": "What soothes me",
     "search_languages": "Search languages...",
-    "done": "Done"
+    "done": "Done",
+    "relationship_intent": "Relationship Intent",
+    "looking_for_subtitles": {
+      "serious": "Long-term bonds",
+      "friendship": "Platonic first",
+      "well_see": "Open to options",
+      "going_out": "Casual fun"
+    }
   },
   "notifications": {
     "title": "Notifications",
@@ -420,7 +435,8 @@
     "sport": "Sport",
     "eating_habits": "Eating Habits",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "from": "From"
   },
   "connections": {
     "title": "Connections",
@@ -438,7 +454,9 @@
     "discover_matches": "Discover Matches",
     "view_profile": "View Profile",
     "unmatch": "Unmatch",
-    "remove_friend": "Remove Friend"
+    "remove_friend": "Remove Friend",
+    "loves": "Loves",
+    "and": "and"
   },
   "match_analysis": {
     "action_required": "Action Required",
@@ -456,7 +474,7 @@
     "perfect_matches": "Perfect Matches",
     "running_analysis": "Running deep compatibility analysis...",
     "top_5_matches": "Your Top 5 Matches",
-    "top_5_desc": "Based on your profile gender ({{gender}}), we are showing highly compatible {{target}}. We analyzed thousands of data points across personality, lifestyle, and sensory needs to find these profiles just for you.",
+    "top_5_desc": "Based on what you're looking for ({{gender}}), we are showing highly compatible {{target}}. We analyzed thousands of data points across personality, lifestyle, and sensory needs to find these profiles just for you.",
     "women": "women",
     "men": "men",
     "matches": "matches",
@@ -641,7 +659,218 @@
     "permission_needed": "Permission needed",
     "gallery_permission": "We need gallery access to share photos.",
     "camera_permission": "We need camera access to take photos.",
-    "mic_permission": "Allow microphone access to send voice messages."
+    "mic_permission": "Allow microphone access to send voice messages.",
+    "reply": "Reply",
+    "replying_to": "Replying to",
+    "cancel_reply": "Cancel reply",
+    "react": "React"
+  },
+  "profile_values": {
+    "recharge": {
+      "silence": {
+        "title": "Silence",
+        "subtitle": "Reducing noise, Lights, Movement"
+      },
+      "cocoon_spaces": {
+        "title": "Cocoon Spaces",
+        "subtitle": "Quiet room, Blanket corner, Soft light"
+      },
+      "reduced_stimulation": {
+        "title": "Reduced Stimulation",
+        "subtitle": "Noise-cancelling headphones, tinted glasses, Dim light"
+      }
+    },
+    "exhausts": {
+      "absorbs_other_people_s_moods": "Absorbs other people's moods",
+      "feels_everything_deeply": "Feels everything deeply",
+      "loud_or_unpredictable_noises": "Loud or unpredictable noises",
+      "bright_lights": "Bright lights",
+      "fast_movements_around_me": "Fast movements around me",
+      "strong_smells": "Strong smells",
+      "unpleasant_textures": "Unpleasant textures"
+    },
+    "needs": {
+      "predictability": "Predictability",
+      "consistency_in_behavior": "Consistency in behavior",
+      "absence_of_judgement": "Absence of judgement",
+      "clear_communication": "Clear communication",
+      "deep_talk": "Deep talk",
+      "need_to_be_alone_sometimes": "Need to be alone sometimes"
+    },
+    "soothes": {
+      "silence_or_soft_sounds": "Silence or soft sounds",
+      "dim_light": "Dim light",
+      "massage": "Massage",
+      "sensory_objects": "Sensory objects",
+      "chosen_solitude": "Chosen solitude",
+      "comforting_routines": "Comforting routines",
+      "predictability": "Predictability",
+      "clear_communication": "Clear Communication",
+      "hyperfocus_on_an_interest": "Hyperfocus on an interest"
+    },
+    "qualities": {
+      "authenticity": "Authenticity",
+      "loyalty": "Loyalty",
+      "reliability": "Reliability",
+      "emotional_sensitivity": "Emotional Sensitivity",
+      "kindness": "Kindness",
+      "honesty": "Honesty",
+      "respect_for_boundaries": "Respect for Boundaries",
+      "hyperfocus": "Hyperfocus",
+      "creativity": "Creativity",
+      "deep_thinking": "Deep Thinking",
+      "tree_like_thinking": "Tree-like Thinking",
+      "attention_to_detail": "Attention to Detail",
+      "strong_memory": "Strong Memory",
+      "intense_curiosity": "Intense Curiosity",
+      "rich_imagination": "Rich Imagination",
+      "artistic_sense": "Artistic Sense",
+      "originality": "Originality",
+      "aesthetic_sense": "Aesthetic Sense",
+      "deep_empathy": "Deep Empathy",
+      "active_listening": "Active Listening",
+      "sincere_communication": "Sincere Communication",
+      "respect_for_personal_space": "Respect for Personal Space",
+      "authentic_commitment": "Authentic Commitment",
+      "positive_intensity": "Positive Intensity",
+      "resilience": "Resilience",
+      "perseverance": "Perseverance",
+      "sense_of_justice": "Sense of Justice",
+      "reliability_in_routines": "Reliability in Routines"
+    },
+    "neurotypes": {
+      "adhd": "ADHD",
+      "autism": "Autism",
+      "dyslexia": "Dyslexia",
+      "dyspraxia": "Dyspraxia",
+      "dyscalculia": "Dyscalculia",
+      "tourette_s": "Tourette's",
+      "ocd": "OCD",
+      "bipolar": "Bipolar",
+      "synesthesia": "Synesthesia",
+      "gifted": "Gifted",
+      "anxiety": "Anxiety",
+      "ptsd": "PTSD"
+    },
+    "interests": {
+      "logical_and_structured_systems": {
+        "title": "Logical and structured systems",
+        "tags": {
+          "mathematics": "mathematics",
+          "computer_science_programming": "computer science / programming",
+          "maps_plans_geography": "maps, plans, geography",
+          "schedules_calendars_subway_lines": "schedules, calendars, subway lines"
+        }
+      },
+      "visual_or_sensory_universes": {
+        "title": "Visual or sensory universes",
+        "tags": {
+          "colors": "colors",
+          "textures": "textures",
+          "lights_reflections_shadows": "lights, reflections, shadows",
+          "spinning_objects": "spinning objects"
+        }
+      },
+      "animals_and_nature": {
+        "title": "Animals and nature",
+        "tags": {
+          "specific_animals_horses_cats_dinosaurs": "specific animals (horses, cats, dinosaurs...)",
+          "plants_trees_botany": "plants, trees, botany",
+          "natural_phenomena": "natural phenomena"
+        }
+      },
+      "imaginary_universes_science_fiction": {
+        "title": "Imaginary universes / Science fiction",
+        "tags": {}
+      },
+      "video_games": {
+        "title": "Video games",
+        "tags": {}
+      },
+      "manga": {
+        "title": "Manga",
+        "tags": {}
+      },
+      "collecting_sorting_organizing": {
+        "title": "Collecting, sorting, organizing",
+        "tags": {
+          "collections_objects_cards_figurines": "collections (objects, cards, figurines...)",
+          "categorization": "categorization",
+          "organization_systems": "organization systems"
+        }
+      },
+      "language_words_communication": {
+        "title": "Language, words, communication",
+        "tags": {
+          "linguistics": "linguistics",
+          "language_learning": "language learning",
+          "creative_writing": "creative writing",
+          "poetry_wordplay": "poetry, wordplay"
+        }
+      },
+      "body_movement_sensations": {
+        "title": "Body, movement, sensations",
+        "tags": {
+          "dance": "dance",
+          "martial_arts": "martial arts",
+          "walking_hiking": "walking, hiking",
+          "swimming": "swimming"
+        }
+      },
+      "mechanical_or_technical_objects": {
+        "title": "Mechanical or technical objects",
+        "tags": {
+          "trains": "trains",
+          "machines": "machines",
+          "watches_gears": "watches, gears",
+          "electronics": "electronics"
+        }
+      },
+      "mental_health_psychology_human_functioning": {
+        "title": "Mental health, psychology, human functioning",
+        "tags": {
+          "neurodiversity": "neurodiversity",
+          "psychology": "psychology",
+          "personal_development": "personal development"
+        }
+      }
+    },
+    "legacy": {
+      "video_games": "Video games",
+      "gaming": "Gaming",
+      "board_games": "Board games",
+      "coding": "Coding",
+      "music": "Music",
+      "coffee": "Coffee",
+      "space": "Space",
+      "reading": "Reading",
+      "travel": "Travel",
+      "food": "Food",
+      "art": "Art",
+      "fitness": "Fitness",
+      "movies": "Movies",
+      "anime": "Anime",
+      "photography": "Photography",
+      "nature": "Nature",
+      "science": "Science",
+      "technology": "Technology",
+      "pets": "Pets",
+      "dancing": "Dancing",
+      "writing": "Writing",
+      "gym": "Gym",
+      "cars": "Cars",
+      "fashion": "Fashion",
+      "business": "Business",
+      "volunteering": "Volunteering",
+      "language": "Language",
+      "imaginary_universes": "Imaginary universes",
+      "foodie": "Foodie",
+      "hiking": "Hiking",
+      "meditation": "Meditation",
+      "investing": "Investing",
+      "startups": "Startups",
+      "ai": "AI",
+      "3d": "3D"
+    }
   }
 }
-

@@ -4,7 +4,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColor } from '@/hooks/useColor';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Tabs } from 'expo-router';
+import { Tabs, useSegments } from 'expo-router';
+import { useThreadsQuery } from '@/api/messages';
 import { useProfileStore } from '@/store/profileStore';
 import { initializePurchases, syncSubscription } from '@/api/purchases';
 import Purchases from 'react-native-purchases';
@@ -22,6 +23,22 @@ export default function TabsLayout() {
 
   const { profile, fetchProfile } = useProfileStore();
   const queryClient = useQueryClient();
+
+  // Unread messages drive the badge on the Messages tab. Both thread lists are
+  // prefetched on app start and kept fresh by the socket, so this is cheap.
+  const segments = useSegments();
+  const datingThreads = useThreadsQuery('dating');
+  const friendsThreads = useThreadsQuery('friends');
+  const unreadMessages = React.useMemo(
+    () =>
+      [...(datingThreads.data ?? []), ...(friendsThreads.data ?? [])].reduce(
+        (total, thread) => total + (thread.unread_count ?? 0),
+        0,
+      ),
+    [datingThreads.data, friendsThreads.data],
+  );
+  // Hidden while the user is actually on the Messages tab.
+  const isOnMessagesScreen = (segments as string[])[1] === 'messages';
 
   useEffect(() => {
     if (!profile?.id) return;
@@ -165,6 +182,16 @@ export default function TabsLayout() {
               color={focused ? primary : inactiveColor}
             />
           ),
+          // Unread badge, only while the user is somewhere else in the app.
+          tabBarBadge: !isOnMessagesScreen && unreadMessages > 0
+            ? unreadMessages > 9 ? '9+' : unreadMessages
+            : undefined,
+          tabBarBadgeStyle: {
+            backgroundColor: '#EF4444',
+            color: '#FFFFFF',
+            fontSize: 9,
+            fontWeight: '700',
+          },
         }}
       />
     </Tabs>

@@ -15,6 +15,7 @@ export interface MatchProfile {
   city: string;
   country: string;
   bio: string;
+  bio_interests?: string[];
   tags: string[];
   photo: string;
   compatibility_score: number;

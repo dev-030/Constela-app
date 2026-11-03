@@ -22,6 +22,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useProfileStore } from '@/store/profileStore';
 import { WS_URL } from '@/constants/config';
 import { apiClient } from '@/api/client';
+import { removeMyReaction, toggleReactionSummary } from "@/utils/message-reactions";
 
 type TypingCallback = (senderId: string, isTyping: boolean) => void;
 
@@ -42,7 +43,7 @@ interface ChatSocketContextValue {
     audioRef?: string,
     imageRef?: string,
   ) => void;
-  sendRoomMessage: (roomId: string, content: string) => void;
+  sendRoomMessage: (roomId: string, content: string, replyToId?: string) => void;
   joinRoom: (roomId: string) => void;
   leaveRoom: (roomId: string) => void;
   sendTyping: (recipientId: string, isTyping: boolean) => void;
@@ -50,6 +51,7 @@ interface ChatSocketContextValue {
   setActiveRecipientId: (id: string | null) => void;
   sendMarkRead: (partnerId: string) => void;
   sendMessageReaction: (messageId: string, reaction: string | null, recipientId: string) => void;
+  sendRoomMessageReaction: (messageId: string, reaction: string | null, roomId: string) => void;
   queryPresence: (userId: string) => void;
 }
 
@@ -65,6 +67,7 @@ const ChatSocketContext = createContext<ChatSocketContextValue>({
   setActiveRecipientId: () => {},
   sendMarkRead: () => {},
   sendMessageReaction: () => {},
+  sendRoomMessageReaction: () => {},
   queryPresence: () => {},
 });
 
@@ -341,7 +344,7 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
       }
 
       if (data.type === 'message_reaction') {
-        const { message_id, reaction } = data;
+        const { message_id, reaction, reactions } = data;
         const cacheKeys = queryClient.getQueryCache().getAll().map(q => q.queryKey);
         cacheKeys.forEach((key) => {
           if (key[0] === 'directHistory') {
@@ -350,12 +353,38 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
               (oldData: any[] | undefined) => {
                 if (!oldData) return oldData;
                 return oldData.map((msg: any) =>
-                  String(msg.id) === String(message_id) ? { ...msg, reaction } : msg
+                  String(msg.id) === String(message_id)
+                    ? {
+                        ...msg,
+                        reaction,
+                        ...(Array.isArray(reactions) ? { reactions } : {}),
+                      }
+                    : msg
                 );
               }
             );
           }
         });
+        return;
+      }
+
+      if (data.type === 'room_message_reaction') {
+        const { message_id, reaction, reactions } = data;
+        queryClient.setQueryData(
+          ['roomMessages', data.room_id],
+          (oldData: any[] | undefined) => {
+            if (!oldData) return oldData;
+            return oldData.map((msg: any) =>
+              String(msg.id) === String(message_id)
+                ? {
+                    ...msg,
+                    reaction,
+                    ...(Array.isArray(reactions) ? { reactions } : {}),
+                  }
+                : msg
+            );
+          }
+        );
         return;
       }
 
@@ -613,7 +642,7 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
     );
   }, []);
 
-  const sendRoomMessage = useCallback((roomId: string, content: string) => {
+  const sendRoomMessage = useCallback((roomId: string, content: string, replyToId?: string) => {
     const trimmed = content.trim();
     const myProfile = useProfileStore.getState().profile;
     if (!trimmed || !myProfile) return;
@@ -632,6 +661,11 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
 
     const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
+    const history = queryClient.getQueryData<any[]>(['roomMessages', roomId]);
+    const repliedMessage = replyToId
+      ? history?.find((message) => String(message.id) === String(replyToId))
+      : null;
+
     const optimisticMessage = {
       id: tempId,
       room: String(roomId),
@@ -641,13 +675,28 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
       content: trimmed,
       timestamp: new Date().toISOString(),
       is_pending: true,
+      reply_to: replyToId ?? null,
+      reply_to_info: repliedMessage
+        ? {
+            id: repliedMessage.id,
+            content: repliedMessage.content,
+            sender_id: repliedMessage.sender,
+            sender_name: repliedMessage.sender_name,
+          }
+        : null,
     };
     queryClient.setQueryData(
       ['roomMessages', roomId],
       (oldData: any[] | undefined) => [optimisticMessage, ...(oldData ?? [])]
     );
 
-    const payload = { type: 'room_message', temp_id: tempId, room_id: String(roomId), content: trimmed };
+    const payload = {
+      type: 'room_message',
+      temp_id: tempId,
+      room_id: String(roomId),
+      content: trimmed,
+      reply_to_id: replyToId ?? null,
+    };
     const removeOptimisticMessage = () => queryClient.setQueryData(
       ['roomMessages', roomId],
       (oldData: any[] | undefined) => oldData?.filter((message) => String(message.id) !== tempId)
@@ -662,7 +711,11 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
       // HTTP fallback below handles a socket that closed between the check and send.
     }
 
-    void apiClient.post(`/api/chat/rooms/${roomId}/send/`, { content: trimmed, temp_id: tempId })
+    void apiClient.post(`/api/chat/rooms/${roomId}/send/`, {
+      content: trimmed,
+      temp_id: tempId,
+      reply_to: replyToId ?? null,
+    })
       .then((response) => {
         const { quota, ...message } = response.data;
         if (quota) useProfileStore.getState().updateQuota('community_messages', quota);
@@ -742,8 +795,36 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
   }, [sendMarkRead, queryPresence, queryClient]);
 
   const sendMessageReaction = useCallback((messageId: string, reaction: string | null, recipientId: string) => {
+    const myProfileId = useProfileStore.getState().profile?.id;
+    // Optimistic: reflect the reaction straight away, the server broadcast confirms it.
+    // Only when we know who we are — otherwise actor_ids would be polluted and
+    // the next tap couldn't tell whether we already reacted.
+    if (myProfileId) {
+      const cacheKeys = queryClient.getQueryCache().getAll().map(q => q.queryKey);
+      cacheKeys.forEach((key) => {
+        if (key[0] === 'directHistory') {
+          queryClient.setQueryData(
+            key,
+            (oldData: any[] | undefined) => {
+              if (!oldData) return oldData;
+              return oldData.map((msg: any) =>
+                String(msg.id) === String(messageId)
+                  ? {
+                      ...msg,
+                      reactions: reaction
+                        ? toggleReactionSummary(msg.reactions, reaction, myProfileId)
+                        : removeMyReaction(msg.reactions, myProfileId),
+                    }
+                  : msg
+              );
+            }
+          );
+        }
+      });
+    }
+    // Local-first: the cache is already updated above, so the UI reacts
+    // instantly even if the socket is reconnecting right now.
     if (ws.current?.readyState !== WebSocket.OPEN) return;
-    console.log(`[ChatSocket] sendMessageReaction msgId=${messageId} reaction=${reaction}`);
     ws.current.send(
       JSON.stringify({
         type: 'message_reaction',
@@ -752,7 +833,40 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
         recipient_id: recipientId,
       })
     );
-  }, []);
+  }, [queryClient]);
+
+  const sendRoomMessageReaction = useCallback((messageId: string, reaction: string | null, roomId: string) => {
+    const myProfileId = useProfileStore.getState().profile?.id;
+    // See sendMessageReaction: skip the optimistic patch without a profile id.
+    if (myProfileId) {
+      queryClient.setQueryData(
+        ['roomMessages', roomId],
+        (oldData: any[] | undefined) => {
+          if (!oldData) return oldData;
+          return oldData.map((msg: any) =>
+            String(msg.id) === String(messageId)
+              ? {
+                  ...msg,
+                  reactions: reaction
+                    ? toggleReactionSummary(msg.reactions, reaction, myProfileId)
+                    : removeMyReaction(msg.reactions, myProfileId),
+                }
+              : msg
+          );
+        }
+      );
+    }
+    // Local-first: see sendMessageReaction.
+    if (ws.current?.readyState !== WebSocket.OPEN) return;
+    ws.current.send(
+      JSON.stringify({
+        type: 'room_message_reaction',
+        message_id: messageId,
+        reaction: reaction,
+        room_id: String(roomId),
+      })
+    );
+  }, [queryClient]);
 
   return (
     <ChatSocketContext.Provider
@@ -768,6 +882,7 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
         setActiveRecipientId,
         sendMarkRead,
         sendMessageReaction,
+        sendRoomMessageReaction,
         queryPresence,
       }}
     >

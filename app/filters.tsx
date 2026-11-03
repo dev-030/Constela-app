@@ -23,6 +23,7 @@ import { FilterListItem } from "@/components/ui/filter-list-item";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { useColor } from "@/hooks/useColor";
 import { useTranslation } from "react-i18next";
+import { useProfileLabels } from "@/hooks/use-profile-labels";
 import { useQueryClient } from "@tanstack/react-query";
 import { useProfileStore } from "@/store/profileStore";
 import { updateMyProfile } from "@/api/profile";
@@ -35,12 +36,20 @@ import { TextInput } from "react-native";
 
 export default function FiltersScreen() {
   const { t } = useTranslation();
+  const {
+    label: valueLabel,
+    listLabel,
+    rechargeTitle,
+    rechargeSubtitle,
+    interestCategory,
+  } = useProfileLabels();
   const insets = useSafeAreaInsets();
   useAndroidBack();
   const background = useColor("background");
   const text = useColor("text");
   const muted = useColor("textMuted");
   const primary = useColor("primary");
+  const border = useColor("border");
   const { width, height } = useWindowDimensions();
 
   const [activeTabIndex, setActiveTabIndex] = useState(0);
@@ -233,7 +242,7 @@ export default function FiltersScreen() {
           {["Woman", "Man", "Non-binary", "Other", "Everyone"].map((g) => (
             <FilterPill
               key={g}
-              label={g}
+              label={valueLabel(g)}
               selected={selectedGender === g}
               onPress={() => setSelectedGender(selectedGender === g ? "" : g)}
             />
@@ -258,7 +267,7 @@ export default function FiltersScreen() {
           {["Single", "Married", "Divorced", "Widowed"].map((status) => (
             <FilterPill
               key={status}
-              label={status}
+              label={valueLabel(status)}
               selected={selectedMaritalStatus.includes(status)}
               onPress={() =>
                 toggleArrayItem(selectedMaritalStatus, setSelectedMaritalStatus, status)
@@ -311,7 +320,7 @@ export default function FiltersScreen() {
                 flexDirection: "row",
                 alignItems: "center",
                 borderWidth: 1,
-                borderColor: useColor("border"),
+                borderColor: border,
               }}
             >
               <Icon name={Search} size={20} color={muted} style={{ marginRight: 8 }} />
@@ -340,7 +349,7 @@ export default function FiltersScreen() {
                 style={{
                   paddingVertical: 14,
                   borderBottomWidth: i === arr.length - 1 ? 0 : 1,
-                  borderBottomColor: useColor("border"),
+                  borderBottomColor: border,
                   flexDirection: "row",
                   alignItems: "center",
                   justifyContent: "space-between",
@@ -363,18 +372,18 @@ export default function FiltersScreen() {
       </BottomSheet>
 
       <View style={styles.section}>
-        {renderSectionHeader("Relationship Intent")}
+        {renderSectionHeader(t('filters.relationship_intent'))}
         <View style={styles.gridContainer}>
           <FilterCard
-            title="Serious"
-            subtitle="Long-term bonds"
+            title={valueLabel('serious')}
+            subtitle={t('filters.looking_for_subtitles.serious')}
             icon={<Heart size={20} />}
             selected={selectedLookingFor.includes("Serious")}
             onPress={() => toggleArrayItem(selectedLookingFor, setSelectedLookingFor, "Serious")}
           />
           <FilterCard
-            title="Friendship"
-            subtitle="Platonic first"
+            title={valueLabel('friendship')}
+            subtitle={t('filters.looking_for_subtitles.friendship')}
             icon={<Users size={20} />}
             selected={selectedLookingFor.includes("Friendship")}
             onPress={() => toggleArrayItem(selectedLookingFor, setSelectedLookingFor, "Friendship")}
@@ -382,15 +391,15 @@ export default function FiltersScreen() {
         </View>
         <View style={[styles.gridContainer, { marginTop: 12 }]}>
           <FilterCard
-            title="We'll see"
-            subtitle="Open to options"
+            title={valueLabel("we'll see")}
+            subtitle={t('filters.looking_for_subtitles.well_see')}
             icon={<HelpCircle size={20} />}
             selected={selectedLookingFor.includes("We'll see")}
             onPress={() => toggleArrayItem(selectedLookingFor, setSelectedLookingFor, "We'll see")}
           />
           <FilterCard
-            title="Going out"
-            subtitle="Casual fun"
+            title={valueLabel('going out')}
+            subtitle={t('filters.looking_for_subtitles.going_out')}
             icon={<PartyPopper size={20} />}
             selected={selectedLookingFor.includes("Going out")}
             onPress={() => toggleArrayItem(selectedLookingFor, setSelectedLookingFor, "Going out")}
@@ -411,7 +420,7 @@ export default function FiltersScreen() {
             {["Bachelors", "Masters", "PhD", "Before Bachelor"].map((edu) => (
               <FilterPill
                 key={edu}
-                label={edu}
+                label={valueLabel(edu)}
                 selected={selectedEducation === edu}
                 onPress={() => setSelectedEducation(edu)}
               />
@@ -446,7 +455,7 @@ export default function FiltersScreen() {
             {["Intense", "Moderate", "Sedentary"].map((sport) => (
               <FilterPill
                 key={sport}
-                label={sport}
+                label={valueLabel(sport)}
                 selected={selectedSport === sport}
                 onPress={() => setSelectedSport(sport)}
               />
@@ -462,7 +471,7 @@ export default function FiltersScreen() {
               return (
                 <FilterPill
                   key={interest}
-                  label={interest}
+                  label={interestCategory(interest)}
                   selected={isSelected}
                   icon={isSelected ? <Check size={14} color="#FFF" /> : undefined}
                   onPress={() =>
@@ -483,28 +492,28 @@ export default function FiltersScreen() {
             Emotional Profile
           </Text>
 
-          <Text style={styles.subsectionTitle}>🔋 HOW I RECHARGE</Text>
+          <Text style={styles.subsectionTitle}>🔋 {t('filters.recharge')}</Text>
           <FilterListItem
-            title="Silence"
-            subtitle="Reducing noise, lights, movement"
+            title={rechargeTitle("Silence")}
+            subtitle={rechargeSubtitle("Silence", "Reducing noise, lights, movement")}
             selected={recharge.includes("Silence")}
             onPress={() => toggleArrayItem(recharge, setRecharge, "Silence")}
           />
           <FilterListItem
-            title="Cocoon Spaces"
-            subtitle="Quiet room, blanket cocoon, soft light"
+            title={rechargeTitle("Cocoon Spaces")}
+            subtitle={rechargeSubtitle("Cocoon Spaces", "Quiet room, blanket cocoon, soft light")}
             selected={recharge.includes("Cocoon Spaces")}
             onPress={() => toggleArrayItem(recharge, setRecharge, "Cocoon Spaces")}
           />
           <FilterListItem
-            title="Reduced Stimulation"
-            subtitle="Noise-cancelling headphones, blindglasses, dim light"
+            title={rechargeTitle("Reduced Stimulation")}
+            subtitle={rechargeSubtitle("Reduced Stimulation", "Noise-cancelling headphones, blindglasses, dim light")}
             selected={recharge.includes("Reduced Stimulation")}
             onPress={() => toggleArrayItem(recharge, setRecharge, "Reduced Stimulation")}
           />
 
           <Text style={[styles.subsectionTitle, { marginTop: 24 }]}>
-            🪫 WHAT EXHAUSTS ME
+            🪫 {t('filters.exhausts')}
           </Text>
           {[
             "Absorbs other people's moods",
@@ -517,14 +526,14 @@ export default function FiltersScreen() {
           ].map((item) => (
             <FilterListItem
               key={item}
-              title={item}
+              title={listLabel('exhausts', item)}
               selected={exhausts.includes(item)}
               onPress={() => toggleArrayItem(exhausts, setExhausts, item)}
             />
           ))}
 
           <Text style={[styles.subsectionTitle, { marginTop: 24 }]}>
-            🤎 MY EMOTIONAL NEEDS
+            🤎 {t('filters.needs')}
           </Text>
           {[
             "Predictability",
@@ -536,26 +545,26 @@ export default function FiltersScreen() {
           ].map((item) => (
             <FilterListItem
               key={item}
-              title={item}
+              title={listLabel('needs', item)}
               selected={needs.includes(item)}
               onPress={() => toggleArrayItem(needs, setNeeds, item)}
             />
           ))}
 
           <Text style={[styles.subsectionTitle, { marginTop: 24 }]}>
-            🤐 SECOND-DEGREE HUMOR
+            🤐 {t('filters.humor')}
           </Text>
           {["Yes", "No"].map((item) => (
             <FilterListItem
               key={item}
-              title={item}
+              title={valueLabel(item)}
               selected={humor === item}
               onPress={() => setHumor(item)}
             />
           ))}
 
           <Text style={[styles.subsectionTitle, { marginTop: 24 }]}>
-            🪴 WHAT SOOTHES ME
+            🪴 {t('filters.soothes')}
           </Text>
           <View style={styles.wrapContainer}>
             {[
@@ -571,7 +580,7 @@ export default function FiltersScreen() {
             ].map((item) => (
               <FilterPill
                 key={item}
-                label={item}
+                label={listLabel('soothes', item)}
                 selected={soothes.includes(item)}
                 onPress={() => toggleArrayItem(soothes, setSoothes, item)}
               />

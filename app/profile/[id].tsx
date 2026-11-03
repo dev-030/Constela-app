@@ -25,9 +25,11 @@ import ManageProfileScreen from "../manage-profile";
 import { Button } from "@/components/ui/button";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
 import { useTranslation } from "react-i18next";
+import { useProfileLabels } from "@/hooks/use-profile-labels";
 
 export default function ProfileDetailScreen() {
   const { t } = useTranslation();
+  const { label, listLabel, rechargeTitle, interestCategory } = useProfileLabels();
   const { id, name, age, photo, is_verified } = useLocalSearchParams<{
     id: string;
     name?: string;
@@ -248,7 +250,7 @@ export default function ProfileDetailScreen() {
             <View style={styles.pillRow}>
               {fullProfile.neurotype_labels.map((label: string, index: number) => (
                 <View key={index} style={[styles.pill, { backgroundColor: "#B2EBF2" }]}>
-                  <Text style={[styles.pillText, { color: "#006064" }]}>{label}</Text>
+                  <Text style={[styles.pillText, { color: "#006064" }]}>{listLabel('neurotypes', label)}</Text>
                 </View>
               ))}
               {(fullProfile as any)?.is_neurodivergent && (
@@ -265,7 +267,7 @@ export default function ProfileDetailScreen() {
           <>
             <SectionHeader title={t('profile_detail.looking_for')} />
             <Text style={[styles.bio, { color: text }]}>
-              {fullProfile.looking_for.charAt(0).toUpperCase() + fullProfile.looking_for.slice(1)}
+              {label(fullProfile.looking_for)}
             </Text>
           </>
         )}
@@ -277,7 +279,7 @@ export default function ProfileDetailScreen() {
             <View style={styles.pillRow}>
               {fullProfile.interests.map((interest: string, index: number) => (
                 <View key={index} style={[styles.interestPill, { backgroundColor: "#F5E6D3" }]}>
-                  <Text style={[styles.interestText, { color: "#3E2723" }]}>{interest}</Text>
+                  <Text style={[styles.interestText, { color: "#3E2723" }]}>{interestCategory(interest)}</Text>
                 </View>
               ))}
             </View>
@@ -291,7 +293,7 @@ export default function ProfileDetailScreen() {
             <View style={styles.pillRow}>
               {fullProfile.qualities.map((quality: string, index: number) => (
                 <View key={index} style={[styles.interestPill, { backgroundColor: "#E1BEE7" }]}>
-                  <Text style={[styles.interestText, { color: "#4A148C" }]}>{quality}</Text>
+                  <Text style={[styles.interestText, { color: "#4A148C" }]}>{listLabel('qualities', quality)}</Text>
                 </View>
               ))}
             </View>
@@ -306,7 +308,7 @@ export default function ProfileDetailScreen() {
               <View key={index} style={[styles.sensoryRow, { backgroundColor: cardColor }]}>
                 <View style={styles.sensoryLeft}>
                   <Icon name={Lightbulb} size={20} color={text} />
-                  <Text style={[styles.sensoryText, { color: text }]}>{method}</Text>
+                  <Text style={[styles.sensoryText, { color: text }]}>{rechargeTitle(method)}</Text>
                 </View>
                 <View style={styles.checkCircle}>
                   <Text style={styles.checkIcon}>✓</Text>
@@ -324,7 +326,7 @@ export default function ProfileDetailScreen() {
               <View key={index} style={[styles.sensoryRow, { backgroundColor: cardColor }]}>
                 <View style={styles.sensoryLeft}>
                   <Icon name={VolumeX} size={20} color={text} />
-                  <Text style={[styles.sensoryText, { color: text }]}>{trigger}</Text>
+                  <Text style={[styles.sensoryText, { color: text }]}>{listLabel('exhausts', trigger)}</Text>
                 </View>
                 <View style={[styles.checkCircle, { backgroundColor: "#FFEBEE" }]}>
                   <Text style={[styles.checkIcon, { color: "#C62828" }]}>✕</Text>

@@ -8,6 +8,7 @@ import { useRouter } from "expo-router";
 import { ScrollView, View, Pressable } from "react-native";
 import { X } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
+import { useProfileLabels } from "@/hooks/use-profile-labels";
 
 // Removed MAX constant since unlimited selections are allowed
 
@@ -42,37 +43,6 @@ const QUALITIES = [
   "Reliability in Routines",
 ];
 
-const QUALITIES_FR: Record<string, string> = {
-  "Authenticity": "Authenticité",
-  "Loyalty": "Loyauté",
-  "Reliability": "Fiabilité",
-  "Emotional Sensitivity": "Sensibilité émotionnelle",
-  "Kindness": "Bienveillance",
-  "Honesty": "Honnêteté",
-  "Respect for Boundaries": "Respect des limites",
-  "Hyperfocus": "Hyperfocalisation",
-  "Creativity": "Créativité",
-  "Deep Thinking": "Pensée profonde",
-  "Tree-like Thinking": "Pensée en arborescence",
-  "Attention to Detail": "Souci du détail",
-  "Strong Memory": "Excellente mémoire",
-  "Intense Curiosity": "Curiosité intense",
-  "Rich Imagination": "Imagination débordante",
-  "Artistic Sense": "Sens artistique",
-  "Originality": "Originalité",
-  "Aesthetic Sense": "Sens esthétique",
-  "Deep Empathy": "Empathie profonde",
-  "Active Listening": "Écoute active",
-  "Sincere Communication": "Communication sincère",
-  "Respect for Personal Space": "Respect de l'espace personnel",
-  "Authentic Commitment": "Engagement authentique",
-  "Positive Intensity": "Intensité positive",
-  "Resilience": "Résilience",
-  "Perseverance": "Persévérance",
-  "Sense of Justice": "Sens de la justice",
-  "Reliability in Routines": "Régularité dans les routines",
-};
-
 export default function OnboardingQualitiesScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
@@ -80,8 +50,8 @@ export default function OnboardingQualitiesScreen() {
   const primary = useColor("primary");
   const muted = useColor("textMuted");
 
-  const isFrench = i18n.language?.startsWith("fr");
-  const getQualityLabel = (q: string) => (isFrench ? QUALITIES_FR[q] || q : q);
+  const { listLabel } = useProfileLabels();
+  const getQualityLabel = (q: string) => listLabel('qualities', q);
 
   const toggle = (q: string) => {
     const current = data.qualities;

@@ -169,7 +169,8 @@
       "master_s": "Master / Bac+5",
       "masters": "Master / Bac+5",
       "phd": "Doctorat",
-      "other": "Autre"
+      "other": "Autre",
+      "before_bachelor": "Avant licence"
     },
     "marital": {
       "single": "Célibataire",
@@ -201,10 +202,11 @@
       "sport_no_sport": "Pas de sport",
       "eating_habits": "Habitudes alimentaires",
       "eating_balanced": "Équilibré",
-      "eating_fast_food": "Fast Food",
+      "eating_fast_food": "Plats rapides",
       "eating_vegetarian": "Végétarien",
       "eating_vegan": "Végétalien",
-      "eating_other": "Autre"
+      "eating_other": "Autre",
+      "sport_sedentary": "Sédentaire"
     },
     "step5_title": "Qualités principales",
     "step5_subtitle": "Choisissez les traits qui vous représentent le mieux.",
@@ -250,7 +252,11 @@
     "load_error": "Échec du chargement des profils.",
     "retry": "Appuyez pour réessayer",
     "no_matches": "Aucun profil trouvé. Essayez d'élargir vos filtres.",
-    "refresh": "Actualiser"
+    "refresh": "Actualiser",
+    "out_of_likes_title": "Likes épuisés",
+    "out_of_likes_desc": "Vous avez atteint votre limite quotidienne de likes. Passez à un forfait supérieur pour des likes illimités, ou revenez à minuit !",
+    "out_of_likes_resets": "Réinitialisation à minuit",
+    "out_of_likes_upgrade": "Améliorer mon forfait"
   },
   "friends": {
     "search_placeholder": "Rechercher des personnes...",
@@ -273,7 +279,9 @@
     "accepting": "Acceptation…",
     "decline": "Refuser",
     "declining": "Refus…",
-    "retry": "Réessayer"
+    "retry": "Réessayer",
+    "request_sent_to": "Demande d'ami envoyée à {{name}}",
+    "add_as_friend": "Ajouter {{name}} en tant qu'ami"
   },
   "community": {
     "safe_spaces": "ESPACES SÉCURISÉS",
@@ -336,7 +344,14 @@
     "humor": "Humour au second degré",
     "soothes": "Apaisement",
     "search_languages": "Rechercher des langues...",
-    "done": "Terminé"
+    "done": "Terminé",
+    "relationship_intent": "Intention relationnelle",
+    "looking_for_subtitles": {
+      "serious": "Relations durables",
+      "friendship": "Platonique avant tout",
+      "well_see": "Ouvert à toutes les options",
+      "going_out": "Sortie décontractée"
+    }
   },
   "notifications": {
     "title": "Notifications",
@@ -420,7 +435,8 @@
     "sport": "Sport",
     "eating_habits": "Alimentation",
     "yes": "Oui",
-    "no": "Non"
+    "no": "Non",
+    "from": "Depuis"
   },
   "connections": {
     "title": "Connexions",
@@ -438,7 +454,9 @@
     "discover_matches": "Découvrir des profils",
     "view_profile": "Voir le profil",
     "unmatch": "Supprimer le match",
-    "remove_friend": "Supprimer l'ami"
+    "remove_friend": "Supprimer l'ami",
+    "loves": "Aime",
+    "and": "et"
   },
   "match_analysis": {
     "action_required": "Action requise",
@@ -456,7 +474,7 @@
     "perfect_matches": "Matchs parfaits",
     "running_analysis": "Analyse approfondie de compatibilité en cours...",
     "top_5_matches": "Vos 5 meilleurs matchs",
-    "top_5_desc": "En fonction de votre genre ({{gender}}), nous vous présentons des {{target}} hautement compatibles. Nous avons analysé des milliers de points sur la personnalité, le mode de vie et les besoins sensoriels pour trouver ces profils sur mesure.",
+    "top_5_desc": "En fonction de ce que vous recherchez ({{gender}}), nous vous présentons des {{target}} hautement compatibles. Nous avons analysé des milliers de points sur la personnalité, le mode de vie et les besoins sensoriels pour trouver ces profils sur mesure.",
     "women": "femmes",
     "men": "hommes",
     "matches": "profils",
@@ -641,7 +659,218 @@
     "permission_needed": "Autorisation requise",
     "gallery_permission": "Nous avons besoin d'accéder à la galerie pour partager des photos.",
     "camera_permission": "Nous avons besoin d'accéder à l'appareil photo pour prendre des photos.",
-    "mic_permission": "Autorisez l'accès au microphone pour envoyer des messages vocaux."
+    "mic_permission": "Autorisez l'accès au microphone pour envoyer des messages vocaux.",
+    "reply": "Répondre",
+    "replying_to": "Réponse à",
+    "cancel_reply": "Annuler la réponse",
+    "react": "Réagir"
+  },
+  "profile_values": {
+    "recharge": {
+      "silence": {
+        "title": "Silence",
+        "subtitle": "Réduction du bruit, de la lumière, des mouvements"
+      },
+      "cocoon_spaces": {
+        "title": "Espaces cocooning",
+        "subtitle": "Pièce calme, coin couverture, lumière douce"
+      },
+      "reduced_stimulation": {
+        "title": "Stimulation réduite",
+        "subtitle": "Casque antibruit, verres teintés, lumière tamisée"
+      }
+    },
+    "exhausts": {
+      "absorbs_other_people_s_moods": "Absorber l'humeur des autres",
+      "feels_everything_deeply": "Tout ressentir intensément",
+      "loud_or_unpredictable_noises": "Bruits forts ou imprévisibles",
+      "bright_lights": "Lumières vives",
+      "fast_movements_around_me": "Mouvements rapides autour de moi",
+      "strong_smells": "Odeurs fortes",
+      "unpleasant_textures": "Textures désagréables"
+    },
+    "needs": {
+      "predictability": "Prévisibilité",
+      "consistency_in_behavior": "Cohérence dans le comportement",
+      "absence_of_judgement": "Absence de jugement",
+      "clear_communication": "Communication claire",
+      "deep_talk": "Conversations profondes",
+      "need_to_be_alone_sometimes": "Besoin d'être seul(e) parfois"
+    },
+    "soothes": {
+      "silence_or_soft_sounds": "Silence ou sons doux",
+      "dim_light": "Lumière tamisée",
+      "massage": "Massage",
+      "sensory_objects": "Objets sensoriels",
+      "chosen_solitude": "Solitude choisie",
+      "comforting_routines": "Routines réconfortantes",
+      "predictability": "Prévisibilité",
+      "clear_communication": "Communication claire",
+      "hyperfocus_on_an_interest": "Hyperfocalisation sur un centre d'intérêt"
+    },
+    "qualities": {
+      "authenticity": "Authenticité",
+      "loyalty": "Loyauté",
+      "reliability": "Fiabilité",
+      "emotional_sensitivity": "Sensibilité émotionnelle",
+      "kindness": "Bienveillance",
+      "honesty": "Honnêteté",
+      "respect_for_boundaries": "Respect des limites",
+      "hyperfocus": "Hyperfocalisation",
+      "creativity": "Créativité",
+      "deep_thinking": "Pensée profonde",
+      "tree_like_thinking": "Pensée en arborescence",
+      "attention_to_detail": "Souci du détail",
+      "strong_memory": "Excellente mémoire",
+      "intense_curiosity": "Curiosité intense",
+      "rich_imagination": "Imagination débordante",
+      "artistic_sense": "Sens artistique",
+      "originality": "Originalité",
+      "aesthetic_sense": "Sens esthétique",
+      "deep_empathy": "Empathie profonde",
+      "active_listening": "Écoute active",
+      "sincere_communication": "Communication sincère",
+      "respect_for_personal_space": "Respect de l'espace personnel",
+      "authentic_commitment": "Engagement authentique",
+      "positive_intensity": "Intensité positive",
+      "resilience": "Résilience",
+      "perseverance": "Persévérance",
+      "sense_of_justice": "Sens de la justice",
+      "reliability_in_routines": "Régularité dans les routines"
+    },
+    "neurotypes": {
+      "adhd": "TDAH",
+      "autism": "Autisme",
+      "dyslexia": "Dyslexie",
+      "dyspraxia": "Dyspraxie",
+      "dyscalculia": "Dyscalculie",
+      "tourette_s": "Syndrome de Gilles de la Tourette",
+      "ocd": "TOC",
+      "bipolar": "Trouble bipolaire",
+      "synesthesia": "Synesthésie",
+      "gifted": "Haut potentiel (HPI)",
+      "anxiety": "Anxiété",
+      "ptsd": "TSPT (Stress post-traumatique)"
+    },
+    "interests": {
+      "logical_and_structured_systems": {
+        "title": "Systèmes logiques et structurés",
+        "tags": {
+          "mathematics": "mathématiques",
+          "computer_science_programming": "informatique / programmation",
+          "maps_plans_geography": "cartes, plans, géographie",
+          "schedules_calendars_subway_lines": "horaires, calendriers, lignes de métro"
+        }
+      },
+      "visual_or_sensory_universes": {
+        "title": "Univers visuels ou sensoriels",
+        "tags": {
+          "colors": "couleurs",
+          "textures": "textures",
+          "lights_reflections_shadows": "lumières, reflets, ombres",
+          "spinning_objects": "objets en rotation"
+        }
+      },
+      "animals_and_nature": {
+        "title": "Animaux et nature",
+        "tags": {
+          "specific_animals_horses_cats_dinosaurs": "animaux spécifiques (chevaux, chats, dinosaures...)",
+          "plants_trees_botany": "plantes, arbres, botanique",
+          "natural_phenomena": "phénomènes naturels"
+        }
+      },
+      "imaginary_universes_science_fiction": {
+        "title": "Univers imaginaires / Science-fiction",
+        "tags": {}
+      },
+      "video_games": {
+        "title": "Jeux vidéo",
+        "tags": {}
+      },
+      "manga": {
+        "title": "Manga",
+        "tags": {}
+      },
+      "collecting_sorting_organizing": {
+        "title": "Collectionner, trier, organiser",
+        "tags": {
+          "collections_objects_cards_figurines": "collections (objets, cartes, figurines...)",
+          "categorization": "catégorisation",
+          "organization_systems": "systèmes d'organisation"
+        }
+      },
+      "language_words_communication": {
+        "title": "Langue, mots, communication",
+        "tags": {
+          "linguistics": "linguistique",
+          "language_learning": "apprentissage des langues",
+          "creative_writing": "écriture créative",
+          "poetry_wordplay": "poésie, jeux de mots"
+        }
+      },
+      "body_movement_sensations": {
+        "title": "Corps, mouvement, sensations",
+        "tags": {
+          "dance": "danse",
+          "martial_arts": "arts martiaux",
+          "walking_hiking": "marche, randonnée",
+          "swimming": "natation"
+        }
+      },
+      "mechanical_or_technical_objects": {
+        "title": "Objets mécaniques ou techniques",
+        "tags": {
+          "trains": "trains",
+          "machines": "machines",
+          "watches_gears": "montres, engrenages",
+          "electronics": "électronique"
+        }
+      },
+      "mental_health_psychology_human_functioning": {
+        "title": "Santé mentale, psychologie, fonctionnement humain",
+        "tags": {
+          "neurodiversity": "neurodiversité",
+          "psychology": "psychologie",
+          "personal_development": "développement personnel"
+        }
+      }
+    },
+    "legacy": {
+      "video_games": "Jeux vidéo",
+      "gaming": "Jeux vidéo",
+      "board_games": "Jeux de société",
+      "coding": "Programmation",
+      "music": "Musique",
+      "coffee": "Café",
+      "space": "Espace",
+      "reading": "Lecture",
+      "travel": "Voyage",
+      "food": "Cuisine",
+      "art": "Art",
+      "fitness": "Fitness",
+      "movies": "Cinéma",
+      "anime": "Animés",
+      "photography": "Photographie",
+      "nature": "Nature",
+      "science": "Sciences",
+      "technology": "Technologie",
+      "pets": "Animaux de compagnie",
+      "dancing": "Danse",
+      "writing": "Écriture",
+      "gym": "Sport",
+      "cars": "Voitures",
+      "fashion": "Mode",
+      "business": "Business",
+      "volunteering": "Bénévolat",
+      "language": "Langue",
+      "imaginary_universes": "Univers imaginaires",
+      "foodie": "Gourmand",
+      "hiking": "Randonnée",
+      "meditation": "Méditation",
+      "investing": "Investissement",
+      "startups": "Startups",
+      "ai": "IA",
+      "3d": "3D"
+    }
   }
 }
-

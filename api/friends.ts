@@ -8,6 +8,7 @@ export interface Suggestion {
   age?: number;
   tags?: string[];
   bio?: string;
+  bio_interests?: string[];
   photo: string;
 }
 
@@ -205,6 +206,7 @@ export interface FriendContact {
   username?: string;
   age?: number;
   bio?: string;
+  bio_interests?: string[];
   photo?: string | null;
   location?: string;
   created_at?: string;

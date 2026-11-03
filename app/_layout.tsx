@@ -41,6 +41,7 @@ function RootLayoutContent() {
   const colorScheme = useColorScheme() || "light";
   const { profile } = useProfileStore();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const router = useRouter();
 
   // Warm common tabs immediately and gated tabs only when local access allows it.
   usePrefetchOnAppStart(isAuthenticated ? profile : null);
@@ -61,12 +62,33 @@ function RootLayoutContent() {
   }, [colorScheme]);
 
   useEffect(() => {
-    if (isAuthenticated && profile) {
-      import("@/utils/pushNotifications").then((m) => {
+    if (!isAuthenticated || !profile?.id) return;
+    let disposed = false;
+    let unsubscribe: (() => void) | undefined;
+
+    void import("@/utils/pushNotifications")
+      .then((m) => {
+        if (disposed) return;
         m.registerForPushNotificationsAsync().catch(console.error);
-      });
-    }
-  }, [isAuthenticated, profile?.id]);
+        unsubscribe = m.subscribeToPushNotifications((data) => {
+          // Social notifications only (friend requests + matches).
+          if (data?.type === "match") {
+            router.push("/(tabs)/matches");
+          } else if (
+            data?.type === "friend_request_received" ||
+            data?.type === "friend_request_accepted"
+          ) {
+            router.push("/(tabs)/friends");
+          }
+        });
+      })
+      .catch(console.error);
+
+    return () => {
+      disposed = true;
+      unsubscribe?.();
+    };
+  }, [isAuthenticated, profile?.id, router]);
 
   return (
     <ThemeProvider>

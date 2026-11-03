@@ -8,8 +8,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "lint": "expo lint",
-    "postinstall": "patch-package"
+    "lint": "expo lint"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
@@ -67,7 +66,7 @@
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
     "react-native-svg": "^15.15.0",
-    "react-native-unistyles": "^3.3.0",
+    "react-native-unistyles": "3.6.0",
     "react-native-vision-camera": "^4.7.3",
     "react-native-vision-camera-face-detector": "^1.7.2",
     "react-native-web": "~0.21.0",
@@ -81,7 +80,6 @@
     "@types/react": "~19.1.0",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
-    "patch-package": "^8.0.1",
     "typescript": "~5.9.2"
   },
   "private": true
