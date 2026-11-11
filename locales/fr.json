@@ -344,7 +344,9 @@
     "out_of_likes_title": "Likes épuisés",
     "out_of_likes_desc": "Vous avez atteint votre limite quotidienne de likes. Passez à un forfait supérieur pour des likes illimités, ou revenez à minuit !",
     "out_of_likes_resets": "Réinitialisation à minuit",
-    "out_of_likes_upgrade": "Améliorer mon forfait"
+    "out_of_likes_upgrade": "Améliorer mon forfait",
+    "out_of_likes_resets_in": "Nouveaux likes dans {{time}}",
+    "out_of_likes_benefits_title": "Avec Premium"
   },
   "friends": {
     "search_placeholder": "Rechercher des personnes...",

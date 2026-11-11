@@ -6,3 +6,4 @@ export { SwipeDeck } from "./swipe-deck";
 export { ActionButtons } from "./action-buttons";
 export { CardStackArea } from "./card-stack-area";
 export { useMatchesFeed } from "./use-matches-feed";
+export { OutOfLikesPaywall } from "./out-of-likes-paywall";

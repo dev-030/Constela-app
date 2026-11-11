@@ -344,7 +344,9 @@
     "out_of_likes_title": "Out of Likes",
     "out_of_likes_desc": "You've reached your daily limit of likes. Upgrade your plan for unlimited likes or check back at midnight!",
     "out_of_likes_resets": "Resets at midnight",
-    "out_of_likes_upgrade": "Upgrade Plan"
+    "out_of_likes_upgrade": "Upgrade Plan",
+    "out_of_likes_resets_in": "New likes in {{time}}",
+    "out_of_likes_benefits_title": "With Premium"
   },
   "friends": {
     "search_placeholder": "Find people...",

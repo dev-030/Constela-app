@@ -8,6 +8,7 @@ import {
   CardStackArea,
   FiltersHeader,
   GreetingRow,
+  OutOfLikesPaywall,
   useMatchesFeed,
 } from "@/components/matches";
 import { Sparkles, SlidersHorizontal, ChevronRight } from "lucide-react-native";
@@ -27,6 +28,10 @@ export default function MatchesScreen() {
   return (
       <View style={[styles.container, { backgroundColor: background }]}>
         <Header />
+        {feed.isLocked ? (
+          // Daily likes used up: the paywall takes over the whole Matches tab.
+          <OutOfLikesPaywall />
+        ) : (
         <View style={styles.scrollContent}>
         <View style={styles.headerRow}>
           <Pressable 
@@ -68,6 +73,7 @@ export default function MatchesScreen() {
           />
         </VerificationOverlay>
         </View>
+        )}
       </View>
   );
 }
