@@ -90,6 +90,12 @@
             "deploymentTarget": "17.0"
           }
         }
+      ],
+      [
+        "./plugins/withAndroidNotifications",
+        {
+          "color": "#DE4177"
+        }
       ]
     ],
     "experiments": {
