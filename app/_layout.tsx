@@ -76,14 +76,20 @@ function RootLayoutContent() {
         if (disposed) return;
         m.registerForPushNotificationsAsync().catch(console.error);
         const openPush = (data: Record<string, string> | undefined) => {
-          if (data?.type === "message" && data.profile_id) {
-            router.push(`/inbox/${data.profile_id}`);
-          } else if (data?.type === "match") {
+          const type = data?.type;
+          const profileId = data?.profile_id;
+          if ((type === "message" || type === "match" || type === "friend_request_accepted") && profileId) {
+            // Straight into the conversation with that person.
+            router.push(`/inbox/${profileId}`);
+          } else if (type === "like" || type === "superlike") {
+            router.push("/settings/likes");
+          } else if (type === "friend_request_received") {
+            router.push("/friend-requests" as any);
+          } else if (type === "photo_verification") {
+            router.push("/profile");
+          } else if (type === "match") {
             router.push("/(tabs)/matches");
-          } else if (
-            data?.type === "friend_request_received" ||
-            data?.type === "friend_request_accepted"
-          ) {
+          } else if (type === "friend_request_accepted") {
             router.push("/(tabs)/friends");
           }
         };
