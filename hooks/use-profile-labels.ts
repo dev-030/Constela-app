@@ -180,15 +180,22 @@ export function useProfileLabels() {
     return `${loves} ${parts.slice(0, -1).join(", ")} ${and} ${parts[parts.length - 1]}`;
   };
 
-  /** Translates a bio the backend already assembled (e.g. "Loves a, b and c"). */
+  /**
+   * Translates a bio the backend already assembled. The backend always builds
+   * it in English ("Loves a, b, and c" or the "Open-minded…" fallback), so
+   * match the English wording, not the translated one.
+   */
   const translateBio = (bio?: string | null) => {
     if (!bio) return "";
-    const loves = t("connections.loves", "Loves");
-    if (!bio.startsWith(loves)) return bio;
-    const items = bio
-      .slice(loves.length)
-      .split(",")
-      .map((item) => item.trim().replace(/^and\s+/i, ""))
+    const trimmed = bio.trim();
+    if (/^open-minded and ready to connect\.?$/i.test(trimmed)) {
+      return t("connections.open_minded", "Open-minded and ready to connect");
+    }
+    const match = trimmed.match(/^loves\s+(.+)$/i);
+    if (!match) return bio;
+    const items = match[1]
+      .split(/\s*,\s*(?:and\s+)?|\s+and\s+/i)
+      .map((item) => item.trim())
       .filter(Boolean);
     return lovesSentence(items);
   };
