@@ -526,6 +526,23 @@ export default function ProfileScreen() {
                   <Text style={{ fontSize: 13, color: muted, marginTop: 2 }}>{t('profile.pending_sub')}</Text>
                 </View>
               </View>
+            ) : profile.face_verification_status === "rejected" ? (
+              <Pressable
+                onPress={() => router.push('/onboarding/face-verification')}
+                style={{ flexDirection: 'row', alignItems: 'center', padding: 16 }}
+              >
+                <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: '#EF444415', justifyContent: 'center', alignItems: 'center', marginRight: 16 }}>
+                  <Icon name={Smile} size={16} color="#EF4444" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 16, color: '#EF4444', fontWeight: '600' }}>{t('profile.verification_rejected', 'Verification declined')}</Text>
+                  <Text style={{ fontSize: 13, color: muted, marginTop: 2 }}>
+                    {profile.face_verification_note
+                      ? `${profile.face_verification_note} · ${t('profile.rejected_retry', 'Tap to take a new photo.')}`
+                      : t('profile.rejected_retry', 'Tap to take a new photo.')}
+                  </Text>
+                </View>
+              </Pressable>
             ) : (
               <Pressable 
                 onPress={() => router.push('/onboarding/face-verification')}

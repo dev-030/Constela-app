@@ -86,6 +86,8 @@ export interface UserProfile {
   likes_push: boolean;
   messages_push: boolean;
   face_verification_status: string;
+  /** Admin's reason when a verification photo is rejected. */
+  face_verification_note?: string;
   must_verify_face: boolean;
   onboarding_part1_completed: boolean;
   photos: {

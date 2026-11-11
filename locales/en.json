@@ -311,9 +311,9 @@
     "humor_title": "SECOND-DEGREE HUMOR",
     "soothes_title": "WHAT SOOTHES ME",
     "submission_failed": "Submission Failed",
-    "verification_title": "Face Verification",
-    "verification_subtitle": "To keep our community safe, verify your identity with a quick selfie.",
-    "face_verification_title": "Face Verification",
+    "verification_title": "Photo Verification",
+    "verification_subtitle": "To keep our community safe, verify your profile with a quick live photo.",
+    "face_verification_title": "Photo Verification",
     "face_step_front": "1. Look straight at the camera",
     "face_step_left": "2. Good! Now turn your head LEFT",
     "face_step_right": "3. Great! Now turn your head RIGHT",
@@ -329,9 +329,20 @@
       "benefit1": "Prove you are a real person",
       "benefit2": "Get prioritized in the matching feed",
       "benefit3": "Unlock the Verified Badge on your profile",
-      "verify_btn": "Verify My Face Now",
+      "verify_btn": "Verify with a photo",
       "skip_btn": "Skip for Now"
-    }
+    },
+    "photo_verify_title": "Photo verification",
+    "photo_verify_instructions": "Take a live photo of your face. Our team compares it with your profile pictures to confirm it's really you.",
+    "photo_verify_review": "Make sure your face is clear and well lit, then submit.",
+    "photo_verify_hint": "Center your face in the oval and tap the button.",
+    "photo_verify_take": "Take photo",
+    "photo_verify_retake": "Retake",
+    "photo_verify_submit": "Submit",
+    "photo_verify_capture_failed": "Couldn't take the photo. Please try again.",
+    "photo_verify_upload_failed": "Upload failed. Please try again.",
+    "photo_verify_submitted_title": "Photo submitted",
+    "photo_verify_submitted_desc": "Thanks! Our team will compare it with your profile pictures. You'll be notified once it's reviewed."
   },
   "matches": {
     "analysis_banner_title": "Perfect Match Analysis",
@@ -496,8 +507,8 @@
     "verified_account": "Verified Account",
     "verified_sub": "Your identity is verified.",
     "verification_pending": "Verification Pending",
-    "pending_sub": "Admin review in progress.",
-    "get_verified": "Get Face Verified",
+    "pending_sub": "Our team is comparing your photo with your profile pictures.",
+    "get_verified": "Get Photo Verified",
     "get_verified_sub": "Earn the blue tick & boost matches!",
     "basic_info": "Basic Info",
     "name": "Name",
@@ -531,7 +542,9 @@
     "eating_habits": "Eating Habits",
     "yes": "Yes",
     "no": "No",
-    "from": "From"
+    "from": "From",
+    "verification_rejected": "Verification declined",
+    "rejected_retry": "Tap to take a new photo."
   },
   "connections": {
     "title": "Connections",
@@ -556,8 +569,8 @@
   },
   "match_analysis": {
     "action_required": "Action Required",
-    "action_required_desc": "Your account has received multiple reports. You must verify your face to unlock Premium Match Analysis and card swiping.",
-    "verify_face_now": "Verify Face Now",
+    "action_required_desc": "Your account has received multiple reports. You must verify yourself with a live photo to unlock Premium Match Analysis and card swiping.",
+    "verify_face_now": "Verify with a photo",
     "profile_incomplete": "Profile Incomplete",
     "profile_incomplete_desc": "You must complete at least 80% of your profile to unlock Perfect Match Analysis. This ensures our AI can find your truly compatible matches!",
     "complete_profile_now": "Complete Profile Now",
@@ -979,5 +992,10 @@
       "ai": "AI",
       "3d": "3D"
     }
+  },
+  "verification_overlay": {
+    "required_desc": "Your account has received multiple reports from different users. To protect our community, please verify yourself with a live photo to continue using the app.",
+    "pending_title": "Verification in review",
+    "pending_desc": "Thanks! Your verification photo is being reviewed by our team. You can continue once it's approved."
   }
 }

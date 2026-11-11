@@ -7,9 +7,11 @@ import { Lock, ShieldAlert } from "lucide-react-native";
 import { useProfileStore } from "@/store/profileStore";
 import { router } from "expo-router";
 import { useColor } from "@/hooks/useColor";
+import { useTranslation } from "react-i18next";
 
 export default function VerificationOverlay({ children }: { children: React.ReactNode }) {
   const profile = useProfileStore((s) => s.profile);
+  const { t } = useTranslation();
   const background = useColor("background");
   const primary = useColor("primary");
   const muted = useColor("textMuted");
@@ -20,7 +22,10 @@ export default function VerificationOverlay({ children }: { children: React.Reac
     return <>{children}</>;
   }
 
-  const message = "Your account has received multiple reports from different users. To protect our community, you must verify your face to continue using the app.";
+  const underReview = profile.face_verification_status === "pending";
+  const message = underReview
+    ? t("verification_overlay.pending_desc", "Thanks! Your verification photo is being reviewed by our team. You can continue once it's approved.")
+    : t("verification_overlay.required_desc", "Your account has received multiple reports from different users. To protect our community, please verify yourself with a live photo to continue using the app.");
 
   return (
     <View style={[styles.container, { backgroundColor: background }]}>
@@ -29,23 +34,27 @@ export default function VerificationOverlay({ children }: { children: React.Reac
       </View>
       
       <Text variant="title" style={styles.title}>
-        Action Required
+        {underReview
+          ? t("verification_overlay.pending_title", "Verification in review")
+          : t("match_analysis.action_required", "Action Required")}
       </Text>
       
       <Text style={[styles.message, { color: muted }]}>
         {message}
       </Text>
 
-      <View style={styles.actions}>
-        <Button
-          variant="default"
-          size="lg"
-          onPress={() => router.push("/onboarding/face-verification")}
-          style={styles.button}
-        >
-          Verify Face Now
-        </Button>
-      </View>
+      {!underReview && (
+        <View style={styles.actions}>
+          <Button
+            variant="default"
+            size="lg"
+            onPress={() => router.push("/onboarding/face-verification")}
+            style={styles.button}
+          >
+            {t("match_analysis.verify_face_now", "Verify with a photo")}
+          </Button>
+        </View>
+      )}
     </View>
   );
 }

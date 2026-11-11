@@ -311,9 +311,9 @@
     "humor_title": "HUMOUR AU SECOND DEGRÉ",
     "soothes_title": "CE QUI M'APAISIE",
     "submission_failed": "Échec de l'envoi",
-    "verification_title": "Vérification faciale",
-    "verification_subtitle": "Pour protéger notre communauté, vérifiez votre profil avec un rapide selfie.",
-    "face_verification_title": "Vérification faciale",
+    "verification_title": "Vérification photo",
+    "verification_subtitle": "Pour protéger notre communauté, vérifiez votre profil avec une photo prise en direct.",
+    "face_verification_title": "Vérification photo",
     "face_step_front": "1. Regardez droit vers la caméra",
     "face_step_left": "2. Bien ! Tournez la tête vers la GAUCHE",
     "face_step_right": "3. Super ! Tournez la tête vers la DROITE",
@@ -329,9 +329,20 @@
       "benefit1": "Prouvez que vous êtes une vraie personne",
       "benefit2": "Soyez prioritaire dans les profils suggérés",
       "benefit3": "Débloquez le badge vérifié sur votre profil",
-      "verify_btn": "Vérifier mon visage",
+      "verify_btn": "Vérifier avec une photo",
       "skip_btn": "Passer pour l'instant"
-    }
+    },
+    "photo_verify_title": "Vérification photo",
+    "photo_verify_instructions": "Prenez une photo de votre visage en direct. Notre équipe la compare avec vos photos de profil pour confirmer que c’est bien vous.",
+    "photo_verify_review": "Vérifiez que votre visage est net et bien éclairé, puis envoyez.",
+    "photo_verify_hint": "Placez votre visage dans l’ovale et appuyez sur le bouton.",
+    "photo_verify_take": "Prendre la photo",
+    "photo_verify_retake": "Reprendre",
+    "photo_verify_submit": "Envoyer",
+    "photo_verify_capture_failed": "Impossible de prendre la photo. Veuillez réessayer.",
+    "photo_verify_upload_failed": "L’envoi a échoué. Veuillez réessayer.",
+    "photo_verify_submitted_title": "Photo envoyée",
+    "photo_verify_submitted_desc": "Merci ! Notre équipe va la comparer avec vos photos de profil. Vous serez averti(e) dès qu’elle sera examinée."
   },
   "matches": {
     "analysis_banner_title": "Analyse de compatibilité parfaite",
@@ -496,8 +507,8 @@
     "verified_account": "Compte vérifié",
     "verified_sub": "Votre identité est vérifiée.",
     "verification_pending": "Vérification en attente",
-    "pending_sub": "Examen par l'administrateur en cours.",
-    "get_verified": "Vérifier mon visage",
+    "pending_sub": "Notre équipe compare votre photo avec vos photos de profil.",
+    "get_verified": "Vérifier ma photo",
     "get_verified_sub": "Obtenez le badge bleu et augmentez vos matchs !",
     "basic_info": "Infos de base",
     "name": "Prénom",
@@ -531,7 +542,9 @@
     "eating_habits": "Alimentation",
     "yes": "Oui",
     "no": "Non",
-    "from": "Depuis"
+    "from": "Depuis",
+    "verification_rejected": "Vérification refusée",
+    "rejected_retry": "Appuyez pour prendre une nouvelle photo."
   },
   "connections": {
     "title": "Connexions",
@@ -556,8 +569,8 @@
   },
   "match_analysis": {
     "action_required": "Action requise",
-    "action_required_desc": "Votre compte a reçu plusieurs signalements. Vous devez vérifier votre visage pour débloquer l'analyse de compatibilité et le balayage de profils.",
-    "verify_face_now": "Vérifier mon visage maintenant",
+    "action_required_desc": "Votre compte a reçu plusieurs signalements. Vous devez vous vérifier avec une photo en direct pour débloquer l’analyse de compatibilité et le balayage de profils.",
+    "verify_face_now": "Vérifier avec une photo",
     "profile_incomplete": "Profil incomplet",
     "profile_incomplete_desc": "Vous devez compléter au moins 80 % de votre profil pour débloquer l'analyse de compatibilité parfaite. Cela permet à notre IA de trouver des profils vraiment compatibles !",
     "complete_profile_now": "Compléter le profil maintenant",
@@ -979,5 +992,10 @@
       "ai": "IA",
       "3d": "3D"
     }
+  },
+  "verification_overlay": {
+    "required_desc": "Votre compte a reçu plusieurs signalements de différents utilisateurs. Pour protéger notre communauté, vérifiez-vous avec une photo en direct pour continuer à utiliser l’app.",
+    "pending_title": "Vérification en cours",
+    "pending_desc": "Merci ! Votre photo de vérification est en cours d’examen par notre équipe. Vous pourrez continuer dès qu’elle sera approuvée."
   }
 }
