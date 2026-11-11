@@ -685,8 +685,10 @@ export default function CommunityChatScreen() {
             <Text style={[styles.headerName, { color: textColor }]}>{title}</Text>
             <Text style={[styles.headerSub, { color: muted }]}>
               {roomQuery.data || hasInitialMembership
-                ? `${memberCount} ${memberCount === 1 ? "member" : "members"}`
-                : "Community Room"}
+                ? Number(memberCount) === 1
+                  ? t("community.member_one", { defaultValue: "{{count}} member", count: memberCount })
+                  : t("community.member_many", { defaultValue: "{{count}} members", count: memberCount })
+                : t("community.community_room", "Community Room")}
             </Text>
           </View>
         </View>

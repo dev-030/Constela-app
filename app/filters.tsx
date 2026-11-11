@@ -121,7 +121,7 @@ export default function FiltersScreen() {
       marital_status: selectedMaritalStatus.length ? selectedMaritalStatus.join(',') : undefined,
       looking_for: selectedLookingFor.length ? selectedLookingFor.join(',') : undefined,
       spoken_languages: selectedLanguages.length ? selectedLanguages.join(',') : undefined,
-      education_level: selectedEducation || undefined,
+      education_level: selectedEducation.length ? selectedEducation.join(',') : undefined,
       smoking: smoking ? true : undefined,
       alcohol: alcohol ? true : undefined,
       sport: selectedSport || undefined,
@@ -175,7 +175,10 @@ export default function FiltersScreen() {
   );
 
   // Advanced States
-  const [selectedEducation, setSelectedEducation] = useState(globalFilters.education_level || "");
+  // Multi-select: stored in the filter store as a comma-separated string.
+  const [selectedEducation, setSelectedEducation] = useState<string[]>(
+    globalFilters.education_level ? globalFilters.education_level.split(",").filter(Boolean) : []
+  );
   const [smoking, setSmoking] = useState(globalFilters.smoking || false);
   const [alcohol, setAlcohol] = useState(globalFilters.alcohol || false);
   const [selectedSport, setSelectedSport] = useState(globalFilters.sport || "");
@@ -421,8 +424,8 @@ export default function FiltersScreen() {
               <FilterPill
                 key={edu}
                 label={valueLabel(edu)}
-                selected={selectedEducation === edu}
-                onPress={() => setSelectedEducation(edu)}
+                selected={selectedEducation.includes(edu)}
+                onPress={() => toggleArrayItem(selectedEducation, setSelectedEducation, edu)}
               />
             ))}
           </View>
@@ -614,7 +617,7 @@ export default function FiltersScreen() {
                   setSelectedMaritalStatus([]);
                   setSelectedLanguages([]);
                   setSelectedLookingFor([]);
-                  setSelectedEducation("");
+                  setSelectedEducation([]);
                   setSmoking(false);
                   setAlcohol(false);
                   setSelectedSport("");

@@ -367,6 +367,9 @@
     "add_as_friend": "Add {{name}} as a friend"
   },
   "community": {
+    "member_one": "{{count}} member",
+    "member_many": "{{count}} members",
+    "community_room": "Community Room",
     "safe_spaces": "SAFE SPACES",
     "hero_title": "Find your community",
     "hero_body": "A low-pressure space to connect with people who share your neurotype and sensory preferences.",
