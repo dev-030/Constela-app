@@ -6,13 +6,14 @@ import { useColor } from "@/hooks/useColor";
 import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import { router, useLocalSearchParams } from "expo-router";
 import { ArrowLeft, Mail } from "lucide-react-native";
-import { Pressable, ScrollView, View } from "react-native";
+import { Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useState } from "react";
 import { useVerifyOtpMutation, useResendOtpMutation } from "@/api/auth";
 import { toast } from "sonner-native";
 import { useTranslation } from "react-i18next";
 import { LanguagePickerButton } from "@/components/LanguagePickerButton";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
 export default function OtpScreen() {
   const { t } = useTranslation();
@@ -78,7 +79,7 @@ export default function OtpScreen() {
   };
 
   return (
-    <ScrollView showsVerticalScrollIndicator={false}
+    <KeyboardAwareScrollView bottomOffset={24} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
       contentContainerStyle={{ flexGrow: 1, backgroundColor: background }}
     >
       <View
@@ -193,6 +194,6 @@ export default function OtpScreen() {
           </View>
         </View>
       </View>
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }

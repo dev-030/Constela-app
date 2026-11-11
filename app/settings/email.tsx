@@ -13,6 +13,7 @@ import { apiClient } from '@/api/client';
 import { useAndroidBack } from '@/hooks/useAndroidBack';
 import { useTranslation } from 'react-i18next';
 import { showAlert } from "@/components/ui/app-alert";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 
 export default function ChangeEmailScreen() {
   const { t } = useTranslation();
@@ -129,7 +130,7 @@ export default function ChangeEmailScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView style={styles.container} behavior="padding">
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <View style={styles.headerLeft}>
@@ -188,6 +189,6 @@ export default function ChangeEmailScreen() {
           {t('auth.send_code', 'Send Verification Code')}
         </Button>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }

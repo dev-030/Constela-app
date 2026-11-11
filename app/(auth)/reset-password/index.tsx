@@ -7,12 +7,13 @@ import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import { router, useLocalSearchParams } from "expo-router";
 import { ArrowLeft } from "lucide-react-native";
 import { useState } from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useVerifyPasswordResetCodeMutation } from "@/api/auth";
 import { toast } from "sonner-native";
 import { useTranslation } from "react-i18next";
 import { LanguagePickerButton } from "@/components/LanguagePickerButton";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
 export default function ResetPasswordScreen() {
   const { t } = useTranslation();
@@ -45,7 +46,7 @@ export default function ResetPasswordScreen() {
   };
 
   return (
-    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, backgroundColor: background }}>
+    <KeyboardAwareScrollView bottomOffset={24} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, backgroundColor: background }}>
       <View
         style={{
           flex: 1,
@@ -99,6 +100,6 @@ export default function ResetPasswordScreen() {
           </Button>
         </View>
       </View>
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }

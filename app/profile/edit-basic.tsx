@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, TextInput, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, Pressable, TextInput, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ChevronLeft, Camera, X } from 'lucide-react-native';
@@ -20,6 +20,8 @@ import { API_URL } from '@/constants/config';
 import { useTranslation } from 'react-i18next';
 import { useProfileLabels } from '@/hooks/use-profile-labels';
 import { showAlert } from "@/components/ui/app-alert";
+import { LanguageSelect } from '@/components/language-select';
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
 const reverseGenderMap: Record<string, string> = {
   woman: "Woman",
@@ -86,7 +88,7 @@ export default function EditBasicScreen() {
   const [lookingFor, setLookingFor] = useState('');
   const [maritalStatus, setMaritalStatus] = useState('');
   const [educationLevel, setEducationLevel] = useState('');
-  const [spokenLanguages, setSpokenLanguages] = useState('');
+  const [spokenLanguages, setSpokenLanguages] = useState<string[]>([]);
 
   useEffect(() => {
     if (profile) {
@@ -100,7 +102,7 @@ export default function EditBasicScreen() {
       setCountry(profile.country || '');
       setMaritalStatus(profile.marital_status || '');
       setEducationLevel(profile.education_level || '');
-      setSpokenLanguages(profile.spoken_languages?.join(', ') || '');
+      setSpokenLanguages(profile.spoken_languages ?? []);
 
       setGender(reverseGenderMap[profile.gender || ''] || profile.gender || '');
       setGenderPreference(reverseGenderMap[profile.gender_preference || ''] || profile.gender_preference || '');
@@ -158,7 +160,7 @@ export default function EditBasicScreen() {
     lookingFor !== (reverseLookingForMap[profile?.looking_for || ''] || profile?.looking_for || '') ||
     maritalStatus !== (profile?.marital_status || '') ||
     educationLevel !== (profile?.education_level || '') ||
-    spokenLanguages !== (profile?.spoken_languages?.join(', ') || '');
+    spokenLanguages.join('|') !== (profile?.spoken_languages ?? []).join('|');
 
   const canSave = !usernameError && hasChanged;
 
@@ -221,8 +223,7 @@ export default function EditBasicScreen() {
       formData.append('marital_status', maritalStatus);
       formData.append('education_level', educationLevel);
       
-      const languagesArray = spokenLanguages.split(',').map(l => l.trim()).filter(Boolean);
-      formData.append('spoken_languages', JSON.stringify(languagesArray));
+      formData.append('spoken_languages', JSON.stringify(spokenLanguages));
 
       if (deletedPhotos.length > 0) {
         const { accessToken } = useAuthStore.getState();
@@ -284,7 +285,7 @@ export default function EditBasicScreen() {
         <View style={styles.backBtn} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <KeyboardAwareScrollView bottomOffset={24} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         {/* Profile Photos */}
         <Text style={styles.sectionTitle}>{t('onboarding.upload_photos', 'PROFILE PHOTOS (UP TO 3)')}</Text>
         <View style={styles.photoGrid}>
@@ -449,13 +450,11 @@ export default function EditBasicScreen() {
         
         <View style={styles.formGroup}>
           <Text style={styles.inputLabel}>{t('edit_profile.spoken_languages')}</Text>
-          <View style={[styles.inputContainer, { borderColor: border, backgroundColor: cardColor }]}>
-            <TextInput style={[styles.inputValue, { color: text }]} value={spokenLanguages} onChangeText={setSpokenLanguages} placeholder="e.g. English, ASL" placeholderTextColor={muted} />
-          </View>
+          <LanguageSelect value={spokenLanguages} onChange={setSpokenLanguages} />
         </View>
 
         <View style={{ height: 40 }} />
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom || 24, backgroundColor: background }]}>
         <Button onPress={handleSave} style={[styles.saveBtn, ...(!canSave ? [{ opacity: 0.5 }] : [])]} disabled={isSaving || !canSave}>

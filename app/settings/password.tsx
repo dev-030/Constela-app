@@ -12,6 +12,7 @@ import { useChangePasswordMutation } from '@/api/settings';
 import { useAndroidBack } from '@/hooks/useAndroidBack';
 import { useTranslation } from 'react-i18next';
 import { showAlert } from "@/components/ui/app-alert";
+import { KeyboardAvoidingView, KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -65,7 +66,7 @@ export default function ChangePasswordScreen() {
       color: text,
     },
     content: {
-      flex: 1,
+      flexGrow: 1,
       padding: 24,
     },
     description: {
@@ -146,7 +147,7 @@ export default function ChangePasswordScreen() {
   const isFormValid = current.length > 0 && next.length > 0 && confirm.length > 0 && next === confirm;
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView style={styles.container} behavior="padding">
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <View style={styles.headerLeft}>
@@ -160,9 +161,15 @@ export default function ChangePasswordScreen() {
         <View style={styles.headerRight} />
       </View>
 
-      <View style={styles.content}>
+      <KeyboardAwareScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.content}
+        bottomOffset={24}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={styles.description}>
-          Keep your account secure by updating your password regularly.
+          {t('settings_pages.keep_account_secure')}
         </Text>
 
         <View style={styles.inputContainer}>
@@ -215,7 +222,7 @@ export default function ChangePasswordScreen() {
             }
           />
         </View>
-      </View>
+      </KeyboardAwareScrollView>
 
       {/* Footer */}
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 24) }]}>
@@ -228,6 +235,6 @@ export default function ChangePasswordScreen() {
           {t('edit_profile.save_changes')}
         </Button>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }

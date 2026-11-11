@@ -8,11 +8,12 @@ import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import { router, useLocalSearchParams } from "expo-router";
 import { ArrowLeft, Eye, EyeOff } from "lucide-react-native";
 import { useState } from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { toast } from "sonner-native";
 import { useTranslation } from "react-i18next";
 import { LanguagePickerButton } from "@/components/LanguagePickerButton";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
 export default function NewPasswordScreen() {
   const { t } = useTranslation();
@@ -44,7 +45,7 @@ export default function NewPasswordScreen() {
   };
 
   return (
-    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, backgroundColor: background }}>
+    <KeyboardAwareScrollView bottomOffset={24} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, backgroundColor: background }}>
       <View style={{ flex: 1, width: "100%", maxWidth: 480, alignSelf: "center", paddingHorizontal: horizontalPadding, paddingTop: insets.top + (isCompact ? 20 : 32), paddingBottom: 32 }}>
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: size(24, 18) }}>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -85,6 +86,6 @@ export default function NewPasswordScreen() {
           </Button>
         </View>
       </View>
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }

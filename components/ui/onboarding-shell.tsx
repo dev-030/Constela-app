@@ -7,7 +7,7 @@ import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import { ArrowLeft } from "lucide-react-native";
 import React from "react";
 import { Pressable, View, ViewStyle } from "react-native";
-import { KeyboardAvoidingView, Platform } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { LanguagePickerButton } from "@/components/LanguagePickerButton";
@@ -51,10 +51,8 @@ export function OnboardingShell({
       style={{ flex: 1, backgroundColor: background }}
       edges={["top", "bottom"]}
     >
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
+      {/* keyboard-controller works with Android edge-to-edge, where the window no longer resizes. */}
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         {/* Header */}
         <View
           style={{
