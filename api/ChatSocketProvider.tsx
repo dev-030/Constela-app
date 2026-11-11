@@ -16,13 +16,14 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { Alert } from 'react-native';
+import {  } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/authStore';
 import { useProfileStore } from '@/store/profileStore';
 import { WS_URL } from '@/constants/config';
 import { apiClient } from '@/api/client';
 import { removeMyReaction, toggleReactionSummary } from "@/utils/message-reactions";
+import { showAlert } from "@/components/ui/app-alert";
 
 type TypingCallback = (senderId: string, isTyping: boolean) => void;
 
@@ -395,9 +396,9 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
           useProfileStore.getState().updateQuota(data.quota_kind, data.quota);
         }
         if (isQuotaError) {
-          Alert.alert('Daily limit reached', data.message);
+          showAlert('Daily limit reached', data.message);
         } else if (data.temp_id) {
-          Alert.alert('Message not sent', data.message || 'Please try again.');
+          showAlert('Message not sent', data.message || 'Please try again.');
         }
         if (data.temp_id) {
           queryClient.getQueryCache().getAll().forEach((query) => {
@@ -515,7 +516,7 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
       const myProfile = useProfileStore.getState().profile;
       const personalQuota = myProfile?.access?.quotas.personal_messages;
       if (quotaIsCurrentlyExhausted(personalQuota)) {
-        Alert.alert('Daily limit reached', 'You have used all of today\'s personal messages.');
+        showAlert('Daily limit reached', 'You have used all of today\'s personal messages.');
         return;
       }
       if (personalQuota && personalQuota.remaining != null) {
@@ -627,7 +628,7 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
         const response = error?.response?.data;
         if (response?.quota) useProfileStore.getState().updateQuota('personal_messages', response.quota);
         if (response?.code === 'DAILY_PERSONAL_MESSAGE_LIMIT_REACHED') {
-          Alert.alert('Daily limit reached', response.error);
+          showAlert('Daily limit reached', response.error);
         }
         console.warn('[ChatSocket] Message send failed:', error?.message);
       });
@@ -648,7 +649,7 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
     if (!trimmed || !myProfile) return;
     const commQuota = myProfile.access?.quotas.community_messages;
     if (quotaIsCurrentlyExhausted(commQuota)) {
-      Alert.alert('Daily limit reached', 'You have used all of today\'s community messages.');
+      showAlert('Daily limit reached', 'You have used all of today\'s community messages.');
       return;
     }
     if (commQuota && commQuota.remaining != null) {
@@ -741,7 +742,7 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
         const response = error?.response?.data;
         if (response?.quota) useProfileStore.getState().updateQuota('community_messages', response.quota);
         if (response?.code === 'DAILY_COMMUNITY_MESSAGE_LIMIT_REACHED') {
-          Alert.alert('Daily limit reached', response.error);
+          showAlert('Daily limit reached', response.error);
         }
       });
   }, [queryClient]);

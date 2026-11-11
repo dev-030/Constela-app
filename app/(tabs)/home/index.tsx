@@ -21,7 +21,7 @@ import {
   Bell,
   HandHeart,
 } from "lucide-react-native";
-import { Image, Pressable, ScrollView, View, StyleSheet, RefreshControl, Alert } from "react-native";
+import { Image, Pressable, ScrollView, View, StyleSheet, RefreshControl } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import CardList from "../../../components/feat-card";
 import Header from "../../../components/header";
@@ -29,6 +29,7 @@ import { useProfileStore } from "@/store/profileStore";
 import { ShieldAlert } from "lucide-react-native";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
+import { showAlert } from "@/components/ui/app-alert";
 
 export default function HomeScreen() {
   const { t } = useTranslation();
@@ -148,7 +149,7 @@ export default function HomeScreen() {
           <Pressable 
             style={[styles.warningBanner, { backgroundColor: error + "15", borderColor: error + "30" }]}
             onPress={() => {
-              Alert.alert(
+              showAlert(
                 "Verification Pending",
                 "Your face verification is currently under review by our admin team. No action is required from you at this time."
               );

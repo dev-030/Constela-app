@@ -1,5 +1,5 @@
 import React from "react";
-import { View, StyleSheet, Pressable, FlatList, ActivityIndicator, Alert } from "react-native";
+import { View, StyleSheet, Pressable, FlatList, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { ChevronLeft, UserX } from "lucide-react-native";
@@ -11,6 +11,7 @@ import { useColor } from "@/hooks/useColor";
 import { useBlockedUsersQuery, useUnblockUserMutation, BlockedUserEntry } from "@/api/matching";
 import { useAndroidBack } from '@/hooks/useAndroidBack';
 import { useTranslation } from "react-i18next";
+import { showAlert } from "@/components/ui/app-alert";
 
 export default function BlockedUsersScreen() {
   const { t } = useTranslation();
@@ -26,7 +27,7 @@ export default function BlockedUsersScreen() {
   const unblockMutation = useUnblockUserMutation();
 
   const handleUnblock = (user: BlockedUserEntry) => {
-    Alert.alert(
+    showAlert(
       t('settings_pages.unblock_user'),
       t('settings_pages.unblock_confirm', { username: user.username }),
       [
@@ -40,7 +41,7 @@ export default function BlockedUsersScreen() {
                 // query invalidation is handled in the mutation
               },
               onError: () => {
-                Alert.alert(t('edit_profile.error'), "Could not unblock the user. Please try again.");
+                showAlert(t('edit_profile.error'), "Could not unblock the user. Please try again.");
               }
             });
           }

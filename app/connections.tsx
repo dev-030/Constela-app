@@ -7,7 +7,6 @@ import {
   TextInput,
   RefreshControl,
   ActivityIndicator,
-  Alert,
   TouchableOpacity,
   useWindowDimensions,
 } from "react-native";
@@ -51,6 +50,7 @@ import {
   useUnfriendMutation,
   type MutualMatch,
 } from "@/api/matching";
+import { showAlert } from "@/components/ui/app-alert";
 
 type TabType = "matches" | "friends";
 
@@ -539,7 +539,7 @@ export default function ConnectionsScreen() {
 
   const handleUnmatch = useCallback(
     (match: MutualMatch) => {
-      Alert.alert(
+      showAlert(
         "Unmatch Connection",
         `Are you sure you want to unmatch with ${match.profile.name}? This will remove your conversation thread.`,
         [
@@ -588,7 +588,7 @@ export default function ConnectionsScreen() {
 
   const handleUnfriend = useCallback(
     (friend: FriendContact) => {
-      Alert.alert(
+      showAlert(
         "Remove Friend",
         `Are you sure you want to unfriend ${friend.name}? You can always send another friend request later.`,
         [

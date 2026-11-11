@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { StyleSheet, View, Text, Pressable, Alert } from 'react-native';
+import { StyleSheet, View, Text, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
@@ -12,6 +12,7 @@ import { apiClient } from '@/api/client';
 import { useProfileStore } from '@/store/profileStore';
 import { useAndroidBack } from '@/hooks/useAndroidBack';
 import { useTranslation } from 'react-i18next';
+import { showAlert } from "@/components/ui/app-alert";
 
 export default function VerifyEmailChangeScreen() {
   useAndroidBack();
@@ -85,12 +86,12 @@ export default function VerifyEmailChangeScreen() {
     try {
       await apiClient.post('/api/settings/verify-email-change/', { otp, new_email: newEmail });
       await fetchProfile(); // Refresh profile so the new email shows up
-      Alert.alert(t('settings_pages.success', "Success"), t('settings_pages.email_updated_success', "Your email has been updated successfully."), [
+      showAlert(t('settings_pages.success', "Success"), t('settings_pages.email_updated_success', "Your email has been updated successfully."), [
         { text: t('settings_pages.ok', "OK"), onPress: () => router.back() }
       ]);
     } catch (error: any) {
       const errorMsg = error.response?.data?.error || t('settings_pages.invalid_code', "Invalid verification code.");
-      Alert.alert(t('settings_pages.verification_failed', "Verification Failed"), errorMsg);
+      showAlert(t('settings_pages.verification_failed', "Verification Failed"), errorMsg);
     } finally {
       setIsVerifying(false);
     }
@@ -100,13 +101,13 @@ export default function VerifyEmailChangeScreen() {
     setIsResending(true);
     try {
       await apiClient.post('/api/settings/request-email-change/', { new_email: newEmail });
-      Alert.alert(
+      showAlert(
         t('settings_pages.code_sent', "Code Sent"),
         t('settings_pages.code_sent_to', { email: newEmail, defaultValue: `A new verification code has been sent to ${newEmail}` })
       );
     } catch (error: any) {
       const errorMsg = error.response?.data?.error || t('settings_pages.failed_resend_code', "Failed to resend code.");
-      Alert.alert(t('settings_pages.resend_failed', "Resend Failed"), errorMsg);
+      showAlert(t('settings_pages.resend_failed', "Resend Failed"), errorMsg);
     } finally {
       setIsResending(false);
     }

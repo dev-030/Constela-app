@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Alert, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
@@ -15,6 +15,7 @@ import { useAndroidBack } from '@/hooks/useAndroidBack';
 import { useTranslation } from 'react-i18next';
 import { useProfileLabels } from "@/hooks/use-profile-labels";
 import { INTEREST_CATEGORIES } from '@/constants/interests';
+import { showAlert } from "@/components/ui/app-alert";
 
 export default function EditInterestsScreen() {
   const { t, i18n } = useTranslation();
@@ -72,7 +73,7 @@ export default function EditInterestsScreen() {
           errMsg = error.response.data[firstKey];
         }
       }
-      Alert.alert(t('edit_profile.error'), errMsg);
+      showAlert(t('edit_profile.error'), errMsg);
     } finally {
       setIsSaving(false);
     }

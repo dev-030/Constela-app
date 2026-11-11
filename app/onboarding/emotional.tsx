@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Alert } from "react-native";
+import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import {
@@ -23,6 +23,7 @@ import { useProfileStore } from "@/store/profileStore";
 import { useTranslation } from "react-i18next";
 import { useProfileLabels } from "@/hooks/use-profile-labels";
 import { LanguagePickerButton } from "@/components/LanguagePickerButton";
+import { showAlert } from "@/components/ui/app-alert";
 
 function SectionHeader({
   title,
@@ -182,7 +183,7 @@ export default function OnboardingEmotionalScreen() {
           }
         }
       }
-      Alert.alert(t("onboarding.submission_failed", "Submission Failed"), errMsg);
+      showAlert(t("onboarding.submission_failed", "Submission Failed"), errMsg);
     } finally {
       setIsSubmitting(false);
     }

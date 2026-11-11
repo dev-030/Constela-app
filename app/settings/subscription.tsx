@@ -25,7 +25,6 @@ import { useState, useEffect, useCallback } from "react";
 import * as Haptics from "expo-haptics";
 import { toast } from "sonner-native";
 import {
-  Alert,
   AppState,
   Pressable,
   ScrollView,
@@ -62,6 +61,7 @@ import VerificationOverlay from "@/components/VerificationOverlay";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
 import { useTranslation } from "react-i18next";
 import i18n from "@/app/i18n";
+import { showAlert } from "@/components/ui/app-alert";
 
 type LightPlanChoice = "1m" | "3m" | "6m" | "1yr" | "lifetime";
 type PlusPlanChoice = "1m" | "3m" | "6m" | "1yr" | "lifetime";
@@ -583,11 +583,12 @@ export default function SubscriptionScreen() {
   const currentProductId =
     primaryEntitlement?.productIdentifier || profile?.subscription_product_id;
 
+  // Perfect Match Analysis is a one-time purchase: it can always be bought
+  // again. These only decide whether to also offer "view last results".
   const hasMatchAnalysis = Boolean(
-    activeEntitlements.add_on_match_analysis ||
-    profile?.has_match_analysis ||
-    profile?.access?.has_match_analysis
+    profile?.access?.has_match_analysis ?? profile?.has_match_analysis
   );
+  const lastAnalysisAt = profile?.access?.match_analysis_last_at ?? null;
 
   // 1. Initial offerings on mount
   useEffect(() => {
@@ -716,7 +717,7 @@ export default function SubscriptionScreen() {
       pkg?.product.identifier ?? "";
 
     if (pkg && rcPackageId === currentProductId) {
-      Alert.alert(
+      showAlert(
         t("subscription.already_title", "Already on this plan"),
         t("subscription.already_desc", "You're already subscribed to this exact plan duration."),
       );
@@ -807,12 +808,18 @@ export default function SubscriptionScreen() {
       setIsPurchasing(false);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setCustomerInfo(info);
-      toast.success(t("subscription.addon_unlocked_title", "Match Analysis Unlocked! 🔬"), {
-        description: t("subscription.addon_unlocked_desc", "Your top 5 compatible profiles are now ready to view."),
+      toast.success(t("subscription.addon_unlocked_title", "Your Perfect Match Analysis is ready! 🔬"), {
+        description: t("subscription.addon_unlocked_desc", "Here are your top 5 compatible profiles right now."),
       });
-      void syncSubscription()
-        .then(() => queryClient.invalidateQueries())
-        .catch(() => queryClient.invalidateQueries());
+      // The server records the purchase and computes this top 5 now; then show it.
+      try {
+        await syncSubscription();
+      } catch {
+        // The webhook will still record it; the results screen retries on open.
+      }
+      await fetchProfile();
+      await queryClient.invalidateQueries({ queryKey: ["matchAnalysis"] });
+      router.push("/match-analysis" as any);
     } catch (error: any) {
       setIsPurchasing(false);
       const isCancel = error?.userCancelled || error?.code === "1";
@@ -1058,7 +1065,7 @@ export default function SubscriptionScreen() {
               <Pressable
                 onPress={async () => {
                   if (!isNativeModuleAvailable()) {
-                    Alert.alert(
+                    showAlert(
                       t("subscription.manage_title", "Manage Subscription"),
                       t("subscription.manage_dev_only", "Subscription management is only available in a production build. Please use your device's App Store / Play Store subscriptions page."),
                     );
@@ -1072,7 +1079,7 @@ export default function SubscriptionScreen() {
                         : "https://apps.apple.com/account/subscriptions");
                     await Linking.openURL(url);
                   } catch (e: any) {
-                    Alert.alert(
+                    showAlert(
                       t("subscription.manage_title", "Manage Subscription"),
                       e?.message || t("subscription.manage_open_failed", "Could not open subscription management."),
                     );
@@ -1635,27 +1642,7 @@ export default function SubscriptionScreen() {
                     {t("subscription.match_analysis_desc", "Deep compatibility insights.")}
                   </Text>
                 </View>
-                {hasMatchAnalysis ? (
-                  <View
-                    style={{
-                      backgroundColor: "rgba(255,255,255,0.15)",
-                      paddingHorizontal: 10,
-                      paddingVertical: 4,
-                      borderRadius: 8,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        color: "#FFF",
-                        fontWeight: "800",
-                        fontSize: 10,
-                        letterSpacing: 0.5,
-                      }}
-                    >
-                      {t("subscription.subscribed_badge", "SUBSCRIBED")}
-                    </Text>
-                  </View>
-                ) : (
+                {(
                   <View
                     style={{
                       backgroundColor: "rgba(255,255,255,0.1)",
@@ -1723,8 +1710,10 @@ export default function SubscriptionScreen() {
                   </Text>
                 </View>
               </View>
-              {!hasMatchAnalysis ? (
-                <Pressable
+              <Text style={{ fontSize: 11, color: "#A0B8AA", marginBottom: 12 }}>
+                {t("subscription.match_analysis_one_time", "One-time purchase: your top 5 at the moment you buy. Buy again anytime for an updated top 5.")}
+              </Text>
+              <Pressable
                   disabled={!matchAnalysisPackage || isPurchasing}
                   accessibilityState={{
                     disabled: !matchAnalysisPackage || isPurchasing,
@@ -1747,28 +1736,30 @@ export default function SubscriptionScreen() {
                       fontSize: 14,
                     }}
                   >
-                    {matchAnalysisPackage ? t("subscription.get_addon", "Get Add-on") : t("subscription.currently_unavailable", "Currently unavailable")}
+                    {!matchAnalysisPackage
+                      ? t("subscription.currently_unavailable", "Currently unavailable")
+                      : hasMatchAnalysis
+                        ? t("subscription.buy_new_analysis", "Get a new analysis")
+                        : t("subscription.buy_analysis", "Get my top 5")}
                   </Text>
                 </Pressable>
-              ) : (
+              {hasMatchAnalysis && (
                 <Pressable
-                  disabled
-                  style={{
-                    backgroundColor: "#FFF",
-                    paddingVertical: 12,
-                    borderRadius: 12,
+                  onPress={() => router.push("/match-analysis" as any)}
+                  style={({ pressed }) => ({
+                    marginTop: 10,
+                    paddingVertical: 10,
                     alignItems: "center",
-                    opacity: 0.5,
-                  }}
+                    opacity: pressed ? 0.7 : 1,
+                  })}
                 >
-                  <Text
-                    style={{
-                      color: "#1A3A2A",
-                      fontWeight: "700",
-                      fontSize: 14,
-                    }}
-                  >
-                    {t("subscription.subscribed", "Subscribed")}
+                  <Text style={{ color: "#FFF", fontWeight: "600", fontSize: 13, textDecorationLine: "underline" }}>
+                    {lastAnalysisAt
+                      ? t("subscription.view_last_results_date", {
+                          defaultValue: "View my last results ({{date}})",
+                          date: new Date(lastAnalysisAt).toLocaleDateString(i18n.language),
+                        })
+                      : t("subscription.view_last_results", "View my last results")}
                   </Text>
                 </Pressable>
               )}

@@ -1,5 +1,6 @@
-import { Alert, Linking } from "react-native";
+import { Linking } from "react-native";
 import i18n from "@/app/i18n";
+import { showAlert } from "@/components/ui/app-alert";
 
 export type PermissionKind = "camera" | "gallery" | "microphone" | "notifications";
 
@@ -23,7 +24,7 @@ const MESSAGE_KEYS: Record<PermissionKind, [string, string]> = {
  */
 export function showPermissionBlockedAlert(kind: PermissionKind) {
   const [messageKey, messageFallback] = MESSAGE_KEYS[kind];
-  Alert.alert(
+  showAlert(
     i18n.t("permissions.title", "Permission needed"),
     i18n.t(messageKey, messageFallback),
     [

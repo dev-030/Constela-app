@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert } from "react-native";
+import {  } from "react-native";
 import { router } from "expo-router";
 import {
   MatchProfile,
@@ -11,6 +11,7 @@ import { useProfileStore } from "@/store/profileStore";
 import { useFilterStore } from "@/store/filterStore";
 import { canUndoSwipes, type QuotaSnapshot } from "@/api/profile";
 import { SwipeDirection, SwipeHandle } from "@/components/swipe";
+import { showAlert } from "@/components/ui/app-alert";
 
 const LOW_STACK_THRESHOLD = 3;
 
@@ -90,7 +91,7 @@ export function useMatchesFeed() {
         (!currentQuota.resets_at || new Date(currentQuota.resets_at).getTime() > Date.now());
       if (isLocked || isQuotaDepleted) {
         swipeRef.current?.undo();
-        Alert.alert(
+        showAlert(
           "Daily Limit Reached",
           "You've reached your daily like limit. Upgrade your subscription or wait until midnight to like more profiles."
         );
@@ -103,7 +104,7 @@ export function useMatchesFeed() {
       {
         onSuccess: (res) => {
           if (res.is_mutual_match) {
-            Alert.alert(
+            showAlert(
               "It\u2019s a Match! \uD83C\uDF89",
               `You and ${target.name} liked each other!`
             );
@@ -117,18 +118,18 @@ export function useMatchesFeed() {
             "Something went wrong. Please try again.";
 
           if (status === 404) {
-            Alert.alert(
+            showAlert(
               "Already decided",
               "You've already responded to this profile."
             );
           } else {
             swipeRef.current?.undo();
             if (status === 429 || status === 403) {
-              Alert.alert("Limit Reached", message, [
+              showAlert("Limit Reached", message, [
                 { text: "OK" }
               ]);
             } else {
-              Alert.alert("Swipe failed", message);
+              showAlert("Swipe failed", message);
             }
           }
         },
@@ -149,7 +150,7 @@ export function useMatchesFeed() {
       const currentQuota = useProfileStore.getState().profile?.access?.quotas.likes;
       const isQuotaDepleted = currentQuota?.remaining != null && currentQuota.remaining <= 0;
       if (isLocked || isQuotaDepleted) {
-        Alert.alert(
+        showAlert(
           "Daily Limit Reached",
           "You've reached your daily like limit. Upgrade your subscription or wait until midnight to like more profiles."
         );
@@ -163,7 +164,7 @@ export function useMatchesFeed() {
 
   const handleUndo = () => {
     if (!canUndoSwipes(profile)) {
-      Alert.alert(
+      showAlert(
         "Premium Feature",
         "Upgrade to Premium to rewind your swipes.",
         [

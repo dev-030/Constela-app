@@ -18,10 +18,12 @@ const GOLD_TEXT = "#B8860B";
 export default function MatchAnalysisScreen() {
   const router = useRouter();
   useAndroidBack();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { profile } = useProfileStore();
   const hasAnalysisAccess = canAccessMatchAnalysis(profile);
-  const { data: matches, isLoading, error, refetch, isRefetching } = useMatchAnalysisQuery(hasAnalysisAccess);
+  const { data: analysis, isLoading, error, refetch, isRefetching } = useMatchAnalysisQuery(hasAnalysisAccess);
+  const matches = analysis?.results;
+  const generatedAt = analysis?.generated_at ? new Date(analysis.generated_at) : null;
   
   const background = useColor("background");
   const text = useColor("text");
@@ -163,6 +165,14 @@ export default function MatchAnalysisScreen() {
                 target: targetGenderText,
               })}
             </Text>
+            {generatedAt && (
+              <Text style={[styles.heroSubtitle, { color: text, opacity: 0.6, marginTop: 8 }]}>
+                {t('match_analysis.results_from', {
+                  defaultValue: 'Results from {{date}}. These stay as they were when you purchased this analysis.',
+                  date: generatedAt.toLocaleDateString(i18n.language),
+                })}
+              </Text>
+            )}
           </View>
 
           {matches?.map((match, index) => {
@@ -223,6 +233,13 @@ export default function MatchAnalysisScreen() {
             </Pressable>
           )})}
           
+          <Pressable
+            style={[styles.upgradeBtn, { backgroundColor: GOLD_TEXT, alignSelf: 'center' }]}
+            onPress={() => router.push("/settings/subscription")}
+          >
+            <Text style={styles.upgradeBtnText}>{t('match_analysis.new_analysis', 'Get a new analysis')}</Text>
+          </Pressable>
+
           <View style={{ height: 40 }} />
         </ScrollView>
       )}

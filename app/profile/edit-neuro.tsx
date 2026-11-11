@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Alert, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
@@ -14,6 +14,7 @@ import { updateMyProfile } from '@/api/profile';
 import { useAndroidBack } from '@/hooks/useAndroidBack';
 import { useTranslation } from 'react-i18next';
 import { useProfileLabels } from '@/hooks/use-profile-labels';
+import { showAlert } from "@/components/ui/app-alert";
 
 const NEUROTYPES = [
   "ADHD", "Autism", "Dyslexia", "Dyspraxia", "Dyscalculia",
@@ -76,7 +77,7 @@ export default function EditNeuroScreen() {
           errMsg = error.response.data[firstKey];
         }
       }
-      Alert.alert(t('edit_profile.error'), errMsg);
+      showAlert(t('edit_profile.error'), errMsg);
     } finally {
       setIsSaving(false);
     }

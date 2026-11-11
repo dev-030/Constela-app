@@ -5,7 +5,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { useGetProfileDetailsQuery } from "@/api/profile";
 import { useProfileStore } from "@/store/profileStore";
-import { Alert } from "react-native";
 import { useSwipeActionMutation } from "@/api/matching";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -26,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
 import { useTranslation } from "react-i18next";
 import { useProfileLabels } from "@/hooks/use-profile-labels";
+import { showAlert } from "@/components/ui/app-alert";
 
 export default function ProfileDetailScreen() {
   const { t } = useTranslation();
@@ -73,7 +73,7 @@ export default function ProfileDetailScreen() {
         currentQuota.remaining <= 0 &&
         (!currentQuota.resets_at || new Date(currentQuota.resets_at).getTime() > Date.now());
       if (isQuotaDepleted) {
-        Alert.alert(
+        showAlert(
           t('profile_detail.daily_limit_reached'),
           t('profile_detail.daily_limit_desc')
         );
@@ -95,11 +95,11 @@ export default function ProfileDetailScreen() {
             "Something went wrong. Please try again.";
           
           if (status === 429 || status === 403) {
-            Alert.alert(t('profile_detail.limit_reached'), message);
+            showAlert(t('profile_detail.limit_reached'), message);
           } else if (status === 404) {
-            Alert.alert(t('profile_detail.already_decided'), t('profile_detail.already_decided_desc'));
+            showAlert(t('profile_detail.already_decided'), t('profile_detail.already_decided_desc'));
           } else {
-            Alert.alert(t('profile_detail.action_failed'), message);
+            showAlert(t('profile_detail.action_failed'), message);
           }
         }
       }

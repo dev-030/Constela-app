@@ -10,7 +10,6 @@ import {
   StyleSheet,
   Pressable,
   ActivityIndicator,
-  Alert,
   TextInput,
   FlatList,
   Platform,
@@ -72,6 +71,7 @@ import type { DirectMessage } from "@/api/messages";
 import { useTranslation } from "react-i18next";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
 import { ReactionBar, ReactionPills, type ReactionAnchor } from "@/components/chat/message-reactions";
+import { showAlert } from "@/components/ui/app-alert";
 
 const QUICK_EMOJIS = [
   "😀", "😂", "🤣", "❤️", "😍", "🔥", "👍", "🙌",
@@ -337,7 +337,7 @@ function VoiceMessage({
         currentExpiry.current = response.data.audio_url_expires_at;
         player.replace(refreshedUrl);
       } catch {
-        Alert.alert("Playback failed", "Couldn't refresh this voice message. Please try again.");
+        showAlert("Playback failed", "Couldn't refresh this voice message. Please try again.");
         return;
       } finally {
         refreshingRef.current = false;
@@ -1134,7 +1134,7 @@ export default function ChatScreen() {
         onPress: () => {
           unmatchUser(recipientId, {
             onSuccess: () => {
-              Alert.alert(t('settings_pages.success', "Success"), t('chat.user_unmatched', "User unmatched."));
+              showAlert(t('settings_pages.success', "Success"), t('chat.user_unmatched', "User unmatched."));
               goToMessages();
             }
           });
@@ -1149,7 +1149,7 @@ export default function ChatScreen() {
         onPress: () => {
           unfriendUser(recipientId, {
             onSuccess: () => {
-              Alert.alert(t('settings_pages.success', "Success"), t('chat.removed_from_friends', "Removed from friends."));
+              showAlert(t('settings_pages.success', "Success"), t('chat.removed_from_friends', "Removed from friends."));
               goToMessages();
             }
           });
@@ -1161,10 +1161,10 @@ export default function ChatScreen() {
       key: "report",
       label: t('chat.report_user', "Report User"),
       onPress: () => {
-        Alert.alert(t('chat.report_user', "Report User"), t('chat.report_reason_prompt', "Please select a reason"), [
-          { text: t('chat.report_fake', "Fake Profile"), onPress: () => reportUser({ reported_user: recipientId, reason: "fake_profile" }, { onSuccess: () => Alert.alert(t('chat.reported', "Reported"), t('chat.report_thank_you', "Thank you for keeping the community safe.")) }) },
-          { text: t('chat.report_offensive', "Offensive Language"), onPress: () => reportUser({ reported_user: recipientId, reason: "offensive_language" }, { onSuccess: () => Alert.alert(t('chat.reported', "Reported"), t('chat.report_thank_you', "Thank you for keeping the community safe.")) }) },
-          { text: t('chat.report_harassment', "Harassment"), onPress: () => reportUser({ reported_user: recipientId, reason: "harassment" }, { onSuccess: () => Alert.alert(t('chat.reported', "Reported"), t('chat.report_thank_you', "Thank you for keeping the community safe.")) }) },
+        showAlert(t('chat.report_user', "Report User"), t('chat.report_reason_prompt', "Please select a reason"), [
+          { text: t('chat.report_fake', "Fake Profile"), onPress: () => reportUser({ reported_user: recipientId, reason: "fake_profile" }, { onSuccess: () => showAlert(t('chat.reported', "Reported"), t('chat.report_thank_you', "Thank you for keeping the community safe.")) }) },
+          { text: t('chat.report_offensive', "Offensive Language"), onPress: () => reportUser({ reported_user: recipientId, reason: "offensive_language" }, { onSuccess: () => showAlert(t('chat.reported', "Reported"), t('chat.report_thank_you', "Thank you for keeping the community safe.")) }) },
+          { text: t('chat.report_harassment', "Harassment"), onPress: () => reportUser({ reported_user: recipientId, reason: "harassment" }, { onSuccess: () => showAlert(t('chat.reported', "Reported"), t('chat.report_thank_you', "Thank you for keeping the community safe.")) }) },
           { text: t('chat.cancel', "Cancel"), style: "cancel" },
         ]);
       },
@@ -1174,12 +1174,12 @@ export default function ChatScreen() {
       key: "block",
       label: t('chat.block_user', "Block User"),
       onPress: () => {
-        Alert.alert(t('chat.confirm_block', "Confirm Block"), t('chat.confirm_block_desc', "Are you sure you want to block this user?"), [
+        showAlert(t('chat.confirm_block', "Confirm Block"), t('chat.confirm_block_desc', "Are you sure you want to block this user?"), [
           { text: t('chat.cancel', "Cancel"), style: "cancel" },
           { text: t('chat.block', "Block"), style: "destructive", onPress: () => {
             blockUser(recipientId, {
               onSuccess: () => {
-                Alert.alert(t('chat.block', "Blocked"), t('chat.user_blocked', "User has been blocked."));
+                showAlert(t('chat.block', "Blocked"), t('chat.user_blocked', "User has been blocked."));
                 goToMessages();
               }
             });
@@ -1233,7 +1233,7 @@ export default function ChatScreen() {
     const trimmed = text.trim();
     if (!trimmed || !recipientId) return;
     if (isDmQuotaExhausted) {
-      Alert.alert(
+      showAlert(
         "Daily Limit Reached",
         "You've reached your daily message limit. Upgrade your subscription or wait until midnight to send more."
       );
@@ -1256,7 +1256,7 @@ export default function ChatScreen() {
 
   const uploadAndSendImage = async (asset: ImagePicker.ImagePickerAsset) => {
     if (isDmQuotaExhausted) {
-      Alert.alert(
+      showAlert(
         "Daily Limit Reached",
         "You've reached your daily message limit. Upgrade your subscription or wait until midnight to send more."
       );
@@ -1277,7 +1277,7 @@ export default function ChatScreen() {
         listRef.current?.scrollToOffset({ offset: 0, animated: false });
       });
     } catch {
-      Alert.alert("Upload Failed", "Couldn't upload image. Please try again.");
+      showAlert("Upload Failed", "Couldn't upload image. Please try again.");
     } finally {
       setIsUploadingImage(false);
     }
@@ -1339,7 +1339,7 @@ export default function ChatScreen() {
         const uri = audioRecorder.uri;
         if (uri) { try { new File(uri).delete(); } catch {} }
       } catch {}
-      Alert.alert(
+      showAlert(
         "Daily Limit Reached",
         "You've reached your daily message limit. Upgrade your subscription or wait until midnight to send more."
       );
@@ -1366,7 +1366,7 @@ export default function ChatScreen() {
         listRef.current?.scrollToOffset({ offset: 0, animated: false });
       });
     } catch {
-      Alert.alert("Voice message failed", "Couldn't send the recording. Please try again.");
+      showAlert("Voice message failed", "Couldn't send the recording. Please try again.");
     } finally {
       if (recordedUri) {
         try {
@@ -1395,7 +1395,7 @@ export default function ChatScreen() {
       recordingTimeout.current = setTimeout(() => { void stopAndSendVoice(); }, 5 * 60 * 1000);
     } catch {
       await setAudioModeAsync({ allowsRecording: false });
-      Alert.alert("Recording failed", "Couldn't start the microphone. Please try again.");
+      showAlert("Recording failed", "Couldn't start the microphone. Please try again.");
     }
   };
 

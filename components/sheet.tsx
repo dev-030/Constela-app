@@ -4,7 +4,7 @@ import { Text } from "@/components/ui/text";
 import { useColor } from "@/hooks/useColor";
 import { router, useLocalSearchParams } from "expo-router";
 import { Check, Heart, MoreHorizontal, Star, X } from "lucide-react-native";
-import { Image, ScrollView, StyleSheet, View, Pressable, ActivityIndicator, Alert } from "react-native";
+import { Image, ScrollView, StyleSheet, View, Pressable, ActivityIndicator } from "react-native";
 import { useGetProfileDetailsQuery } from "@/api/profile";
 import { useBlockUserMutation, useUnmatchMutation, useUnfriendMutation } from "@/api/matching";
 import {
@@ -12,6 +12,7 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import { useProfileLabels } from "@/hooks/use-profile-labels";
+import { showAlert } from "@/components/ui/app-alert";
 
 const PRIMARY = "#DE4177";
 
@@ -31,7 +32,7 @@ export default function ProfileSheet() {
 
   const openActionMenu = () => {
     if (!profile) return;
-    Alert.alert(
+    showAlert(
       "Profile Options",
       "Choose an action",
       [
@@ -41,7 +42,7 @@ export default function ProfileSheet() {
           onPress: () => {
             unmatchUser(profile.id, {
               onSuccess: () => {
-                Alert.alert("Success", "User unmatched.");
+                showAlert("Success", "User unmatched.");
                 router.back();
               }
             });
@@ -53,7 +54,7 @@ export default function ProfileSheet() {
           onPress: () => {
             unfriendUser(profile.id, {
               onSuccess: () => {
-                Alert.alert("Success", "Removed from friends.");
+                showAlert("Success", "Removed from friends.");
                 router.back();
               }
             });
@@ -63,12 +64,12 @@ export default function ProfileSheet() {
           text: "Block User",
           style: "destructive",
           onPress: () => {
-            Alert.alert("Confirm Block", "Are you sure you want to block this user?", [
+            showAlert("Confirm Block", "Are you sure you want to block this user?", [
               { text: "Cancel", style: "cancel" },
               { text: "Block", style: "destructive", onPress: () => {
                 blockUser(profile.id, {
                   onSuccess: () => {
-                    Alert.alert("Blocked", "User has been blocked.");
+                    showAlert("Blocked", "User has been blocked.");
                     router.back();
                   }
                 });

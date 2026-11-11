@@ -4,7 +4,6 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  Alert,
   ActivityIndicator,
   RefreshControl,
 } from "react-native";
@@ -34,6 +33,7 @@ import {
 } from "@/api/friends";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
 import { useTranslation } from "react-i18next";
+import { showAlert } from "@/components/ui/app-alert";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -218,7 +218,7 @@ export default function FriendRequestsScreen() {
       onError: (err: any) => {
         onComplete?.();
         const msg = err?.response?.data?.error || "Couldn't accept request. Please try again.";
-        Alert.alert("Error", msg);
+        showAlert("Error", msg);
       },
       onSuccess: () => {
         onComplete?.();
@@ -230,7 +230,7 @@ export default function FriendRequestsScreen() {
     declineMutation.mutate(friendshipId, {
       onError: () => {
         onComplete?.();
-        Alert.alert("Error", "Couldn't decline request. Please try again.");
+        showAlert("Error", "Couldn't decline request. Please try again.");
       },
       onSuccess: () => {
         onComplete?.();

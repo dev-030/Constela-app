@@ -64,14 +64,19 @@
     "purchase_recorded": "Achat enregistré. Utilisez « Restaurer les achats » si les avantages tardent à apparaître.",
     "purchase_failed": "La boutique n’a pas pu finaliser votre achat.",
     "addon_not_configured": "{{name}} n’est pas encore disponible dans la boutique.",
-    "addon_unlocked_title": "Analyse de compatibilité débloquée ! 🔬",
-    "addon_unlocked_desc": "Vos 5 profils les plus compatibles sont prêts.",
+    "addon_unlocked_title": "Votre analyse Perfect Match est prête ! 🔬",
+    "addon_unlocked_desc": "Voici vos 5 profils les plus compatibles en ce moment.",
     "addon_failed": "Impossible de finaliser l’achat. Veuillez réessayer.",
     "restore_unavailable": "La restauration est disponible dans la version publiée de l’app.",
     "restored_title": "Achats restaurés ! ✅",
     "restored_desc": "Vos abonnements actifs ont été restaurés.",
     "restore_none": "Aucun achat actif trouvé pour ce compte.",
-    "restore_failed": "Impossible de restaurer vos achats."
+    "restore_failed": "Impossible de restaurer vos achats.",
+    "match_analysis_one_time": "Achat unique : votre top 5 au moment de l’achat. Rachetez quand vous voulez pour un top 5 à jour.",
+    "buy_analysis": "Obtenir mon top 5",
+    "buy_new_analysis": "Obtenir une nouvelle analyse",
+    "view_last_results": "Voir mes derniers résultats",
+    "view_last_results_date": "Voir mes derniers résultats ({{date}})"
   },
   "permissions": {
     "title": "Autorisation requise",
@@ -568,7 +573,9 @@
     "men": "hommes",
     "matches": "profils",
     "not_set": "non défini",
-    "match_pct": "{{score}} % compatible"
+    "match_pct": "{{score}} % compatible",
+    "results_from": "Résultats du {{date}}. Ils restent tels qu’au moment de l’achat de cette analyse.",
+    "new_analysis": "Obtenir une nouvelle analyse"
   },
   "profile_detail": {
     "daily_limit_reached": "Limite quotidienne atteinte",

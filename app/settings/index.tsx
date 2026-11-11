@@ -30,7 +30,6 @@ import {
   ScrollView,
   Switch,
   Platform,
-  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Avatar } from "@/components/ui/avatar";
@@ -38,6 +37,7 @@ import { useLogout, useDeleteAccountMutation } from "@/api/auth";
 import { useTranslation } from "react-i18next";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
 import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
+import { showAlert } from "@/components/ui/app-alert";
 
 export default function SettingsIndexScreen() {
   const { t, i18n } = useTranslation();
@@ -333,7 +333,7 @@ export default function SettingsIndexScreen() {
           loading={deleteAccount.isPending}
           disabled={deleteAccount.isPending}
           onPress={() => {
-            Alert.alert(
+            showAlert(
               "Delete Account",
               "Are you sure you want to delete your account? This action is permanent and will delete all your data.",
               [

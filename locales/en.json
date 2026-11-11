@@ -64,14 +64,19 @@
     "purchase_recorded": "Purchase recorded. Use Restore Purchases if benefits delay.",
     "purchase_failed": "The store could not complete your purchase.",
     "addon_not_configured": "{{name}} is not configured in the store yet.",
-    "addon_unlocked_title": "Match Analysis Unlocked! 🔬",
-    "addon_unlocked_desc": "Your top 5 compatible profiles are now ready to view.",
+    "addon_unlocked_title": "Your Perfect Match Analysis is ready! 🔬",
+    "addon_unlocked_desc": "Here are your top 5 compatible profiles right now.",
     "addon_failed": "Could not complete purchase. Please try again.",
     "restore_unavailable": "Restore is available in the store production build.",
     "restored_title": "Purchases Restored! ✅",
     "restored_desc": "Your active subscriptions have been restored.",
     "restore_none": "No active purchases found for this account.",
-    "restore_failed": "We couldn't restore your purchases."
+    "restore_failed": "We couldn't restore your purchases.",
+    "match_analysis_one_time": "One-time purchase: your top 5 at the moment you buy. Buy again anytime for an updated top 5.",
+    "buy_analysis": "Get my top 5",
+    "buy_new_analysis": "Get a new analysis",
+    "view_last_results": "View my last results",
+    "view_last_results_date": "View my last results ({{date}})"
   },
   "permissions": {
     "title": "Permission needed",
@@ -568,7 +573,9 @@
     "men": "men",
     "matches": "matches",
     "not_set": "not set",
-    "match_pct": "{{score}}% Match"
+    "match_pct": "{{score}}% Match",
+    "results_from": "Results from {{date}}. These stay as they were when you purchased this analysis.",
+    "new_analysis": "Get a new analysis"
   },
   "profile_detail": {
     "daily_limit_reached": "Daily Limit Reached",

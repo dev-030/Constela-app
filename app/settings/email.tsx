@@ -6,12 +6,13 @@ import { useColor } from '@/hooks/useColor';
 import { router } from 'expo-router';
 import { AtSign, ChevronLeft, Info, Lock } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View, Alert } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useProfileStore } from '@/store/profileStore';
 import { apiClient } from '@/api/client';
 import { useAndroidBack } from '@/hooks/useAndroidBack';
 import { useTranslation } from 'react-i18next';
+import { showAlert } from "@/components/ui/app-alert";
 
 export default function ChangeEmailScreen() {
   const { t } = useTranslation();
@@ -121,7 +122,7 @@ export default function ChangeEmailScreen() {
       router.push({ pathname: "/settings/verify-email", params: { newEmail: submittedEmail } });
     } catch (error: any) {
       const errorMsg = error.response?.data?.error || "An error occurred while requesting verification.";
-      Alert.alert("Request Failed", errorMsg);
+      showAlert("Request Failed", errorMsg);
     } finally {
       setIsLoading(false);
     }

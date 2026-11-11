@@ -135,9 +135,16 @@ export const useInfinitePerfectMatchQuery = (
   });
 };
 
+export interface MatchAnalysisSnapshot {
+  results: MatchProfile[];
+  /** When this top 5 was computed: the moment the analysis was purchased. */
+  generated_at: string | null;
+  purchased_at: string | null;
+}
+
 export const fetchMatchAnalysis = async () => {
-  const response = await apiClient.get<{ results: MatchProfile[] }>('/api/matching/analysis/');
-  return response.data.results;
+  const response = await apiClient.get<MatchAnalysisSnapshot>('/api/matching/analysis/');
+  return response.data;
 };
 
 export const useMatchAnalysisQuery = (enabled = true) => {

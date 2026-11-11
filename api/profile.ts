@@ -17,6 +17,8 @@ export interface AccessSnapshot {
   can_see_likes: boolean;
   can_undo_swipes: boolean;
   has_match_analysis: boolean;
+  /** When the latest Perfect Match Analysis snapshot was computed (one-time purchase). */
+  match_analysis_last_at?: string | null;
   quotas: {
     likes: QuotaSnapshot;
     personal_messages: QuotaSnapshot;

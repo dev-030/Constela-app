@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Alert, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
@@ -13,6 +13,7 @@ import { useProfileStore } from '@/store/profileStore';
 import { updateMyProfile } from '@/api/profile';
 import { useAndroidBack } from '@/hooks/useAndroidBack';
 import { useTranslation } from 'react-i18next';
+import { showAlert } from "@/components/ui/app-alert";
 
 export default function EditLifestyleScreen() {
   const { t } = useTranslation();
@@ -75,7 +76,7 @@ export default function EditLifestyleScreen() {
           errMsg = error.response.data[firstKey];
         }
       }
-      Alert.alert(t('edit_profile.error'), errMsg);
+      showAlert(t('edit_profile.error'), errMsg);
     } finally {
       setIsSaving(false);
     }

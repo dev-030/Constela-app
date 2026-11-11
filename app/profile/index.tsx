@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Alert, Dimensions } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Dimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
@@ -23,6 +23,7 @@ import { uploadPhoto, deletePhoto, setMainPhoto } from '@/api/profile';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { useProfileLabels } from '@/hooks/use-profile-labels';
 import { useTranslation } from 'react-i18next';
+import { showAlert } from "@/components/ui/app-alert";
 
 const InfoRow = ({ icon: IconComp, label, value, isLast = false }: any) => {
   const text = useColor('text');
@@ -160,7 +161,7 @@ export default function ProfileScreen() {
         await fetchProfile();
       } catch (error) {
         console.error('Failed to upload photo:', error);
-        Alert.alert('Upload Failed', 'There was an issue uploading your photo. Please try again.');
+        showAlert('Upload Failed', 'There was an issue uploading your photo. Please try again.');
       } finally {
         setIsUploadingPhoto(false);
         setUploadingSlot(null);
@@ -186,7 +187,7 @@ export default function ProfileScreen() {
         await fetchProfile();
       } catch (error) {
         console.error('Failed to replace photo:', error);
-        Alert.alert('Replace Failed', 'There was an issue updating your photo. Please try again.');
+        showAlert('Replace Failed', 'There was an issue updating your photo. Please try again.');
       } finally {
         setIsUploadingPhoto(false);
       }
@@ -195,11 +196,11 @@ export default function ProfileScreen() {
 
   const handleDeletePhoto = (photoId: string) => {
     if (sortedPhotos.length <= 1) {
-      Alert.alert('Cannot Delete', 'You must have at least one photo on your profile.');
+      showAlert('Cannot Delete', 'You must have at least one photo on your profile.');
       return;
     }
 
-    Alert.alert(
+    showAlert(
       'Delete Photo',
       'Are you sure you want to remove this photo?',
       [
@@ -214,7 +215,7 @@ export default function ProfileScreen() {
               await fetchProfile();
             } catch (error) {
               console.error('Failed to delete photo:', error);
-              Alert.alert('Error', 'Failed to delete photo. Please try again.');
+              showAlert('Error', 'Failed to delete photo. Please try again.');
             } finally {
               setIsUploadingPhoto(false);
             }
@@ -231,7 +232,7 @@ export default function ProfileScreen() {
       await fetchProfile();
     } catch (error) {
       console.error('Failed to set main photo:', error);
-      Alert.alert('Error', 'Failed to set main photo. Please try again.');
+      showAlert('Error', 'Failed to set main photo. Please try again.');
     } finally {
       setIsUploadingPhoto(false);
     }
@@ -247,7 +248,7 @@ export default function ProfileScreen() {
     options.push({ text: t('profile.change_photo'), onPress: () => handleReplacePhoto(photo.id) });
     options.push({ text: t('profile.cancel'), style: 'cancel' });
 
-    Alert.alert(t('profile.photo_options'), isMain ? t('profile.main_photo_desc') : t('profile.choose_action'), options);
+    showAlert(t('profile.photo_options'), isMain ? t('profile.main_photo_desc') : t('profile.choose_action'), options);
   };
 
   const handleAvatarPress = () => {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, TextInput, Alert, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, TextInput, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ChevronLeft, Camera, X } from 'lucide-react-native';
@@ -19,6 +19,7 @@ import { useAndroidBack } from '@/hooks/useAndroidBack';
 import { API_URL } from '@/constants/config';
 import { useTranslation } from 'react-i18next';
 import { useProfileLabels } from '@/hooks/use-profile-labels';
+import { showAlert } from "@/components/ui/app-alert";
 
 const reverseGenderMap: Record<string, string> = {
   woman: "Woman",
@@ -165,7 +166,7 @@ export default function EditBasicScreen() {
 
   const pickImage = async (indexToReplace?: number) => {
     if (indexToReplace === undefined && localPhotos.length >= 3) {
-      Alert.alert('Limit Reached', 'You can upload up to 3 photos.');
+      showAlert('Limit Reached', 'You can upload up to 3 photos.');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -201,7 +202,7 @@ export default function EditBasicScreen() {
   const handleSave = async () => {
     if (!canSave) return;
     if (localPhotos.length === 0) {
-      Alert.alert('Cannot Save', 'You must have at least one profile photo.');
+      showAlert('Cannot Save', 'You must have at least one profile photo.');
       return;
     }
     setIsSaving(true);
@@ -266,7 +267,7 @@ export default function EditBasicScreen() {
           errMsg = error.response.data[firstKey];
         }
       }
-      Alert.alert("Error", errMsg);
+      showAlert("Error", errMsg);
     } finally {
       setIsSaving(false);
     }

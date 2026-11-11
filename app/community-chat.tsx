@@ -10,7 +10,6 @@ import {
   StyleSheet,
   Pressable,
   ActivityIndicator,
-  Alert,
   TextInput,
   FlatList,
   Platform,
@@ -52,6 +51,7 @@ import type { ChatMessage } from "@/api/chat";
 import { useTranslation } from "react-i18next";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
 import { ReactionBar, ReactionPills, type ReactionAnchor } from "@/components/chat/message-reactions";
+import { showAlert } from "@/components/ui/app-alert";
 
 const QUICK_EMOJIS = [
   "😀", "😂", "🤣", "❤️", "😍", "🔥", "👍", "🙌",
@@ -469,7 +469,7 @@ export default function CommunityChatScreen() {
         text: t('chat.leave_room', "Leave Room"),
         style: "destructive",
         onPress: () => {
-          Alert.alert(
+          showAlert(
             t('chat.leave_room_q', "Leave room?"),
             t('chat.leave_room_desc', { title, defaultValue: `You'll stop receiving messages from ${title}.` }),
             [
@@ -480,7 +480,7 @@ export default function CommunityChatScreen() {
                 onPress: () =>
                   leaveMutation.mutate(roomId, {
                     onSuccess: () => router.back(),
-                    onError: () => Alert.alert(t('chat.couldnt_leave', "Couldn't leave"), t('chat.please_try_again', "Please try again.")),
+                    onError: () => showAlert(t('chat.couldnt_leave', "Couldn't leave"), t('chat.please_try_again', "Please try again.")),
                   }),
               },
             ]
@@ -490,7 +490,7 @@ export default function CommunityChatScreen() {
     }
 
     options.push({ text: t('chat.cancel', "Cancel"), style: "cancel" });
-    Alert.alert(t('chat.room_options', "Room Options"), t('chat.choose_action', "Choose an action"), options);
+    showAlert(t('chat.room_options', "Room Options"), t('chat.choose_action', "Choose an action"), options);
   }, [roomId, title, isJoined, leaveMutation, t]);
 
   const commQuota = profile?.access?.quotas.community_messages;
@@ -503,7 +503,7 @@ export default function CommunityChatScreen() {
     const trimmed = text.trim();
     if (!trimmed || !roomId) return;
     if (isCommQuotaExhausted) {
-      Alert.alert(
+      showAlert(
         t('chat.daily_limit_reached', "Daily Limit Reached"),
         t('chat.daily_limit_desc', "You've reached your daily community message limit. Upgrade your subscription or wait until midnight to send more.")
       );
@@ -532,7 +532,7 @@ export default function CommunityChatScreen() {
   const handleJoin = useCallback(() => {
     if (!roomId) return;
     joinMutation.mutate(roomId, {
-      onError: (err: any) => Alert.alert("Error", err?.response?.data?.error || err?.message || t('chat.could_not_join', "Could not join room."))
+      onError: (err: any) => showAlert("Error", err?.response?.data?.error || err?.message || t('chat.could_not_join', "Could not join room."))
     });
   }, [roomId, joinMutation, t]);
 

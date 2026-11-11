@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { ChatSocketProvider } from "@/api/ChatSocketProvider";
 import { Toaster, toast } from "sonner-native";
+import { AlertHost } from "@/components/ui/app-alert";
 import { useAuthStore } from "@/store/authStore";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Colors } from "@/theme/colors";
@@ -288,6 +289,7 @@ export default function RootLayout() {
             <ThemeContextProvider>
               <RootLayoutContent />
               <Toaster />
+              <AlertHost />
             </ThemeContextProvider>
           </ChatSocketProvider>
         </QueryClientProvider>

@@ -14,7 +14,6 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
   Share,
@@ -37,6 +36,7 @@ import {
   purchasePackage as purchasePackageHelper,
 } from "@/api/purchases";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
+import { showAlert } from "@/components/ui/app-alert";
 
 /**
  * RevenueCat Debug Screen
@@ -1122,7 +1122,7 @@ export default function RevenueCatDebugScreen() {
 
         <Pressable
           onPress={() => {
-            Alert.alert(
+            showAlert(
               "Verbose SDK logs",
               "This will print full SDK state to the console. Use Metro / Xcode to inspect.",
               [

@@ -6,7 +6,6 @@ import {
   TextInput,
   RefreshControl,
   ActivityIndicator,
-  Alert,
   ScrollView,
   type NativeSyntheticEvent,
   type NativeScrollEvent,
@@ -47,6 +46,7 @@ import {
   type Suggestion,
   type SuggestionsResponse,
 } from "@/api/friends";
+import { showAlert } from "@/components/ui/app-alert";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 const SEARCH_DEBOUNCE_MS = 300;
@@ -302,12 +302,12 @@ export default function FriendsScreen() {
     acceptMutation.mutate(friendshipId, {
       onError: (err: any) => {
         if (err?.response?.status === 403) {
-          Alert.alert(
+          showAlert(
             "Not allowed",
             err.response.data?.error || "You can&apos;t accept this request."
           );
         } else {
-          Alert.alert("Something went wrong", "Please try again.");
+          showAlert("Something went wrong", "Please try again.");
         }
       },
     });
@@ -316,7 +316,7 @@ export default function FriendsScreen() {
   const handleDecline = (friendshipId: string) => {
     declineMutation.mutate(friendshipId, {
       onError: () => {
-        Alert.alert("Something went wrong", "Please try again.");
+        showAlert("Something went wrong", "Please try again.");
       },
     });
   };
@@ -330,12 +330,12 @@ export default function FriendsScreen() {
         queryClient.invalidateQueries({ queryKey: ["sentFriendRequests"] });
       } catch (err: any) {
         if (err?.response?.status === 400) {
-          Alert.alert(
+          showAlert(
             "Cannot send request",
             err.response.data?.error || "You can't send a request to this user."
           );
         } else {
-          Alert.alert("Something went wrong", "Please try again.");
+          showAlert("Something went wrong", "Please try again.");
         }
         throw err;
       }

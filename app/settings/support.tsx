@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, StyleSheet, TextInput, ScrollView, Alert, KeyboardAvoidingView, Platform, ActivityIndicator, Pressable } from "react-native";
+import { View, StyleSheet, TextInput, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Pressable } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { ChevronLeft } from "lucide-react-native";
@@ -12,6 +12,7 @@ import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useAndroidBack } from '@/hooks/useAndroidBack';
 import { useTranslation } from "react-i18next";
+import { showAlert } from "@/components/ui/app-alert";
 
 export default function SupportScreen() {
   const { t, i18n } = useTranslation();
@@ -32,7 +33,7 @@ export default function SupportScreen() {
 
   const handleSubmit = () => {
     if (!subject.trim() || !description.trim()) {
-      Alert.alert(t('edit_profile.error'), t('settings_pages.support_missing_fields', "Please provide a subject and a description."));
+      showAlert(t('edit_profile.error'), t('settings_pages.support_missing_fields', "Please provide a subject and a description."));
       return;
     }
 
@@ -43,10 +44,10 @@ export default function SupportScreen() {
           setSubject("");
           setDescription("");
           refetch();
-          Alert.alert(t('settings_pages.ticket_submitted'), t('settings_pages.ticket_submitted_desc'));
+          showAlert(t('settings_pages.ticket_submitted'), t('settings_pages.ticket_submitted_desc'));
         },
         onError: () => {
-          Alert.alert(t('edit_profile.error'), t('settings_pages.support_submit_failed', "Could not submit your ticket. Please try again."));
+          showAlert(t('edit_profile.error'), t('settings_pages.support_submit_failed', "Could not submit your ticket. Please try again."));
         }
       }
     );

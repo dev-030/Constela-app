@@ -8,7 +8,6 @@ import {
   ScrollView,
   StyleSheet,
   View,
-  Alert,
 } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useColorScheme } from "@/hooks/useColorScheme";
@@ -47,6 +46,7 @@ import { canAccessCommunity } from "@/api/profile";
 import { syncSubscription } from "@/api/purchases";
 import { useProfileStore } from "@/store/profileStore";
 import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
+import { showAlert } from "@/components/ui/app-alert";
 
 // Cycle accent palettes so each room card has a distinctive visual identity.
 // Mirrors the per-card backgrounds/borders/accent/badge styling in the original mock.
@@ -552,9 +552,9 @@ export default function CommunityScreen() {
     joinMutation.mutate(roomId, {
       onError: (err: any) => {
         if (isPremiumRequiredError(err)) {
-          Alert.alert(t('community.premium_required_alert'), t('community.upgrade_alert_desc'));
+          showAlert(t('community.premium_required_alert'), t('community.upgrade_alert_desc'));
         } else {
-          Alert.alert(t('community.join_error_alert'), t('community.join_error_desc'));
+          showAlert(t('community.join_error_alert'), t('community.join_error_desc'));
         }
       },
     });

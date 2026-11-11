@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, StyleSheet, ScrollView, Pressable, Alert, ActivityIndicator } from "react-native";
+import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator } from "react-native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -23,6 +23,7 @@ import {
 } from "@/api/friends";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
 import { useTranslation } from "react-i18next";
+import { showAlert } from "@/components/ui/app-alert";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -183,7 +184,7 @@ export default function SentRequestsScreen() {
     cancelMutation.mutate(friendshipId, {
       onError: () => {
         onComplete?.();
-        Alert.alert("Something went wrong", "Please try again.");
+        showAlert("Something went wrong", "Please try again.");
       },
     });
   };

@@ -6,11 +6,12 @@ import { useColor } from '@/hooks/useColor';
 import { router } from 'expo-router';
 import { ChevronLeft, Eye, EyeOff, Lock } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View, ScrollView, Alert } from 'react-native';
+import { Pressable, StyleSheet, View, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useChangePasswordMutation } from '@/api/settings';
 import { useAndroidBack } from '@/hooks/useAndroidBack';
 import { useTranslation } from 'react-i18next';
+import { showAlert } from "@/components/ui/app-alert";
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -113,7 +114,7 @@ export default function ChangePasswordScreen() {
   const handleSave = () => {
     const validationError = validate();
     if (validationError) {
-      Alert.alert('Check your input', validationError);
+      showAlert('Check your input', validationError);
       return;
     }
 
@@ -121,7 +122,7 @@ export default function ChangePasswordScreen() {
       { current_password: current, new_password: next },
       {
         onSuccess: () => {
-          Alert.alert(
+          showAlert(
             'Password updated',
             'Your password has been changed successfully.',
             [{ text: 'OK', onPress: () => router.back() }]
@@ -135,7 +136,7 @@ export default function ChangePasswordScreen() {
             err?.response?.data?.error ||
             err?.response?.data?.message ||
             'We couldn\u2019t change your password. Please try again.';
-          Alert.alert('Couldn\u2019t change password', message);
+          showAlert('Couldn\u2019t change password', message);
         },
       }
     );
