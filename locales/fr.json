@@ -314,6 +314,8 @@
     "empty_friends": "Aucun ami avec qui discuter pour le moment.",
     "matched_placeholder": "C'est un match ! Dites bonjour.",
     "voice_message": "Message vocal",
+    "photo": "Photo",
+    "friends_placeholder": "Vous êtes maintenant amis ! Dites bonjour.",
     "yesterday": "Hier",
     "days_ago": "Il y a {{count}} jours",
     "retry": "Réessayer",

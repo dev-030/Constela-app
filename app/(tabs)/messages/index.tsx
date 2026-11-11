@@ -30,6 +30,33 @@ import Animated, {
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 
+
+/**
+ * The server (and the live socket update) build the last-message preview in
+ * English. Map those fixed strings to the user's language.
+ */
+function translateLastMessage(
+  lastMessage: string | null | undefined,
+  t: (key: string, fallback: string) => string,
+): { isVoicePreview: boolean; previewText: string } {
+  const msg = (lastMessage ?? "").trim();
+  if (/^(🎤\s*)?voice message$/i.test(msg)) {
+    return { isVoicePreview: true, previewText: t("messages.voice_message", "Voice message") };
+  }
+  const photo = msg.match(/^📷\s*Photo(?::\s*([\s\S]*))?$/);
+  if (photo) {
+    const label = `📷 ${t("messages.photo", "Photo")}`;
+    return { isVoicePreview: false, previewText: photo[1] ? `${label}: ${photo[1]}` : label };
+  }
+  if (msg === "You've matched! Say hi.") {
+    return { isVoicePreview: false, previewText: t("messages.matched_placeholder", msg) };
+  }
+  if (msg === "You are now friends! Say hi.") {
+    return { isVoicePreview: false, previewText: t("messages.friends_placeholder", msg) };
+  }
+  return { isVoicePreview: false, previewText: lastMessage ?? "" };
+}
+
 // Format a UTC timestamp as "10:45 AM", "Yesterday", or "N days ago".
 function formatThreadTime(iso: string, t?: (key: string, opts?: any) => string): string {
   if (!iso) {
@@ -293,6 +320,7 @@ const ConversationRow = memo(
     isOnline: boolean;
   }) {
     const { t } = useTranslation();
+    const { isVoicePreview, previewText } = translateLastMessage(thread.last_message, t);
     const { isCompact } = useResponsiveLayout();
     const queryClient = useQueryClient();
     const pid = String(thread.profile.id);
@@ -353,11 +381,11 @@ const ConversationRow = memo(
           </View>
           <View style={styles.previewRow}>
             <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-              {thread.last_message === "Voice message" && (
+              {isVoicePreview && (
                 <Mic size={isCompact ? 13 : 14} color={textMuted} style={{ marginRight: 4 }} />
               )}
               <Text numberOfLines={1} style={[styles.messagePreview, { color: textMuted }, isCompact && { fontSize: 13.5, lineHeight: 18 }]}>
-                {thread.last_message}
+                {previewText}
               </Text>
             </View>
             {thread.unread_count > 0 ? (

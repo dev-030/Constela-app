@@ -314,6 +314,8 @@
     "empty_friends": "No friends to chat with yet.",
     "matched_placeholder": "You've matched! Say hi.",
     "voice_message": "Voice message",
+    "photo": "Photo",
+    "friends_placeholder": "You are now friends! Say hi.",
     "yesterday": "Yesterday",
     "days_ago": "{{count}} days ago",
     "retry": "Retry",
