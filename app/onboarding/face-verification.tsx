@@ -25,6 +25,7 @@ import {
   useFrameProcessor,
   runAsync,
 } from "react-native-vision-camera";
+import { showPermissionBlockedAlert } from "@/utils/permissions";
 import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
 import { useFaceDetector } from "react-native-vision-camera-face-detector";
 import { Worklets } from "react-native-worklets-core";
@@ -86,6 +87,13 @@ export default function FaceVerificationScreen() {
   useEffect(() => {
     if (!hasPermission) requestPermission();
   }, [hasPermission]);
+
+  // Tapping "grant camera access": ask again; if the OS refuses without a
+  // prompt (permanently denied), offer a shortcut to the app's settings.
+  const handleGrantCamera = async () => {
+    const granted = await requestPermission();
+    if (!granted) showPermissionBlockedAlert("camera");
+  };
 
   useEffect(() => {
     Animated.loop(
@@ -375,7 +383,7 @@ export default function FaceVerificationScreen() {
               <Text style={{ color: text, marginTop: 12, fontWeight: "600" }}>{t("common.complete", "Complete")}</Text>
             </View>
           ) : !hasPermission ? (
-            <Pressable onPress={requestPermission} style={{ alignItems: "center", justifyContent: "center", padding: 16 }}>
+            <Pressable onPress={handleGrantCamera} style={{ alignItems: "center", justifyContent: "center", padding: 16 }}>
               <Text style={{ fontSize: 40, marginBottom: 8 }}>📷</Text>
               <Text style={{ fontSize: 12, color: muted, textAlign: "center" }}>{t("onboarding.face_grant_camera", "Tap to grant camera access")}</Text>
             </Pressable>

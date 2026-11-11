@@ -17,6 +17,7 @@ import { useProfileStore } from '@/store/profileStore';
 import { useAndroidBack } from '@/hooks/useAndroidBack';
 import { useAuthStore } from '@/store/authStore';
 import * as ImagePicker from 'expo-image-picker';
+import { ensureExpoPermission } from '@/utils/permissions';
 import { Avatar } from '@/components/ui/avatar';
 import { uploadPhoto, deletePhoto, setMainPhoto } from '@/api/profile';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
@@ -141,11 +142,7 @@ export default function ProfileScreen() {
   const mainPhoto = sortedPhotos.find(p => p.is_main) || sortedPhotos[0];
 
   const handleAddPhoto = async (slotIndex?: number) => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Permission needed', 'We need access to your gallery to upload a profile photo.');
-      return;
-    }
+    if (!(await ensureExpoPermission('gallery', ImagePicker.requestMediaLibraryPermissionsAsync))) return;
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -172,11 +169,7 @@ export default function ProfileScreen() {
   };
 
   const handleReplacePhoto = async (photoId: string) => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Permission needed', 'We need access to your gallery to change your photo.');
-      return;
-    }
+    if (!(await ensureExpoPermission('gallery', ImagePicker.requestMediaLibraryPermissionsAsync))) return;
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,

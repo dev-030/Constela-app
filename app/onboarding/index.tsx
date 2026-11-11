@@ -4,6 +4,7 @@ import { Text } from "@/components/ui/text";
 import { useOnboarding, type Gender } from "@/providers/onboarding-context";
 import { useColor } from "@/hooks/useColor";
 import * as ImagePicker from "expo-image-picker";
+import { ensureExpoPermission } from "@/utils/permissions";
 import { Camera, ImagePlus, Check, X } from "lucide-react-native";
 import { useState, useEffect } from "react";
 import { Image, Pressable, ScrollView, TextInput, View, ActivityIndicator } from "react-native";
@@ -43,8 +44,7 @@ export default function OnboardingStep1() {
   const isChecking = isCheckingUsername || (data.username !== debouncedUsername && data.username.length >= 3);
 
   const handlePickPhoto = async (slot: number) => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) return;
+    if (!(await ensureExpoPermission("gallery", ImagePicker.requestMediaLibraryPermissionsAsync))) return;
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,

@@ -11,6 +11,7 @@ import { useProfileStore } from '@/store/profileStore';
 import { apiClient } from '@/api/client';
 import { useThemeContext } from '@/providers/theme-context';
 import { useTranslation } from 'react-i18next';
+import { ensureNotificationPermission } from '@/utils/pushNotifications';
 
 export default function NotificationsScreen() {
   const { t } = useTranslation();
@@ -40,6 +41,10 @@ export default function NotificationsScreen() {
     try {
       if (field === 'likes_push') setMatchesEnabled(value);
       if (field === 'messages_push') setFriendsEnabled(value);
+
+      // Turning a notification on: re-ask for the OS permission (or point to
+      // Settings if it is blocked). The preference is saved either way.
+      if (value) void ensureNotificationPermission();
 
       const response = await apiClient.patch('/api/profile/me/', { [field]: value });
       setProfile(response.data);

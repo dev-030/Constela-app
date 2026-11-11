@@ -2,6 +2,7 @@ import { PermissionsAndroid, Platform } from 'react-native';
 import {
   getMessaging,
   requestPermission,
+  hasPermission,
   getToken,
   deleteToken,
   onTokenRefresh,
@@ -12,6 +13,7 @@ import {
   type RemoteMessage,
 } from '@react-native-firebase/messaging';
 import { apiClient } from '@/api/client';
+import { showPermissionBlockedAlert } from '@/utils/permissions';
 
 export type PushNotificationData = Record<string, string>;
 
@@ -43,6 +45,48 @@ async function hasNotificationPermission(): Promise<boolean> {
     authStatus === AuthorizationStatus.AUTHORIZED ||
     authStatus === AuthorizationStatus.PROVISIONAL
   );
+}
+
+const isAuthorized = (status: number) =>
+  status === AuthorizationStatus.AUTHORIZED || status === AuthorizationStatus.PROVISIONAL;
+
+/**
+ * Called when the user turns on a notification feature. Asks again if the OS
+ * still allows it; if notifications are blocked, shows our "Open Settings"
+ * dialog (the OS will not prompt any more). Registers the push token on success.
+ */
+export async function ensureNotificationPermission(): Promise<boolean> {
+  if (Platform.OS === 'web') return false;
+
+  try {
+    if (Platform.OS === 'android') {
+      if (Platform.Version >= 33) {
+        const result = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
+        if (result !== PermissionsAndroid.RESULTS.GRANTED) {
+          if (result === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) showPermissionBlockedAlert('notifications');
+          return false;
+        }
+      }
+      // Covers notifications switched off in the system settings (any Android version).
+      if (!isAuthorized(await hasPermission(getMessaging()))) {
+        showPermissionBlockedAlert('notifications');
+        return false;
+      }
+    } else {
+      const status = await requestPermission(getMessaging());
+      if (!isAuthorized(status)) {
+        // iOS only shows its prompt once; after that the status is DENIED.
+        if (status === AuthorizationStatus.DENIED) showPermissionBlockedAlert('notifications');
+        return false;
+      }
+    }
+  } catch (error) {
+    console.warn('Failed to check notification permission:', error);
+    return false;
+  }
+
+  void registerForPushNotificationsAsync();
+  return true;
 }
 
 /**

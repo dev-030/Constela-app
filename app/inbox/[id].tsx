@@ -45,6 +45,7 @@ import {
   Lock,
 } from "lucide-react-native";
 import * as ImagePicker from "expo-image-picker";
+import { ensureExpoPermission } from "@/utils/permissions";
 import * as Haptics from "expo-haptics";
 import { File } from "expo-file-system";
 import {
@@ -1286,14 +1287,7 @@ export default function ChatScreen() {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch {}
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) {
-      Alert.alert(
-        t("chat.permission_needed", "Permission needed"),
-        t("chat.gallery_permission", "We need gallery access to share photos."),
-      );
-      return;
-    }
+    if (!(await ensureExpoPermission("gallery", ImagePicker.requestMediaLibraryPermissionsAsync))) return;
     // No allowsEditing: the native crop screen shows an OS-labelled
     // "Crop/Redimensionner" button. We show our own translated preview instead.
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -1309,14 +1303,7 @@ export default function ChatScreen() {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch {}
-    const perm = await ImagePicker.requestCameraPermissionsAsync();
-    if (!perm.granted) {
-      Alert.alert(
-        t("chat.permission_needed", "Permission needed"),
-        t("chat.camera_permission", "We need camera access to take photos."),
-      );
-      return;
-    }
+    if (!(await ensureExpoPermission("camera", ImagePicker.requestCameraPermissionsAsync))) return;
     const result = await ImagePicker.launchCameraAsync({
       quality: 0.7,
     });
@@ -1398,11 +1385,7 @@ export default function ChatScreen() {
       await stopAndSendVoice();
       return;
     }
-    const permission = await requestRecordingPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert("Permission needed", "Allow microphone access to send voice messages.");
-      return;
-    }
+    if (!(await ensureExpoPermission("microphone", requestRecordingPermissionsAsync))) return;
     try {
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
       await audioRecorder.prepareToRecordAsync();

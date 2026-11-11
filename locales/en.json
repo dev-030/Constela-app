@@ -1,4 +1,13 @@
 {
+  "permissions": {
+    "title": "Permission needed",
+    "open_settings": "Open Settings",
+    "not_now": "Not now",
+    "camera_message": "Camera access is turned off. Allow it in Settings to take photos.",
+    "gallery_message": "Photo access is turned off. Allow it in Settings to share photos.",
+    "microphone_message": "Microphone access is turned off. Allow it in Settings to send voice messages.",
+    "notifications_message": "Notifications are turned off. Allow them in Settings to get alerts for matches and messages."
+  },
   "common": {
     "back": "Back",
     "continue": "Continue",

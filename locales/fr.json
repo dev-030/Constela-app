@@ -1,4 +1,13 @@
 {
+  "permissions": {
+    "title": "Autorisation requise",
+    "open_settings": "Ouvrir les réglages",
+    "not_now": "Plus tard",
+    "camera_message": "L’accès à l’appareil photo est désactivé. Autorisez-le dans les réglages pour prendre des photos.",
+    "gallery_message": "L’accès aux photos est désactivé. Autorisez-le dans les réglages pour partager des photos.",
+    "microphone_message": "L’accès au micro est désactivé. Autorisez-le dans les réglages pour envoyer des messages vocaux.",
+    "notifications_message": "Les notifications sont désactivées. Autorisez-les dans les réglages pour être alerté(e) des matchs et des messages."
+  },
   "common": {
     "back": "Retour",
     "continue": "Continuer",
