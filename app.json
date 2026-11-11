@@ -59,6 +59,7 @@
           "resizeMode": "contain",
           "backgroundColor": "#FFFFFF",
           "dark": {
+            "image": "./assets/images/constela_logo.png",
             "backgroundColor": "#000000"
           }
         }
