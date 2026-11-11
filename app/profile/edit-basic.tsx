@@ -22,6 +22,7 @@ import { useProfileLabels } from '@/hooks/use-profile-labels';
 import { showAlert } from "@/components/ui/app-alert";
 import { LanguageSelect } from '@/components/language-select';
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
+import { MAX_AGE, MIN_AGE } from '@/constants/age';
 
 const reverseGenderMap: Record<string, string> = {
   woman: "Woman",
@@ -162,7 +163,13 @@ export default function EditBasicScreen() {
     educationLevel !== (profile?.education_level || '') ||
     spokenLanguages.join('|') !== (profile?.spoken_languages ?? []).join('|');
 
-  const canSave = !usernameError && hasChanged;
+  // Adults only: an age under 18 (or nonsense) can't be saved.
+  const ageError = age && (Number(age) < MIN_AGE || Number(age) > MAX_AGE)
+    ? Number(age) < MIN_AGE
+      ? t('onboarding.age_min', { defaultValue: 'You must be at least {{min}} to use Constela.', min: MIN_AGE })
+      : t('onboarding.age_invalid', 'Please enter a valid age.')
+    : '';
+  const canSave = !usernameError && !ageError && hasChanged;
 
   const [isSaving, setIsSaving] = useState(false);
 
@@ -376,9 +383,10 @@ export default function EditBasicScreen() {
         <View style={{ flexDirection: 'row', gap: 12 }}>
           <View style={[styles.formGroup, { flex: 1 }]}>
             <Text style={styles.inputLabel}>{t('edit_profile.age')} *</Text>
-            <View style={[styles.inputContainer, { borderColor: border, backgroundColor: cardColor }]}>
-              <TextInput style={[styles.inputValue, { color: text }]} value={age} onChangeText={setAge} keyboardType="numeric" placeholderTextColor={muted} />
+            <View style={[styles.inputContainer, { borderColor: ageError ? '#EF4444' : border, backgroundColor: cardColor }]}>
+              <TextInput style={[styles.inputValue, { color: text }]} value={age} onChangeText={(v) => setAge(v.replace(/[^0-9]/g, ''))} keyboardType="numeric" maxLength={3} placeholderTextColor={muted} />
             </View>
+            {ageError ? <Text style={{ color: '#EF4444', fontSize: 12, marginTop: 4 }}>{ageError}</Text> : null}
           </View>
           <View style={[styles.formGroup, { flex: 1 }]}>
             <Text style={styles.inputLabel}>{t('edit_profile.height')}</Text>

@@ -342,7 +342,9 @@
     "photo_verify_capture_failed": "Couldn't take the photo. Please try again.",
     "photo_verify_upload_failed": "Upload failed. Please try again.",
     "photo_verify_submitted_title": "Photo submitted",
-    "photo_verify_submitted_desc": "Thanks! Our team will compare it with your profile pictures. You'll be notified once it's reviewed."
+    "photo_verify_submitted_desc": "Thanks! Our team will compare it with your profile pictures. You'll be notified once it's reviewed.",
+    "age_min": "You must be at least {{min}} to use Constela.",
+    "age_invalid": "Please enter a valid age."
   },
   "matches": {
     "analysis_banner_title": "Perfect Match Analysis",

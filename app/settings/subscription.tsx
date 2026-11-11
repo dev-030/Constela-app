@@ -1175,12 +1175,6 @@ export default function SubscriptionScreen() {
                   text={text}
                 />
                 <FeatureRow
-                  label={t("subscription.feature_ads", "Ads displayed (Banner + Video)")}
-                  muted={muted}
-                  primary={primary}
-                  text={text}
-                />
-                <FeatureRow
                   label={dailyLimitLabel(tierRules.freemium.daily_community_messages_limit, "community")}
                   muted={muted}
                   primary={primary}
@@ -1457,12 +1451,6 @@ export default function SubscriptionScreen() {
                 <FeatureRow
                   label={t("subscription.feature_rewind", "Rewind swipes")}
                   available={tierRules.plus.can_undo_swipes}
-                  muted={muted}
-                  primary={primary}
-                  text={text}
-                />
-                <FeatureRow
-                  label={t("subscription.feature_no_ads", "No Ads")}
                   muted={muted}
                   primary={primary}
                   text={text}
@@ -1797,7 +1785,7 @@ export default function SubscriptionScreen() {
             >
               <TouchableOpacity
                 onPress={() =>
-                  Linking.openURL("https://constela-dating.com/privacy")
+                  Linking.openURL("https://constela-dating.com/terms")
                 }
               >
                 <Text

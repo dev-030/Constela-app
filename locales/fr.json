@@ -342,7 +342,9 @@
     "photo_verify_capture_failed": "Impossible de prendre la photo. Veuillez réessayer.",
     "photo_verify_upload_failed": "L’envoi a échoué. Veuillez réessayer.",
     "photo_verify_submitted_title": "Photo envoyée",
-    "photo_verify_submitted_desc": "Merci ! Notre équipe va la comparer avec vos photos de profil. Vous serez averti(e) dès qu’elle sera examinée."
+    "photo_verify_submitted_desc": "Merci ! Notre équipe va la comparer avec vos photos de profil. Vous serez averti(e) dès qu’elle sera examinée.",
+    "age_min": "Vous devez avoir au moins {{min}} ans pour utiliser Constela.",
+    "age_invalid": "Veuillez saisir un âge valide."
   },
   "matches": {
     "analysis_banner_title": "Analyse de compatibilité parfaite",

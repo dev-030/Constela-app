@@ -17,7 +17,9 @@
         "aps-environment": "production"
       },
       "infoPlist": {
-        "UIBackgroundModes": ["remote-notification"]
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
       }
     },
     "android": {
@@ -34,6 +36,9 @@
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",
         "android.permission.POST_NOTIFICATIONS"
+      ],
+      "blockedPermissions": [
+        "android.permission.SYSTEM_ALERT_WINDOW"
       ]
     },
     "web": {
@@ -68,7 +73,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow Constela to access your camera for face verification."
+          "cameraPermission": "Allow Constela to use your camera to take profile photos, photos for chats, and your live verification photo."
         }
       ],
       [
@@ -76,7 +81,7 @@
         {
           "android": {
             "minSdkVersion": 26,
-            "usesCleartextTraffic": true,
+            "usesCleartextTraffic": false,
             "enableProguardInReleaseBuilds": true,
             "enableShrinkResourcesInReleaseBuilds": true,
             "enableMinifyInReleaseBuilds": true

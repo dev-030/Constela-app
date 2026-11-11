@@ -11,6 +11,7 @@ import { Image, Pressable, ScrollView, TextInput, View, ActivityIndicator } from
 import { useCheckUsernameQuery } from "@/api/auth";
 import { useTranslation } from "react-i18next";
 import { useRouter } from "expo-router";
+import { MAX_AGE, MIN_AGE } from "@/constants/age";
 
 const GENDERS: Gender[] = ["Woman", "Man", "Non-binary", "Other"];
 
@@ -72,8 +73,16 @@ export default function OnboardingStep1() {
     } else {
       setUsernameError("");
     }
+    const ageNumber = Number(data.age);
     if (!data.age.trim()) {
       setAgeError(t("onboarding.age_required", "Age is required"));
+      ok = false;
+    } else if (ageNumber < MIN_AGE) {
+      // Adults only (Terms of Service, Google Play dating policy).
+      setAgeError(t("onboarding.age_min", { defaultValue: "You must be at least {{min}} to use Constela.", min: MIN_AGE }));
+      ok = false;
+    } else if (ageNumber > MAX_AGE) {
+      setAgeError(t("onboarding.age_invalid", "Please enter a valid age."));
       ok = false;
     } else {
       setAgeError("");
@@ -162,7 +171,8 @@ export default function OnboardingStep1() {
     data.username.trim().length >= 3 &&
     !isChecking &&
     usernameCheck?.available === true &&
-    data.age.trim().length > 0 &&
+    Number(data.age) >= MIN_AGE &&
+    Number(data.age) <= MAX_AGE &&
     data.height.trim().length > 0 &&
     data.gender !== null &&
     data.genderPreference !== null;
@@ -275,7 +285,16 @@ export default function OnboardingStep1() {
             >
               <TextInput
                 value={data.age}
-                onChangeText={(v) => update("age", v.replace(/[^0-9]/g, ""))}
+                onChangeText={(v) => {
+                  const digits = v.replace(/[^0-9]/g, "");
+                  update("age", digits);
+                  // Explain right away why Continue stays disabled for under-18s.
+                  if (digits.length >= 2 && Number(digits) < MIN_AGE) {
+                    setAgeError(t("onboarding.age_min", { defaultValue: "You must be at least {{min}} to use Constela.", min: MIN_AGE }));
+                  } else if (ageError) {
+                    setAgeError("");
+                  }
+                }}
                 keyboardType="number-pad"
                 maxLength={3}
                 placeholder="25"
