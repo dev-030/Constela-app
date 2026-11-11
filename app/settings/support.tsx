@@ -9,12 +9,14 @@ import { Icon } from "@/components/ui/icon";
 import { useColor } from "@/hooks/useColor";
 import { useSubmitSupportTicketMutation, useMySupportTicketsQuery } from "@/api/settings";
 import { formatDistanceToNow } from "date-fns";
+import { fr } from "date-fns/locale";
 import { useAndroidBack } from '@/hooks/useAndroidBack';
 import { useTranslation } from "react-i18next";
 
 export default function SupportScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   useAndroidBack();
+  const dateLocale = i18n.language?.startsWith("fr") ? fr : undefined;
   const insets = useSafeAreaInsets();
   const background = useColor("background");
   const text = useColor("text");
@@ -30,7 +32,7 @@ export default function SupportScreen() {
 
   const handleSubmit = () => {
     if (!subject.trim() || !description.trim()) {
-      Alert.alert(t('edit_profile.error'), "Please provide a subject and a description.");
+      Alert.alert(t('edit_profile.error'), t('settings_pages.support_missing_fields', "Please provide a subject and a description."));
       return;
     }
 
@@ -44,7 +46,7 @@ export default function SupportScreen() {
           Alert.alert(t('settings_pages.ticket_submitted'), t('settings_pages.ticket_submitted_desc'));
         },
         onError: () => {
-          Alert.alert(t('edit_profile.error'), "Could not submit your ticket. Please try again.");
+          Alert.alert(t('edit_profile.error'), t('settings_pages.support_submit_failed', "Could not submit your ticket. Please try again."));
         }
       }
     );
@@ -76,7 +78,7 @@ export default function SupportScreen() {
         <Text style={[styles.label, { color: text }]}>{t('settings_pages.subject')}</Text>
         <TextInput
           style={[styles.input, { color: text, borderColor: border, backgroundColor: cardColor }]}
-          placeholder="e.g., Billing Issue, Bug Report"
+          placeholder={t('settings_pages.support_subject_placeholder', "e.g., Billing Issue, Bug Report")}
           placeholderTextColor={muted}
           value={subject}
           onChangeText={setSubject}
@@ -89,7 +91,7 @@ export default function SupportScreen() {
             styles.textArea,
             { color: text, borderColor: border, backgroundColor: cardColor }
           ]}
-          placeholder="Please describe your problem in detail..."
+          placeholder={t('settings_pages.support_description_placeholder', "Please describe your problem in detail...")}
           placeholderTextColor={muted}
           value={description}
           onChangeText={setDescription}
@@ -99,18 +101,18 @@ export default function SupportScreen() {
 
         {tickets && tickets.length > 0 && (
           <View style={styles.historySection}>
-            <Text style={[styles.historyTitle, { color: text }]}>Previous Tickets</Text>
+            <Text style={[styles.historyTitle, { color: text }]}>{t('settings_pages.previous_tickets', "Previous Tickets")}</Text>
             {tickets.map((tItem) => (
               <View key={tItem.id} style={[styles.ticketCard, { backgroundColor: cardColor, borderColor: border }]}>
                 <View style={styles.ticketHeader}>
                   <Text style={[styles.ticketSubject, { color: text }]} numberOfLines={1}>{tItem.subject}</Text>
                   <View style={[styles.statusBadge, { backgroundColor: tItem.status === 'resolved' ? '#10b981' : tItem.status === 'in_progress' ? '#f59e0b' : '#3b82f6' }]}>
-                    <Text style={styles.statusText}>{tItem.status.replace('_', ' ').toUpperCase()}</Text>
+                    <Text style={styles.statusText}>{String(t(`settings_pages.ticket_status_${tItem.status}`, tItem.status.replace(/_/g, ' ').toUpperCase()))}</Text>
                   </View>
                 </View>
                 <Text style={[styles.ticketDesc, { color: muted }]} numberOfLines={2}>{tItem.description}</Text>
                 <Text style={[styles.ticketDate, { color: muted }]}>
-                  {formatDistanceToNow(new Date(tItem.created_at), { addSuffix: true })}
+                  {formatDistanceToNow(new Date(tItem.created_at), { addSuffix: true, locale: dateLocale })}
                 </Text>
               </View>
             ))}

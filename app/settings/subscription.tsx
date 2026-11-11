@@ -60,6 +60,8 @@ import Purchases, {
 } from "react-native-purchases";
 import VerificationOverlay from "@/components/VerificationOverlay";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
+import { useTranslation } from "react-i18next";
+import i18n from "@/app/i18n";
 
 type LightPlanChoice = "1m" | "3m" | "6m" | "1yr" | "lifetime";
 type PlusPlanChoice = "1m" | "3m" | "6m" | "1yr" | "lifetime";
@@ -67,13 +69,22 @@ type PlusPlanChoice = "1m" | "3m" | "6m" | "1yr" | "lifetime";
 // Display labels for each plan choice. The actual price + currency come from
 // RevenueCat (PurchasesPackage.product.priceString) at render time, so the UI
 // never hardcodes money — see findPackageForChoice below.
-const PLAN_DURATION_LABEL: Record<LightPlanChoice, string> = {
+const PLAN_DURATION_KEY: Record<LightPlanChoice, string> = {
+  "1m": "duration_1m",
+  "3m": "duration_3m",
+  "6m": "duration_6m",
+  "1yr": "duration_1yr",
+  lifetime: "duration_lifetime",
+};
+const PLAN_DURATION_FALLBACK: Record<LightPlanChoice, string> = {
   "1m": "1 MONTH",
   "3m": "3 MONTHS",
   "6m": "6 MONTHS",
   "1yr": "1 YEAR",
   lifetime: "LIFETIME",
 };
+const planDurationLabel = (plan: LightPlanChoice) =>
+  i18n.t(`subscription.${PLAN_DURATION_KEY[plan]}`, PLAN_DURATION_FALLBACK[plan]);
 
 // Explicit identifiers for each plan, in priority order. The first match wins.
 // `premium_plus:*` / `premium_light:*` are the canonical identifiers
@@ -146,13 +157,13 @@ function durationLabel(raw: string): string {
 
   // Order matters: longer/more specific keywords first.
   if (/semi\s*annual|semi_annual|six\s*month|six_month|6\s*month|6mo|\b6m\b/.test(s))
-    return "6 MONTHS";
+    return planDurationLabel("6m");
   if (/quarter|three\s*month|three_month|3\s*month|3mo|\b3m\b/.test(s))
-    return "3 MONTHS";
-  if (/annual|yearly|1\s*year|1yr|12\s*month|\b1y\b/.test(s)) return "1 YEAR";
+    return planDurationLabel("3m");
+  if (/annual|yearly|1\s*year|1yr|12\s*month|\b1y\b/.test(s)) return planDurationLabel("1yr");
   if (/monthly|month(?!.*six|.*three|.*annual)|\b1m\b/.test(s))
-    return "1 MONTH";
-  if (/lifetime|forever/.test(s)) return "LIFETIME";
+    return planDurationLabel("1m");
+  if (/lifetime|forever/.test(s)) return planDurationLabel("lifetime");
 
   // Unknown — if it's just the tier name, return empty string so fallback kicks in
   if (/^premium_(light|plus)$/i.test(s)) {
@@ -199,16 +210,27 @@ function FeatureRow({
   );
 }
 
-function dailyLimitLabel(limit: number | null | undefined, label: string) {
-  if (limit === undefined) return "Loading plan limit…";
-  return limit === null ? `Unlimited ${label}` : `${limit} ${label} per day`;
+type LimitKind = "likes" | "personal" | "community";
+const LIMIT_FALLBACK: Record<LimitKind, string> = {
+  likes: "likes",
+  personal: "personal messages",
+  community: "community messages",
+};
+
+function dailyLimitLabel(limit: number | null | undefined, kind: LimitKind) {
+  if (limit === undefined) return i18n.t("subscription.limit_loading", "Loading plan limit…");
+  return limit === null
+    ? i18n.t(`subscription.${kind}_unlimited`, `Unlimited ${LIMIT_FALLBACK[kind]}`)
+    : i18n.t(`subscription.${kind}_per_day`, { defaultValue: `{{count}} ${LIMIT_FALLBACK[kind]} per day`, count: limit });
 }
 
 function roomLimitLabel(limit: number | null | undefined) {
-  if (limit === undefined) return "Loading room access…";
-  if (limit === null) return "Access to all chat rooms";
-  if (limit === 0) return "No chat room access";
-  return `Access to ${limit} chat ${limit === 1 ? "room" : "rooms"}`;
+  if (limit === undefined) return i18n.t("subscription.rooms_loading", "Loading room access…");
+  if (limit === null) return i18n.t("subscription.rooms_all", "Access to all chat rooms");
+  if (limit === 0) return i18n.t("subscription.rooms_none", "No chat room access");
+  return limit === 1
+    ? i18n.t("subscription.rooms_one", { defaultValue: "Access to {{count}} chat room", count: limit })
+    : i18n.t("subscription.rooms_many", { defaultValue: "Access to {{count}} chat rooms", count: limit });
 }
 
 function PriceChip({
@@ -478,6 +500,7 @@ const segStyles = StyleSheet.create({
 
 export default function SubscriptionScreen() {
   useAndroidBack();
+  const { t } = useTranslation();
   const { isCompact, isNarrow, horizontalPadding } = useResponsiveLayout();
   const background = useColor("background");
   const text = useColor("text");
@@ -694,8 +717,8 @@ export default function SubscriptionScreen() {
 
     if (pkg && rcPackageId === currentProductId) {
       Alert.alert(
-        "Already on this plan",
-        `You're already subscribed to this exact plan duration.`,
+        t("subscription.already_title", "Already on this plan"),
+        t("subscription.already_desc", "You're already subscribed to this exact plan duration."),
       );
       return;
     }
@@ -703,7 +726,7 @@ export default function SubscriptionScreen() {
     const executePurchase = async () => {
       if (isPurchasing) return;
       if (!pkg) {
-        toast.error("This plan is not configured in the store yet.");
+        toast.error(t("subscription.not_configured", "This plan is not configured in the store yet."));
         return;
       }
       setIsPurchasing(true);
@@ -737,15 +760,15 @@ export default function SubscriptionScreen() {
         setManagementURL(info.managementURL ?? null);
         // 4. Sleek in-app celebration toast
         const tierTitle = tier === "plus" ? tierRules.plus.name : tierRules.light.name;
-        toast.success(`Welcome to ${tierTitle}! 🎉`, {
-          description: "Your verified subscription is now active.",
+        toast.success(t("subscription.welcome_title", { defaultValue: "Welcome to {{name}}! 🎉", name: tierTitle }), {
+          description: t("subscription.welcome_desc", "Your verified subscription is now active."),
         });
         // 5. Background sync with backend & invalidate queries
         void syncSubscription()
           .then((verified) => {
             void queryClient.invalidateQueries();
             if (verified.subscription_tier !== tier && verified.subscription_tier !== "plus") {
-              toast.info("Store verification in progress. Access will update shortly.");
+              toast.info(t("subscription.verification_pending", "Store verification in progress. Access will update shortly."));
             }
           })
           .catch(() => {
@@ -755,9 +778,9 @@ export default function SubscriptionScreen() {
         setIsPurchasing(false);
         const isCancel = error?.userCancelled || error?.code === "1";
         if (purchased) {
-          toast.info("Purchase recorded. Use Restore Purchases if benefits delay.");
+          toast.info(t("subscription.purchase_recorded", "Purchase recorded. Use Restore Purchases if benefits delay."));
         } else if (!isCancel) {
-          toast.error(error?.message || "The store could not complete your purchase.");
+          toast.error(error?.message || t("subscription.purchase_failed", "The store could not complete your purchase."));
         }
       }
     };
@@ -769,7 +792,7 @@ export default function SubscriptionScreen() {
     if (isPurchasing) return;
     const pkg = matchAnalysisPackage;
     if (!pkg) {
-      toast.error(label + " is not configured in the store yet.");
+      toast.error(t("subscription.addon_not_configured", { defaultValue: "{{name}} is not configured in the store yet.", name: label }));
       return;
     }
     setIsPurchasing(true);
@@ -784,8 +807,8 @@ export default function SubscriptionScreen() {
       setIsPurchasing(false);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setCustomerInfo(info);
-      toast.success("Match Analysis Unlocked! 🔬", {
-        description: "Your top 5 compatible profiles are now ready to view.",
+      toast.success(t("subscription.addon_unlocked_title", "Match Analysis Unlocked! 🔬"), {
+        description: t("subscription.addon_unlocked_desc", "Your top 5 compatible profiles are now ready to view."),
       });
       void syncSubscription()
         .then(() => queryClient.invalidateQueries())
@@ -794,7 +817,7 @@ export default function SubscriptionScreen() {
       setIsPurchasing(false);
       const isCancel = error?.userCancelled || error?.code === "1";
       if (!isCancel) {
-        toast.error(error?.message || "Could not complete purchase. Please try again.");
+        toast.error(error?.message || t("subscription.addon_failed", "Could not complete purchase. Please try again."));
       }
     }
   };
@@ -831,12 +854,12 @@ export default function SubscriptionScreen() {
     // If duration is empty or just generic, match against known keywords
     if (!duration || /^premium/i.test(duration)) {
       const matchTarget = `${targetIdentifier} ${profile?.subscription_product_id || ""}`.toLowerCase();
-      if (/semi|6m|six/i.test(matchTarget)) duration = "6 MONTHS";
-      else if (/annual|year|12m|1y/i.test(matchTarget)) duration = "1 YEAR";
-      else if (/quarter|3m|three/i.test(matchTarget)) duration = "3 MONTHS";
-      else if (/month|1m/i.test(matchTarget)) duration = "1 MONTH";
-      else if (/lifetime/i.test(matchTarget)) duration = "LIFETIME";
-      else duration = "1 MONTH"; // Fallback for bare identifiers
+      if (/semi|6m|six/i.test(matchTarget)) duration = planDurationLabel("6m");
+      else if (/annual|year|12m|1y/i.test(matchTarget)) duration = planDurationLabel("1yr");
+      else if (/quarter|3m|three/i.test(matchTarget)) duration = planDurationLabel("3m");
+      else if (/month|1m/i.test(matchTarget)) duration = planDurationLabel("1m");
+      else if (/lifetime/i.test(matchTarget)) duration = planDurationLabel("lifetime");
+      else duration = planDurationLabel("1m"); // Fallback for bare identifiers
     }
 
     // Expiration or renewal text
@@ -847,9 +870,9 @@ export default function SubscriptionScreen() {
         const expDate = new Date(rawExp);
         const willRenew = primary ? primary.willRenew : true;
         if (willRenew) {
-          expiresText = `Renews: ${expDate.toLocaleDateString()}`;
+          expiresText = t("subscription.renews", { defaultValue: "Renews: {{date}}", date: expDate.toLocaleDateString(i18n.language) });
         } else {
-          expiresText = `Expires: ${expDate.toLocaleDateString()} (Auto-renew off)`;
+          expiresText = t("subscription.expires_auto_off", { defaultValue: "Expires: {{date}} (Auto-renew off)", date: expDate.toLocaleDateString(i18n.language) });
         }
       } catch (e) {}
     }
@@ -883,7 +906,7 @@ export default function SubscriptionScreen() {
 
   const handleRestore = async () => {
     if (!isNativeModuleAvailable()) {
-      toast.info("Restore is available in the store production build.");
+      toast.info(t("subscription.restore_unavailable", "Restore is available in the store production build."));
       return;
     }
     try {
@@ -896,15 +919,15 @@ export default function SubscriptionScreen() {
       setIsPurchasing(false);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       if (verified.subscription_tier !== "freemium" || verified.has_match_analysis) {
-        toast.success("Purchases Restored! ✅", {
-          description: "Your active subscriptions have been restored.",
+        toast.success(t("subscription.restored_title", "Purchases Restored! ✅"), {
+          description: t("subscription.restored_desc", "Your active subscriptions have been restored."),
         });
       } else {
-        toast.info("No active purchases found for this account.");
+        toast.info(t("subscription.restore_none", "No active purchases found for this account."));
       }
     } catch (e: any) {
       setIsPurchasing(false);
-      toast.error(e.message || "We couldn't restore your purchases.");
+      toast.error(e.message || t("subscription.restore_failed", "We couldn't restore your purchases."));
     }
   };
 
@@ -971,7 +994,7 @@ export default function SubscriptionScreen() {
               style={[styles.headerTitle, { color: text }]}
               numberOfLines={1}
             >
-              Subscription
+              {t("subscription.title", "Subscription")}
             </Text>
           </View>
           <View style={styles.headerRight} />
@@ -1011,7 +1034,7 @@ export default function SubscriptionScreen() {
                     letterSpacing: 0.5,
                   }}
                 >
-                  ACTIVE PLAN
+                  {t("subscription.active_plan", "ACTIVE PLAN")}
                 </Text>
                 <Text
                   style={{
@@ -1036,8 +1059,8 @@ export default function SubscriptionScreen() {
                 onPress={async () => {
                   if (!isNativeModuleAvailable()) {
                     Alert.alert(
-                      "Manage Subscription",
-                      "Subscription management is only available in a production build. Please use your device's App Store / Play Store subscriptions page.",
+                      t("subscription.manage_title", "Manage Subscription"),
+                      t("subscription.manage_dev_only", "Subscription management is only available in a production build. Please use your device's App Store / Play Store subscriptions page."),
                     );
                     return;
                   }
@@ -1050,8 +1073,8 @@ export default function SubscriptionScreen() {
                     await Linking.openURL(url);
                   } catch (e: any) {
                     Alert.alert(
-                      "Manage Subscription",
-                      e?.message || "Could not open subscription management.",
+                      t("subscription.manage_title", "Manage Subscription"),
+                      e?.message || t("subscription.manage_open_failed", "Could not open subscription management."),
                     );
                   }
                 }}
@@ -1066,7 +1089,7 @@ export default function SubscriptionScreen() {
                 <Text
                   style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 14 }}
                 >
-                  Manage
+                  {t("subscription.manage", "Manage")}
                 </Text>
               </Pressable>
             </View>
@@ -1103,7 +1126,7 @@ export default function SubscriptionScreen() {
                   marginBottom: isCompact ? 16 : 24,
                 }}
               >
-                The basic experience.
+                {t("subscription.freemium_tagline", "The basic experience.")}
               </Text>
 
               <View
@@ -1113,7 +1136,7 @@ export default function SubscriptionScreen() {
                 }}
               >
                 <FeatureRow
-                  label="Browse dating & friendship profiles"
+                  label={t("subscription.feature_browse", "Browse dating & friendship profiles")}
                   muted={muted}
                   primary={primary}
                   text={text}
@@ -1125,33 +1148,33 @@ export default function SubscriptionScreen() {
                   text={text}
                 />
                 <FeatureRow
-                  label="See who liked you"
+                  label={t("subscription.feature_see_likes", "See who liked you")}
                   available={tierRules.freemium.can_see_likes}
                   muted={muted}
                   primary={primary}
                   text={text}
                 />
                 <FeatureRow
-                  label="Rewind swipes"
+                  label={t("subscription.feature_rewind", "Rewind swipes")}
                   available={tierRules.freemium.can_undo_swipes}
                   muted={muted}
                   primary={primary}
                   text={text}
                 />
                 <FeatureRow
-                  label={dailyLimitLabel(tierRules.freemium.daily_personal_messages_limit, "personal messages")}
+                  label={dailyLimitLabel(tierRules.freemium.daily_personal_messages_limit, "personal")}
                   muted={muted}
                   primary={primary}
                   text={text}
                 />
                 <FeatureRow
-                  label="Ads displayed (Banner + Video)"
+                  label={t("subscription.feature_ads", "Ads displayed (Banner + Video)")}
                   muted={muted}
                   primary={primary}
                   text={text}
                 />
                 <FeatureRow
-                  label={dailyLimitLabel(tierRules.freemium.daily_community_messages_limit, "community messages")}
+                  label={dailyLimitLabel(tierRules.freemium.daily_community_messages_limit, "community")}
                   muted={muted}
                   primary={primary}
                   text={text}
@@ -1186,7 +1209,7 @@ export default function SubscriptionScreen() {
                   marginBottom: isCompact ? 16 : 24,
                 }}
               >
-                For serious, intentional browsing.
+                {t("subscription.light_tagline", "For serious, intentional browsing.")}
               </Text>
 
               <View
@@ -1196,14 +1219,14 @@ export default function SubscriptionScreen() {
                 }}
               >
                 <FeatureRow
-                  label="See who liked you"
+                  label={t("subscription.feature_see_likes", "See who liked you")}
                   available={tierRules.light.can_see_likes}
                   muted={muted}
                   primary={primary}
                   text={text}
                 />
                 <FeatureRow
-                  label="Rewind swipes"
+                  label={t("subscription.feature_rewind", "Rewind swipes")}
                   available={tierRules.light.can_undo_swipes}
                   muted={muted}
                   primary={primary}
@@ -1216,13 +1239,13 @@ export default function SubscriptionScreen() {
                   text={text}
                 />
                 <FeatureRow
-                  label={dailyLimitLabel(tierRules.light.daily_personal_messages_limit, "personal messages")}
+                  label={dailyLimitLabel(tierRules.light.daily_personal_messages_limit, "personal")}
                   muted={muted}
                   primary={primary}
                   text={text}
                 />
                 <FeatureRow
-                  label={dailyLimitLabel(tierRules.light.daily_community_messages_limit, "community messages")}
+                  label={dailyLimitLabel(tierRules.light.daily_community_messages_limit, "community")}
                   muted={muted}
                   primary={primary}
                   text={text}
@@ -1245,19 +1268,19 @@ export default function SubscriptionScreen() {
                   letterSpacing: 0.5,
                 }}
               >
-                SELECT PLAN
+                {t("subscription.select_plan", "SELECT PLAN")}
               </Text>
               <View style={styles.priceRow}>
                 {hasPackageFor("light", "1m") && (
                   <PriceChip
-                    duration={PLAN_DURATION_LABEL["1m"]}
+                    duration={planDurationLabel("1m")}
                     price={
                       findPackageForChoice("light", "1m")?.product
                         .priceString ?? ""
                     }
                     badge={
                       isProductActive("light", "1m")
-                        ? "CURRENT PLAN"
+                        ? t("subscription.badge_current", "CURRENT PLAN")
                         : undefined
                     }
                     badgeColor={primary}
@@ -1272,14 +1295,14 @@ export default function SubscriptionScreen() {
                 )}
                 {hasPackageFor("light", "3m") && (
                   <PriceChip
-                    duration={PLAN_DURATION_LABEL["3m"]}
+                    duration={planDurationLabel("3m")}
                     price={
                       findPackageForChoice("light", "3m")?.product
                         .priceString ?? ""
                     }
                     badge={
                       isProductActive("light", "3m")
-                        ? "CURRENT PLAN"
+                        ? t("subscription.badge_current", "CURRENT PLAN")
                         : undefined
                     }
                     badgeColor={primary}
@@ -1294,14 +1317,14 @@ export default function SubscriptionScreen() {
                 )}
                 {hasPackageFor("light", "6m") && (
                   <PriceChip
-                    duration={PLAN_DURATION_LABEL["6m"]}
+                    duration={planDurationLabel("6m")}
                     price={
                       findPackageForChoice("light", "6m")?.product
                         .priceString ?? ""
                     }
                     badge={
                       isProductActive("light", "6m")
-                        ? "CURRENT PLAN"
+                        ? t("subscription.badge_current", "CURRENT PLAN")
                         : undefined
                     }
                     badgeColor={primary}
@@ -1316,15 +1339,15 @@ export default function SubscriptionScreen() {
                 )}
                 {hasPackageFor("light", "1yr") && (
                   <PriceChip
-                    duration={PLAN_DURATION_LABEL["1yr"]}
+                    duration={planDurationLabel("1yr")}
                     price={
                       findPackageForChoice("light", "1yr")?.product
                         .priceString ?? ""
                     }
                     badge={
                       isProductActive("light", "1yr")
-                        ? "CURRENT PLAN"
-                        : "BEST VALUE"
+                        ? t("subscription.badge_current", "CURRENT PLAN")
+                        : t("subscription.badge_best_value", "BEST VALUE")
                     }
                     badgeColor={
                       isProductActive("light", "1yr") ? primary : "#FF6B00"
@@ -1340,14 +1363,14 @@ export default function SubscriptionScreen() {
                 )}
                 {hasPackageFor("light", "lifetime") && (
                   <PriceChip
-                    duration={PLAN_DURATION_LABEL.lifetime}
+                    duration={planDurationLabel("lifetime")}
                     price={
                       findPackageForChoice("light", "lifetime")?.product
                         .priceString ?? ""
                     }
                     badge={
                       isProductActive("light", "lifetime")
-                        ? "CURRENT PLAN"
+                        ? t("subscription.badge_current", "CURRENT PLAN")
                         : undefined
                     }
                     badgeColor={primary}
@@ -1383,7 +1406,7 @@ export default function SubscriptionScreen() {
                   marginBottom: isCompact ? 16 : 24,
                 }}
               >
-                The complete experience with total freedom.
+                {t("subscription.plus_tagline", "The complete experience with total freedom.")}
               </Text>
 
               <View
@@ -1399,13 +1422,13 @@ export default function SubscriptionScreen() {
                   text={text}
                 />
                 <FeatureRow
-                  label={dailyLimitLabel(tierRules.plus.daily_personal_messages_limit, "personal messages")}
+                  label={dailyLimitLabel(tierRules.plus.daily_personal_messages_limit, "personal")}
                   muted={muted}
                   primary={primary}
                   text={text}
                 />
                 <FeatureRow
-                  label={dailyLimitLabel(tierRules.plus.daily_community_messages_limit, "community messages")}
+                  label={dailyLimitLabel(tierRules.plus.daily_community_messages_limit, "community")}
                   muted={muted}
                   primary={primary}
                   text={text}
@@ -1418,21 +1441,21 @@ export default function SubscriptionScreen() {
                   text={text}
                 />
                 <FeatureRow
-                  label="See who liked you"
+                  label={t("subscription.feature_see_likes", "See who liked you")}
                   available={tierRules.plus.can_see_likes}
                   muted={muted}
                   primary={primary}
                   text={text}
                 />
                 <FeatureRow
-                  label="Rewind swipes"
+                  label={t("subscription.feature_rewind", "Rewind swipes")}
                   available={tierRules.plus.can_undo_swipes}
                   muted={muted}
                   primary={primary}
                   text={text}
                 />
                 <FeatureRow
-                  label="No Ads"
+                  label={t("subscription.feature_no_ads", "No Ads")}
                   muted={muted}
                   primary={primary}
                   text={text}
@@ -1448,18 +1471,18 @@ export default function SubscriptionScreen() {
                   letterSpacing: 0.5,
                 }}
               >
-                SELECT PLAN
+                {t("subscription.select_plan", "SELECT PLAN")}
               </Text>
               <View style={styles.priceRow}>
                 {hasPackageFor("plus", "1m") && (
                   <PriceChip
-                    duration={PLAN_DURATION_LABEL["1m"]}
+                    duration={planDurationLabel("1m")}
                     price={
                       findPackageForChoice("plus", "1m")?.product.priceString ??
                       ""
                     }
                     badge={
-                      isProductActive("plus", "1m") ? "CURRENT PLAN" : undefined
+                      isProductActive("plus", "1m") ? t("subscription.badge_current", "CURRENT PLAN") : undefined
                     }
                     badgeColor={primary}
                     selected={plusPlan === "1m"}
@@ -1473,13 +1496,13 @@ export default function SubscriptionScreen() {
                 )}
                 {hasPackageFor("plus", "3m") && (
                   <PriceChip
-                    duration={PLAN_DURATION_LABEL["3m"]}
+                    duration={planDurationLabel("3m")}
                     price={
                       findPackageForChoice("plus", "3m")?.product.priceString ??
                       ""
                     }
                     badge={
-                      isProductActive("plus", "3m") ? "CURRENT PLAN" : undefined
+                      isProductActive("plus", "3m") ? t("subscription.badge_current", "CURRENT PLAN") : undefined
                     }
                     badgeColor={primary}
                     selected={plusPlan === "3m"}
@@ -1493,14 +1516,14 @@ export default function SubscriptionScreen() {
                 )}
                 {hasPackageFor("plus", "6m") && (
                   <PriceChip
-                    duration={PLAN_DURATION_LABEL["6m"]}
+                    duration={planDurationLabel("6m")}
                     price={
                       findPackageForChoice("plus", "6m")?.product.priceString ??
                       ""
                     }
                     badge={
                       isProductActive("plus", "6m")
-                        ? "CURRENT PLAN"
+                        ? t("subscription.badge_current", "CURRENT PLAN")
                         : undefined
                     }
                     badgeColor={primary}
@@ -1515,15 +1538,15 @@ export default function SubscriptionScreen() {
                 )}
                 {hasPackageFor("plus", "1yr") && (
                   <PriceChip
-                    duration={PLAN_DURATION_LABEL["1yr"]}
+                    duration={planDurationLabel("1yr")}
                     price={
                       findPackageForChoice("plus", "1yr")?.product
                         .priceString ?? ""
                     }
                     badge={
                       isProductActive("plus", "1yr")
-                        ? "CURRENT PLAN"
-                        : "BEST VALUE"
+                        ? t("subscription.badge_current", "CURRENT PLAN")
+                        : t("subscription.badge_best_value", "BEST VALUE")
                     }
                     badgeColor={
                       isProductActive("plus", "1yr") ? primary : "#FF6B00"
@@ -1539,14 +1562,14 @@ export default function SubscriptionScreen() {
                 )}
                 {hasPackageFor("plus", "lifetime") && (
                   <PriceChip
-                    duration={PLAN_DURATION_LABEL.lifetime}
+                    duration={planDurationLabel("lifetime")}
                     price={
                       findPackageForChoice("plus", "lifetime")?.product
                         .priceString ?? ""
                     }
                     badge={
                       isProductActive("plus", "lifetime")
-                        ? "CURRENT PLAN"
+                        ? t("subscription.badge_current", "CURRENT PLAN")
                         : undefined
                     }
                     badgeColor={primary}
@@ -1580,7 +1603,7 @@ export default function SubscriptionScreen() {
                 textTransform: "uppercase",
               }}
             >
-              Specialized Add-ons
+              {t("subscription.addons_title", "Specialized Add-ons")}
             </Text>
 
             {/* Perfect Match */}
@@ -1604,12 +1627,12 @@ export default function SubscriptionScreen() {
                   <Text
                     style={{ fontSize: 15, fontWeight: "700", color: "#FFF" }}
                   >
-                    Perfect Match Analysis
+                    {t("subscription.match_analysis_title", "Perfect Match Analysis")}
                   </Text>
                   <Text
                     style={{ fontSize: 13, color: "#A0B8AA", marginTop: 2 }}
                   >
-                    Deep compatibility insights.
+                    {t("subscription.match_analysis_desc", "Deep compatibility insights.")}
                   </Text>
                 </View>
                 {hasMatchAnalysis ? (
@@ -1629,7 +1652,7 @@ export default function SubscriptionScreen() {
                         letterSpacing: 0.5,
                       }}
                     >
-                      SUBSCRIBED
+                      {t("subscription.subscribed_badge", "SUBSCRIBED")}
                     </Text>
                   </View>
                 ) : (
@@ -1644,7 +1667,7 @@ export default function SubscriptionScreen() {
                     <Text
                       style={{ color: "#FFF", fontWeight: "700", fontSize: 13 }}
                     >
-                      {matchAnalysisPackage?.product.priceString ?? "Unavailable"}
+                      {matchAnalysisPackage?.product.priceString ?? t("subscription.unavailable", "Unavailable")}
                     </Text>
                   </View>
                 )}
@@ -1674,7 +1697,7 @@ export default function SubscriptionScreen() {
                       fontWeight: "500",
                     }}
                   >
-                    Top 5 compatible matches
+                    {t("subscription.match_analysis_top5", "Top 5 compatible matches")}
                   </Text>
                 </View>
                 <View
@@ -1696,7 +1719,7 @@ export default function SubscriptionScreen() {
                       fontWeight: "500",
                     }}
                   >
-                    Compatibility percentage scores
+                    {t("subscription.match_analysis_scores", "Compatibility percentage scores")}
                   </Text>
                 </View>
               </View>
@@ -1707,7 +1730,7 @@ export default function SubscriptionScreen() {
                     disabled: !matchAnalysisPackage || isPurchasing,
                   }}
                   onPress={() =>
-                    handleAddonPurchase("Perfect Match Analysis")
+                    handleAddonPurchase(t("subscription.match_analysis_title", "Perfect Match Analysis"))
                   }
                   style={({ pressed }) => ({
                     backgroundColor: matchAnalysisPackage ? "#FFF" : "#D8DEDA",
@@ -1724,7 +1747,7 @@ export default function SubscriptionScreen() {
                       fontSize: 14,
                     }}
                   >
-                    {matchAnalysisPackage ? "Get Add-on" : "Currently unavailable"}
+                    {matchAnalysisPackage ? t("subscription.get_addon", "Get Add-on") : t("subscription.currently_unavailable", "Currently unavailable")}
                   </Text>
                 </Pressable>
               ) : (
@@ -1745,7 +1768,7 @@ export default function SubscriptionScreen() {
                       fontSize: 14,
                     }}
                   >
-                    Subscribed
+                    {t("subscription.subscribed", "Subscribed")}
                   </Text>
                 </Pressable>
               )}
@@ -1770,7 +1793,7 @@ export default function SubscriptionScreen() {
               }}
             >
               <Text style={{ color: primary, fontWeight: "700", fontSize: 14 }}>
-                Restore Purchases
+                {t("subscription.restore", "Restore Purchases")}
               </Text>
             </TouchableOpacity>
             <View
@@ -1793,7 +1816,7 @@ export default function SubscriptionScreen() {
                     textDecorationLine: "underline",
                   }}
                 >
-                  Terms of Service
+                  {t("subscription.terms", "Terms of Service")}
                 </Text>
               </TouchableOpacity>
               <Text style={{ color: muted, fontSize: 11 }}>•</Text>
@@ -1809,7 +1832,7 @@ export default function SubscriptionScreen() {
                     textDecorationLine: "underline",
                   }}
                 >
-                  Privacy Policy
+                  {t("subscription.privacy", "Privacy Policy")}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -1847,16 +1870,16 @@ export default function SubscriptionScreen() {
               }}
             >
               {selectedProductIsActive
-                ? "Current Plan"
+                ? t("subscription.current_plan", "Current Plan")
                 : activeTab === "Premium Light"
                   ? currentTier === "plus"
-                    ? `Downgrade to ${tierRules.light.name}`
+                    ? t("subscription.downgrade_to", { defaultValue: "Downgrade to {{name}}", name: tierRules.light.name })
                     : currentTier === "light"
-                      ? "Change Plan"
-                      : `Upgrade to ${tierRules.light.name}`
+                      ? t("subscription.change_plan", "Change Plan")
+                      : t("subscription.upgrade_to", { defaultValue: "Upgrade to {{name}}", name: tierRules.light.name })
                   : currentTier === "plus"
-                    ? "Change Plan"
-                    : `Go ${tierRules.plus.name}`}
+                    ? t("subscription.change_plan", "Change Plan")
+                    : t("subscription.go_plan", { defaultValue: "Go {{name}}", name: tierRules.plus.name })}
             </Button>
             <Text
               style={{
@@ -1867,8 +1890,7 @@ export default function SubscriptionScreen() {
                 paddingHorizontal: 20,
               }}
             >
-              Secure checkout. You agree to let the app auto-renew. Manage or
-              cancel in your in-account settings.
+              {t("subscription.checkout_note", "Secure checkout. You agree to let the app auto-renew. Manage or cancel in your in-account settings.")}
             </Text>
           </View>
         )}
