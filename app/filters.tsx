@@ -648,7 +648,7 @@ export default function FiltersScreen() {
         </View>
 
         <View style={{ flex: 1 }}>
-          <ScrollView
+          <ScrollView showsVerticalScrollIndicator={false}
             style={{ flex: 1 }}
             contentContainerStyle={styles.scrollContent}
             scrollEnabled

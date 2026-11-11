@@ -45,7 +45,7 @@ export default function ResetPasswordScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={{ flexGrow: 1, backgroundColor: background }}>
+    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, backgroundColor: background }}>
       <View
         style={{
           flex: 1,

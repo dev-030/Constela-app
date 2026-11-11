@@ -44,7 +44,7 @@ export default function NewPasswordScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={{ flexGrow: 1, backgroundColor: background }}>
+    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, backgroundColor: background }}>
       <View style={{ flex: 1, width: "100%", maxWidth: 480, alignSelf: "center", paddingHorizontal: horizontalPadding, paddingTop: insets.top + (isCompact ? 20 : 32), paddingBottom: 32 }}>
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: size(24, 18) }}>
           <View style={{ flexDirection: "row", alignItems: "center" }}>

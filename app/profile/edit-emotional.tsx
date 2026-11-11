@@ -107,7 +107,7 @@ export default function EditEmotionalScreen() {
         <View style={styles.backBtn} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         
         <Text style={[styles.introText, { color: muted }]}>
           {t('onboarding.step7_subtitle')}

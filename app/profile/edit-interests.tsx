@@ -92,7 +92,7 @@ export default function EditInterestsScreen() {
         <View style={styles.backBtn} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         
         <Text style={styles.title}>{t('onboarding.step6_title')}</Text>
         <Text style={[styles.subtitle, { color: muted }]}>{t('onboarding.step6_subtitle')}</Text>

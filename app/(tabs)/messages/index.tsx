@@ -455,7 +455,7 @@ function ConversationList({
 
   if (isError) {
     return (
-      <ScrollView
+      <ScrollView showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.centered}
         refreshControl={
           <RefreshControl
@@ -475,7 +475,7 @@ function ConversationList({
 
   if (threads.length === 0) {
     return (
-      <ScrollView
+      <ScrollView showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.centered}
         refreshControl={
           <RefreshControl
@@ -531,7 +531,7 @@ function ConversationList({
               </View>
             )}
           </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.activeRowScroll}>
+          <ScrollView showsVerticalScrollIndicator={false} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.activeRowScroll}>
             {topBarThreads.map((thread) => {
               const pid = String(thread.profile.id);
               const isOnline = !!onlineUsers[pid] || !!onlineUsers[pid.toLowerCase()];

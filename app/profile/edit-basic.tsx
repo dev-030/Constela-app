@@ -283,7 +283,7 @@ export default function EditBasicScreen() {
         <View style={styles.backBtn} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         {/* Profile Photos */}
         <Text style={styles.sectionTitle}>{t('onboarding.upload_photos', 'PROFILE PHOTOS (UP TO 3)')}</Text>
         <View style={styles.photoGrid}>

@@ -78,7 +78,7 @@ export default function OtpScreen() {
   };
 
   return (
-    <ScrollView
+    <ScrollView showsVerticalScrollIndicator={false}
       contentContainerStyle={{ flexGrow: 1, backgroundColor: background }}
     >
       <View

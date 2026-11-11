@@ -45,7 +45,7 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={{ flexGrow: 1, backgroundColor: background }}>
+    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, backgroundColor: background }}>
       <View
         style={{
           flex: 1,

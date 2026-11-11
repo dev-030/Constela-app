@@ -149,7 +149,7 @@ export default function ProfileDetailScreen() {
       >
         {/* Hero Images - Stable container so expo-image uses memory cache with zero flicker */}
         <View style={styles.heroImageContainer}>
-          <ScrollView
+          <ScrollView showsVerticalScrollIndicator={false}
             horizontal
             pagingEnabled
             nestedScrollEnabled

@@ -249,7 +249,7 @@ export default function OnboardingEmotionalScreen() {
       </View>
 
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <Text style={[styles.introText, { color: muted }]}>
           {t("onboarding.emotional_intro", "Understanding your emotional needs helps us find connections who truly \"get\" your rhythm. Skip anything you're not ready to share.")}
         </Text>

@@ -68,7 +68,7 @@ export default function SupportScreen() {
         <View style={styles.headerRight} />
       </View>
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={[styles.subtitle, { color: muted }]}>
           {t('settings_pages.need_help')}
         </Text>

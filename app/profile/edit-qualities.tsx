@@ -103,7 +103,7 @@ export default function EditQualitiesScreen() {
         <View style={styles.backBtn} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         
         <Text style={styles.title}>{t('onboarding.step5_title')}</Text>
         <Text style={[styles.subtitle, { color: muted }]}>{t('onboarding.step5_subtitle')}</Text>

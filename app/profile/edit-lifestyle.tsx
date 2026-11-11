@@ -124,7 +124,7 @@ export default function EditLifestyleScreen() {
         <Text style={styles.headerTitle}>{t('edit_profile.lifestyle_rel')}</Text>
         <View style={styles.backBtn} />
       </View>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         
         <Text style={styles.sectionTitle}>{t('edit_profile.children')}</Text>
         {renderPillGroup(t('edit_profile.have_children'), ["Yes", "No"], hasChildren, setHasChildren)}

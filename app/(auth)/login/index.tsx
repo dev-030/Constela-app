@@ -115,7 +115,7 @@ export default function LoginScreen() {
       style={{ flex: 1, backgroundColor: background }}
       edges={["top", "bottom"]}
     >
-      <KeyboardAwareScrollView
+      <KeyboardAwareScrollView showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           flexGrow: 1,
           alignItems: "center",

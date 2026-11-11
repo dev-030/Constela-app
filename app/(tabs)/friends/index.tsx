@@ -572,7 +572,7 @@ export default function FriendsScreen() {
           {requests.length === 1 ? (
             renderRequestCard(requests[0], false)
           ) : (
-            <ScrollView
+            <ScrollView showsVerticalScrollIndicator={false}
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.horizontalRequestsList}

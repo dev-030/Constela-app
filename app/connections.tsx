@@ -750,7 +750,7 @@ export default function ConnectionsScreen() {
       )}
 
       {isError && (
-        <ScrollView
+        <ScrollView showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.centered}
           refreshControl={
             <RefreshControl

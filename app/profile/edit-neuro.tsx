@@ -95,7 +95,7 @@ export default function EditNeuroScreen() {
         <View style={styles.backBtn} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <Text style={styles.title}>{t('edit_profile.select_neurotypes')}</Text>
         <Text style={[styles.subtitle, { color: muted }]}>{t('onboarding.step6_subtitle')}</Text>
 

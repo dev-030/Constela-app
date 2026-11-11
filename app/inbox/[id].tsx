@@ -1660,7 +1660,7 @@ export default function ChatScreen() {
             {/* ── Quick Emoji Bar ── */}
             {showEmojiPicker && (
               <View style={[styles.emojiBar, { backgroundColor: card, borderTopColor: border + "25" }]}>
-                <FlatList
+                <FlatList showsVerticalScrollIndicator={false}
                   data={QUICK_EMOJIS}
                   horizontal
                   showsHorizontalScrollIndicator={false}
