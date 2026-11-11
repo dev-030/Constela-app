@@ -485,15 +485,23 @@ function ChatMessageImage({
   imageUrlExpiresAt,
   style,
   transition = 100,
+  expandable = false,
+  onLongPress,
 }: {
   messageId: string;
   imageUrl: string;
   imageUrlExpiresAt?: string | null;
   style: any;
   transition?: number;
+  /** Tap opens the photo full screen. */
+  expandable?: boolean;
+  /** Forwarded so long-press (reactions) still works on image bubbles. */
+  onLongPress?: () => void;
 }) {
   const fullImageUrl = absoluteMediaUrl(imageUrl);
   const [sourceUrl, setSourceUrl] = useState(fullImageUrl);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const insets = useSafeAreaInsets();
   const refreshingRef = useRef(false);
   const retriedRef = useRef(false);
 
@@ -523,7 +531,7 @@ function ChatMessageImage({
     }
   }, [imageUrlExpiresAt, refreshImage]);
 
-  return (
+  const thumbnail = (
     <Image
       source={{ uri: sourceUrl }}
       style={style}
@@ -532,6 +540,60 @@ function ChatMessageImage({
       transition={transition}
       onError={() => { void refreshImage(); }}
     />
+  );
+
+  if (!expandable) return thumbnail;
+
+  return (
+    <>
+      <Pressable
+        onPress={() => setViewerOpen(true)}
+        onLongPress={onLongPress}
+        accessibilityRole="imagebutton"
+      >
+        {thumbnail}
+      </Pressable>
+
+      <Modal
+        visible={viewerOpen}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setViewerOpen(false)}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.95)" }}
+          onPress={() => setViewerOpen(false)}
+        >
+          <Image
+            source={{ uri: sourceUrl }}
+            style={{ flex: 1 }}
+            contentFit="contain"
+            cachePolicy="memory"
+            transition={150}
+            onError={() => { void refreshImage(); }}
+          />
+          <Pressable
+            onPress={() => setViewerOpen(false)}
+            hitSlop={12}
+            accessibilityRole="button"
+            style={{
+              position: "absolute",
+              top: insets.top + 12,
+              right: 16,
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: "rgba(255,255,255,0.15)",
+            }}
+          >
+            <X size={22} color="#fff" />
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </>
   );
 }
 
@@ -730,6 +792,8 @@ function MessageBubble({
               imageUrlExpiresAt={msg.image_url_expires_at}
               style={bubbleStyles.image}
               transition={100}
+              expandable
+              onLongPress={openReactionBar}
             />
           )}
 
@@ -982,6 +1046,8 @@ export default function ChatScreen() {
     [recipientId, sendMessageReaction],
   );
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  // Photo picked from the gallery/camera, waiting for the user to confirm "Send".
+  const [pendingImage, setPendingImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [isUploadingAudio, setIsUploadingAudio] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recipientTyping, setRecipientTyping] = useState(false);
@@ -1222,16 +1288,20 @@ export default function ChatScreen() {
     } catch {}
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert("Permission needed", "We need gallery access to share photos.");
+      Alert.alert(
+        t("chat.permission_needed", "Permission needed"),
+        t("chat.gallery_permission", "We need gallery access to share photos."),
+      );
       return;
     }
+    // No allowsEditing: the native crop screen shows an OS-labelled
+    // "Crop/Redimensionner" button. We show our own translated preview instead.
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
       quality: 0.7,
     });
     if (!result.canceled && result.assets?.length) {
-      await uploadAndSendImage(result.assets[0]);
+      setPendingImage(result.assets[0]);
     }
   };
 
@@ -1241,15 +1311,17 @@ export default function ChatScreen() {
     } catch {}
     const perm = await ImagePicker.requestCameraPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert("Permission needed", "We need camera access to take photos.");
+      Alert.alert(
+        t("chat.permission_needed", "Permission needed"),
+        t("chat.camera_permission", "We need camera access to take photos."),
+      );
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
       quality: 0.7,
     });
     if (!result.canceled && result.assets?.length) {
-      await uploadAndSendImage(result.assets[0]);
+      setPendingImage(result.assets[0]);
     }
   };
 
@@ -1861,6 +1933,67 @@ export default function ChatScreen() {
           </>
         )}
       </KeyboardAvoidingView>
+
+      {/* ── Photo preview before sending ── */}
+      <Modal
+        visible={!!pendingImage}
+        animationType="fade"
+        onRequestClose={() => setPendingImage(null)}
+      >
+        <View style={{ flex: 1, backgroundColor: "#000" }}>
+          {pendingImage && (
+            <Image
+              source={{ uri: pendingImage.uri }}
+              style={{ flex: 1 }}
+              contentFit="contain"
+            />
+          )}
+          <View
+            style={{
+              flexDirection: "row",
+              gap: 12,
+              paddingHorizontal: 16,
+              paddingTop: 12,
+              paddingBottom: Math.max(insets.bottom, 16),
+              backgroundColor: "#000",
+            }}
+          >
+            <Pressable
+              onPress={() => setPendingImage(null)}
+              style={{
+                flex: 1,
+                paddingVertical: 14,
+                borderRadius: 24,
+                alignItems: "center",
+                borderWidth: 1,
+                borderColor: "rgba(255,255,255,0.4)",
+              }}
+            >
+              <Text style={{ color: "#fff", fontSize: 16, fontWeight: "600" }}>
+                {t("chat.cancel", "Cancel")}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                const asset = pendingImage;
+                setPendingImage(null);
+                if (asset) uploadAndSendImage(asset);
+              }}
+              style={{
+                flex: 1,
+                paddingVertical: 14,
+                borderRadius: 24,
+                alignItems: "center",
+                backgroundColor: primary,
+              }}
+            >
+              <Text style={{ color: "#fff", fontSize: 16, fontWeight: "700" }}>
+                {t("chat.send", "Send")}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
 
       {/* ── Chat Action Menu ── */}
       <Modal

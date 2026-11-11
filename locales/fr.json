@@ -618,6 +618,7 @@
     "leave_room_desc": "Vous ne recevrez plus les messages de {{title}}.",
     "leave": "Quitter",
     "cancel": "Annuler",
+    "send": "Envoyer",
     "couldnt_leave": "Impossible de quitter",
     "please_try_again": "Veuillez réessayer.",
     "room_options": "Options du salon",

@@ -618,6 +618,7 @@
     "leave_room_desc": "You'll stop receiving messages from {{title}}.",
     "leave": "Leave",
     "cancel": "Cancel",
+    "send": "Send",
     "couldnt_leave": "Couldn't leave",
     "please_try_again": "Please try again.",
     "room_options": "Room Options",
