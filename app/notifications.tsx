@@ -13,6 +13,7 @@ import { ActivityIndicator, FlatList, RefreshControl } from "react-native";
 import { useEffect } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { useTranslation } from "react-i18next";
+import { NotificationPermissionBanner } from "@/components/notification-permission-banner";
 
 const getIconForType = (type: string) => {
   switch (type) {
@@ -96,6 +97,9 @@ export default function NotificationsScreen() {
         <Text style={[styles.headerTitle, { color: text }]}>{t('notifications.title')}</Text>
         <View style={styles.headerRight} />
       </View>
+
+      {/* Stays visible (outside the list) until notifications are allowed on this device. */}
+      <NotificationPermissionBanner />
 
       {query.isLoading ? (
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>

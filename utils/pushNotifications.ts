@@ -30,6 +30,26 @@ const asData = (message: RemoteMessage | null | undefined) =>
   message?.data as PushNotificationData | undefined;
 
 /**
+ * Whether this device will actually show our notifications, checked WITHOUT
+ * prompting the user. Covers the Android 13+ runtime grant, notifications
+ * switched off in the system settings (any Android version) and iOS.
+ * Errors count as "enabled" so we never nag because of a failed check.
+ */
+export async function areNotificationsEnabled(): Promise<boolean> {
+  if (Platform.OS === 'web') return true;
+  try {
+    if (Platform.OS === 'android' && Platform.Version >= 33) {
+      const granted = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
+      if (!granted) return false;
+    }
+    const status = await hasPermission(getMessaging());
+    return status === AuthorizationStatus.AUTHORIZED || status === AuthorizationStatus.PROVISIONAL;
+  } catch {
+    return true;
+  }
+}
+
+/**
  * Android 13+ only shows notifications after the POST_NOTIFICATIONS runtime grant;
  * Firebase's requestPermission does not ask for it on Android.
  */

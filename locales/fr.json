@@ -463,7 +463,10 @@
   },
   "notifications": {
     "title": "Notifications",
-    "empty": "Vous n'avez aucune notification pour le moment."
+    "empty": "Vous n'avez aucune notification pour le moment.",
+    "permission_title": "Les notifications sont désactivées",
+    "permission_desc": "Activez-les pour ne manquer aucun nouveau match, message ou demande d’ami.",
+    "permission_button": "Activer"
   },
   "sent_requests": {
     "title": "Demandes envoyées",

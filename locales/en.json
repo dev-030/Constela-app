@@ -463,7 +463,10 @@
   },
   "notifications": {
     "title": "Notifications",
-    "empty": "You have no notifications yet."
+    "empty": "You have no notifications yet.",
+    "permission_title": "Notifications are turned off",
+    "permission_desc": "Turn them on so you don't miss new matches, messages and friend requests.",
+    "permission_button": "Turn on"
   },
   "sent_requests": {
     "title": "Sent Requests",
