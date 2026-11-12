@@ -12,6 +12,22 @@ import {
   Lightbulb,
   VolumeX,
   CheckCircle2,
+  MapPin,
+  User,
+  Heart,
+  Ruler,
+  BookOpen,
+  Globe,
+  Baby,
+  Users,
+  Cigarette,
+  Wine,
+  PawPrint,
+  Dumbbell,
+  Utensils,
+  Smile,
+  Leaf,
+  type LucideIcon,
 } from "lucide-react-native";
 
 import { Text } from "@/components/ui/text";
@@ -109,6 +125,85 @@ export default function ProfileDetailScreen() {
   const SectionHeader = ({ title }: { title: string }) => (
     <Text style={[styles.sectionTitle, { color: muted }]}>{title}</Text>
   );
+
+  // One "label — value" line inside a details card.
+  const DetailRow = ({
+    icon,
+    title,
+    value,
+    isLast = false,
+  }: {
+    icon: LucideIcon;
+    title: string;
+    value: React.ReactNode;
+    isLast?: boolean;
+  }) => (
+    <View
+      style={[
+        styles.detailRow,
+        !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: isDark ? "#38383A" : "#E5E5EA" },
+      ]}
+    >
+      <View style={[styles.detailIcon, { backgroundColor: primary + "15" }]}>
+        <Icon name={icon} size={16} color={primary} />
+      </View>
+      <Text style={[styles.detailLabel, { color: text }]}>{title}</Text>
+      {typeof value === "string" ? (
+        <Text style={[styles.detailValue, { color: muted }]}>{value}</Text>
+      ) : (
+        value
+      )}
+    </View>
+  );
+
+  const yesNo = (v?: boolean | null) => (v ? t("profile.yes") : t("profile.no"));
+  const p = fullProfile as any;
+
+  // Basic facts: only rows the person actually filled in.
+  const aboutRows: { icon: LucideIcon; title: string; value: React.ReactNode }[] = p
+    ? [
+        (p.city || p.country) && {
+          icon: MapPin,
+          title: t("profile.city"),
+          value: [p.city, p.country].filter(Boolean).join(", "),
+        },
+        p.gender && { icon: User, title: t("profile.gender"), value: label(p.gender) },
+        p.marital_status && { icon: Heart, title: t("profile.marital_status"), value: label(p.marital_status) },
+        (p.height_cm || p.weight_kg) && {
+          icon: Ruler,
+          title: t("profile.height_weight"),
+          value: [p.height_cm ? `${p.height_cm} cm` : null, p.weight_kg ? `${p.weight_kg} kg` : null]
+            .filter(Boolean)
+            .join(" · "),
+        },
+        p.education_level && { icon: BookOpen, title: t("profile.education"), value: label(p.education_level) },
+        p.spoken_languages?.length > 0 && {
+          icon: Globe,
+          title: t("profile.languages"),
+          value: (
+            <View style={styles.inlineTags}>
+              {p.spoken_languages.map((lang: string) => (
+                <View key={lang} style={[styles.inlineTag, { backgroundColor: primary + "15" }]}>
+                  <Text style={[styles.inlineTagText, { color: primary }]}>{lang}</Text>
+                </View>
+              ))}
+            </View>
+          ),
+        },
+      ].filter(Boolean) as any
+    : [];
+
+  const lifestyleRows: { icon: LucideIcon; title: string; value: string }[] = p
+    ? ([
+        { icon: Baby, title: t("profile.has_children"), value: yesNo(p.has_children) },
+        { icon: Users, title: t("profile.wants_children"), value: yesNo(p.wants_children) },
+        { icon: Cigarette, title: t("profile.smoking"), value: yesNo(p.smoking) },
+        { icon: Wine, title: t("profile.alcohol"), value: yesNo(p.alcohol) },
+        { icon: PawPrint, title: t("profile.pets"), value: yesNo(p.pets) },
+        p.sport && { icon: Dumbbell, title: t("profile.sport"), value: label(p.sport) },
+        p.eating_habits && { icon: Utensils, title: t("profile.eating_habits"), value: label(p.eating_habits) },
+      ].filter(Boolean) as any)
+    : [];
 
   return (
     <View style={[styles.container, { backgroundColor: background }]}>
@@ -243,6 +338,18 @@ export default function ProfileDetailScreen() {
           </View>
         )}
 
+        {/* About: basic facts */}
+        {aboutRows.length > 0 && (
+          <>
+            <SectionHeader title={t("profile.basic_info").toUpperCase()} />
+            <View style={[styles.detailCard, { backgroundColor: cardColor }]}>
+              {aboutRows.map((row, i) => (
+                <DetailRow key={row.title} {...row} isLast={i === aboutRows.length - 1} />
+              ))}
+            </View>
+          </>
+        )}
+
         {/* Neurotype */}
         {fullProfile?.neurotype_labels && fullProfile.neurotype_labels.length > 0 && (
           <>
@@ -333,6 +440,40 @@ export default function ProfileDetailScreen() {
                 </View>
               </View>
             ))}
+          </>
+        )}
+
+        {/* Soothing & humour */}
+        {p?.soothe_methods?.length > 0 && (
+          <>
+            <SectionHeader title={t("profile.soothes").toUpperCase()} />
+            <View style={styles.pillRow}>
+              {p.soothe_methods.map((s: string) => (
+                <View key={s} style={[styles.interestPill, { backgroundColor: "#DCEDC8" }]}>
+                  <Icon name={Leaf} size={14} color="#33691E" />
+                  <Text style={[styles.interestText, { color: "#33691E" }]}>{listLabel("soothes", s)}</Text>
+                </View>
+              ))}
+            </View>
+          </>
+        )}
+
+        {/* Lifestyle */}
+        {lifestyleRows.length > 0 && (
+          <>
+            <SectionHeader title={t("profile.lifestyle").toUpperCase()} />
+            <View style={[styles.detailCard, { backgroundColor: cardColor }]}>
+              {p && (
+                <DetailRow
+                  icon={Smile}
+                  title={t("profile.humor")}
+                  value={p.second_degree_humor ? t("profile.humor_second") : t("profile.humor_normal")}
+                />
+              )}
+              {lifestyleRows.map((row, i) => (
+                <DetailRow key={row.title} {...row} isLast={i === lifestyleRows.length - 1} />
+              ))}
+            </View>
           </>
         )}
 
@@ -500,6 +641,48 @@ const styles = StyleSheet.create({
     color: "#FFF",
     fontSize: 14,
     fontWeight: "bold",
+  },
+  detailCard: {
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  detailRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 13,
+    paddingHorizontal: 14,
+    gap: 12,
+  },
+  detailIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  detailLabel: {
+    fontSize: 15,
+  },
+  detailValue: {
+    flex: 1,
+    fontSize: 15,
+    textAlign: "right",
+  },
+  inlineTags: {
+    flex: 1,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "flex-end",
+    gap: 6,
+  },
+  inlineTag: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  inlineTagText: {
+    fontSize: 13,
+    fontWeight: "600",
   },
   skeletonContainer: {
     paddingTop: 8,
