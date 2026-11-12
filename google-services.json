@@ -14,11 +14,27 @@
       },
       "oauth_client": [
         {
-          "client_id": "504633031372-iv1s6845f2lcraht9a891nn5dof19bo5.apps.googleusercontent.com",
+          "client_id": "504633031372-2bov74b3r53qpichb14c56jnmadk4v8r.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.constela.app",
-            "certificate_hash": "020ab4407732a4a6b2a46b41cae52c5f60aded9e"
+            "certificate_hash": "6d2cecd9729cb5b8ed2297a6b94bb0e0184e87e4"
+          }
+        },
+        {
+          "client_id": "504633031372-9pq3gcgsg6q481u5087ogj42f89740l5.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.constela.app",
+            "certificate_hash": "29e4245aafd35ea0b71117d98c035a41df3c27bd"
+          }
+        },
+        {
+          "client_id": "504633031372-ufpuu686mo2tg4ccr6ofpbnuup97qr1t.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.constela.app",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
           }
         },
         {
@@ -37,6 +53,13 @@
             {
               "client_id": "504633031372-14dbhe821adkj85sarl3g1otq3gu10um.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "504633031372-ipgql8dgljgh3lpct759l9ln1u1tllvm.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.constela.app"
+              }
             }
           ]
         }

@@ -9,9 +9,9 @@ import { useTranslation } from "react-i18next";
 import { LanguagePickerButton } from "@/components/LanguagePickerButton";
 import { ActivityIndicator, Image, Pressable, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Camera, useCameraDevice, useCameraPermission } from "react-native-vision-camera";
+import { CameraView, useCameraPermissions } from "expo-camera";
 import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
-import { showPermissionBlockedAlert } from "@/utils/permissions";
+import { ensureExpoPermission } from "@/utils/permissions";
 import { showAlert } from "@/components/ui/app-alert";
 
 /**
@@ -32,9 +32,11 @@ export default function PhotoVerificationScreen() {
   const card = useColor("card");
   const border = useColor("border");
 
-  const device = useCameraDevice("front");
-  const { hasPermission, requestPermission } = useCameraPermission();
-  const cameraRef = useRef<Camera>(null);
+  const [permission, requestPermission] = useCameraPermissions();
+  const hasPermission = Boolean(permission?.granted);
+  const cameraRef = useRef<CameraView>(null);
+  // The shutter is enabled once the preview is actually running.
+  const [cameraReady, setCameraReady] = useState(false);
 
   const [capturedUri, setCapturedUri] = useState<string | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
@@ -44,23 +46,24 @@ export default function PhotoVerificationScreen() {
   const { fetchProfile } = useProfileStore();
   const faceVerify = useFaceVerifyMutation();
 
+  // Ask once when the screen opens (only while the OS can still show its prompt).
   useEffect(() => {
-    if (!hasPermission) void requestPermission();
-  }, [hasPermission]);
+    if (permission && !permission.granted && permission.canAskAgain) void requestPermission();
+  }, [permission?.granted, permission?.canAskAgain]);
 
   // Ask again; if the OS no longer shows its prompt, offer the Settings shortcut.
-  const handleGrantCamera = async () => {
-    const granted = await requestPermission();
-    if (!granted) showPermissionBlockedAlert("camera");
+  const handleGrantCamera = () => {
+    void ensureExpoPermission("camera", requestPermission);
   };
 
   const takePicture = async () => {
-    if (!cameraRef.current || isCapturing) return;
+    if (!cameraRef.current || !cameraReady || isCapturing) return;
     setError("");
     setIsCapturing(true);
     try {
-      const photo = await cameraRef.current.takePhoto({ flash: "off", enableShutterSound: true });
-      const uri = photo.path.startsWith("file://") ? photo.path : `file://${photo.path}`;
+      const photo = await cameraRef.current.takePictureAsync({ quality: 0.9, shutterSound: true });
+      if (!photo?.uri) throw new Error("No photo returned");
+      const uri = photo.uri;
       // Keep uploads small but sharp enough for a side-by-side review.
       const resized = await manipulateAsync(uri, [{ resize: { width: 1080 } }], {
         compress: 0.85,
@@ -117,22 +120,23 @@ export default function PhotoVerificationScreen() {
         </Pressable>
       );
     }
-    if (!device) {
-      return (
-        <View style={styles.centerFill}>
-          <ActivityIndicator size="large" color={primary} />
-        </View>
-      );
-    }
     return (
       <>
-        <Camera
+        <CameraView
           ref={cameraRef}
-          device={device}
-          isActive={!capturedUri}
-          photo
+          facing="front"
+          mode="picture"
           style={StyleSheet.absoluteFill}
+          onCameraReady={() => setCameraReady(true)}
+          onMountError={() =>
+            setError(t("onboarding.photo_verify_capture_failed", "Couldn't take the photo. Please try again."))
+          }
         />
+        {!cameraReady && (
+          <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.centerFill]}>
+            <ActivityIndicator size="large" color={primary} />
+          </View>
+        )}
         {/* Face guide */}
         <View pointerEvents="none" style={styles.guideWrap}>
           <View style={styles.guideOval} />
@@ -176,12 +180,12 @@ export default function PhotoVerificationScreen() {
           <View style={styles.shutterRow}>
             <Pressable
               onPress={takePicture}
-              disabled={!hasPermission || !device || isCapturing}
+              disabled={!hasPermission || !cameraReady || isCapturing}
               accessibilityRole="button"
               accessibilityLabel={t("onboarding.photo_verify_take", "Take photo")}
               style={({ pressed }) => [
                 styles.shutterOuter,
-                { borderColor: primary, opacity: !hasPermission || !device ? 0.4 : pressed ? 0.8 : 1 },
+                { borderColor: primary, opacity: !hasPermission || !cameraReady ? 0.4 : pressed ? 0.8 : 1 },
               ]}
             >
               <View style={[styles.shutterInner, { backgroundColor: primary }]}>
@@ -196,6 +200,7 @@ export default function PhotoVerificationScreen() {
           <View style={styles.actionsRow}>
             <Pressable
               onPress={() => {
+                setCameraReady(false);
                 setCapturedUri(null);
                 setError("");
               }}
