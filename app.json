@@ -110,6 +110,10 @@
         "projectId": "8f1fa995-62f4-455f-8e62-0751c2ea1a6a"
       }
     },
-    "owner": "chahiras-team"
+    "owner": "chahiras-team",
+    "notification": {
+      "icon": "./assets/images/notification_icon.png",
+      "color": "#DE4177"
+    }
   }
 }
